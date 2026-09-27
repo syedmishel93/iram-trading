@@ -105,9 +105,25 @@
 
 /* ---------------------------------------------------------------- MENU --- */
 
+/**
+ * THE PANEL SIZES TO ITS CONTENT.
+ *
+ * It did not, and that was the defect. `.menu-item` was `width: 100%`, which
+ * pins every row to whatever the PANEL already is — so no row could ever push
+ * the panel wider and it sat at `min-width` forever, however long the labels
+ * were. Measured in the browser: a 216px panel clipping "Knowledge" to
+ * "Knowledg…" with 124px of empty spacer in the same row.
+ *
+ * A column flex container takes its width from its widest item, so the rows now
+ * decide and `max-width` is the only cap. Raised to 420px because these menus
+ * carry a name AND a four-word note: at 340 the note had to be cut on almost
+ * every row, and a description trimmed to two words is noise rather than help.
+ */
 .menu {
+  display: flex;
+  flex-direction: column;
   min-width: 216px;
-  max-width: 340px;
+  max-width: 420px;
   padding: var(--sp-2);
   border-radius: var(--r-3);
   border: 1px solid var(--border-hi);
@@ -122,7 +138,9 @@
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  width: 100%;
+  /* NOT `width: 100%` — see `.menu`. In a column flex the row already stretches
+     to the panel, and a hard 100% stopped the panel ever growing to fit. */
+  flex: 0 0 auto;
   height: var(--h-ctl-sm);
   padding: 0 var(--sp-3);
   border-radius: var(--r-2);
@@ -145,8 +163,32 @@
   color: var(--accent);
   text-align: center;
 }
-.menu-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.menu-spacer { flex: 1; min-width: var(--sp-5); }
+/* THE NAME NEVER SHRINKS. It is the one part of a row that cannot be guessed
+   from the rest, so the note below is what gives way instead. */
+.menu-label { white-space: nowrap; flex: 0 0 auto; }
+
+/* WHAT THE ROW DOES, and the element that yields when the panel hits its cap.
+   `min-width: 0` is required for the ellipsis to engage at all: a flex item
+   defaults to `auto`, which refuses to shrink below its content and pushes the
+   overflow onto a sibling — which is precisely how the label came to be the
+   thing being cut. */
+.menu-note {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+/* Pushes the note and the shortcut right. It shrinks to its minimum before the
+   note starts losing characters, because empty space is the cheapest thing in
+   the row to give up. */
+/* A BASIS OF ZERO, so the spacer pushes without CLAIMING width. With a real
+   flex-basis it counted toward the panel's content width, which then hit the cap
+   three pixels before the last note fitted — the row was being padded and
+   trimmed at the same time. `gap` already keeps the name and the note apart. */
+.menu-spacer { flex: 1 1 0; min-width: var(--sp-4); }
 .menu-kbd {
   font-family: var(--font-mono);
   font-size: var(--fs-1);

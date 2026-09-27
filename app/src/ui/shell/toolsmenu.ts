@@ -52,10 +52,12 @@ export type Tool =
  */
 
 /** The menu-length note for a desk. Absent is fine: the label stands alone. */
-const MENU_NOTES: Readonly<Record<string, string>> = {
+/** Exported so a test can assert every desk has one — see `menurow.test.ts`. */
+export const MENU_NOTES: Readonly<Record<string, string>> = {
   watchlist: "your list, and the heatmap",
   screener: "scan for setups",
   briefing: "where you stand, and what changed",
+  chart: "price, structure and drawings",
   sessions: "what is open, and when this moves",
   flow: "liquidations, open interest, funding",
   smart: "structure, gaps, order blocks",
@@ -145,18 +147,18 @@ export function createToolsButton(ctx: ShellContext, d: ToolsMenuDeps): HTMLElem
           return {
             id: `view.${t.view}`,
             label: t.label,
-            hint: t.note ?? "desk",
+            note: t.note ?? "desk",
             checked: state.view() === t.view,
             run: () => state.view.set(t.view),
           };
         }
         if ("card" in t) {
-          return { label: t.label, hint: t.note ?? "inspector", run: () => d.revealCard(t.card) };
+          return { label: t.label, note: t.note ?? "inspector", run: () => d.revealCard(t.card) };
         }
         if ("settings" in t) {
-          return { id: "app.settings", label: t.label, hint: t.note ?? "settings", run: () => d.settings().open() };
+          return { id: "app.settings", label: t.label, note: t.note ?? "settings", run: () => d.settings().open() };
         }
-        return { label: t.label, hint: "no screen yet", disabled: true };
+        return { label: t.label, note: "no screen yet", disabled: true };
       }),
     }));
   const btn = h(

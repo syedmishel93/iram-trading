@@ -34,6 +34,22 @@ export interface MenuItem {
   readonly label?: string;
   /** Right-aligned accelerator. Filled in from the keymap when `id` is set. */
   readonly hint?: string;
+  /**
+   * What this row does, in a few words. NOT the accelerator.
+   *
+   * THEY WERE ONE FIELD AND IT COST BOTH OF THEM. `toolsmenu.ts` passed its
+   * descriptions in as `hint`, so each one inherited `.menu-kbd`'s
+   * `white-space: nowrap`, never shrank, and pushed the shortfall onto the only
+   * element that could give — the LABEL. Measured in the browser: the Knowledge
+   * desk's name got 62px of the 71 it needed and rendered "Knowledg…" while its
+   * description was shown in full. A menu that abbreviates the name and spells
+   * out the description has its priorities exactly backwards.
+   *
+   * And because `hint` is filled in from the keymap for a row with an `id`,
+   * overwriting it threw the SHORTCUT away: every desk in that menu lost its
+   * key. Two facts, two slots, and a row can now carry both.
+   */
+  readonly note?: string;
   readonly checked?: boolean;
   readonly disabled?: boolean;
   readonly danger?: boolean;
@@ -180,8 +196,14 @@ export function openMenu(items: readonly MenuItem[], opts: MenuOptions): Overlay
       }),
       h("span", { class: "menu-label", text: item.label ?? "" }),
       h("span", { class: "menu-spacer" }),
+      /* THE NOTE IS THE ELEMENT THAT GIVES WAY, which is why it is its own span
+         rather than more text in the label: it carries the ellipsis so the name
+         never has to. */
+      item.note ? h("span", { class: "menu-note", text: item.note }) : null,
       hasSub
         ? h("span", { class: "menu-arrow", text: "›" })
+        /* A SUBMENU ROW IS NOT SHOWN AN ACCELERATOR. It goes somewhere rather
+           than doing something, and a key it cannot honour is a promise broken. */
         : item.hint
           ? h("span", { class: "menu-kbd", text: item.hint })
           : null,
