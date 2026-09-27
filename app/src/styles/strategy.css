@@ -55,8 +55,36 @@
   gap: var(--sp-5);
   align-items: start;
 }
+/*
+  THE CONVERSATION IS A RAIL, SO IT STICKS.
+
+  MEASURED at 1534: the conversation card is 134px tall beside a 1,017px stack
+  of rules, backtest, simulation and decision - 883px of imbalance, and the
+  empty space under it is what reads as a hole. But the hole is the symptom.
+  The real cost is that the card you TALK to scrolls away while you read the
+  results it produced - the same defect Smart money had when the panel deciding
+  what was in a 23,696px list sat above it.
+
+  `align-self: start` is required even though the grid already says
+  `align-items: start`: the pattern this copies documents that a sticky element
+  stretched to its row height can never move relative to its scroller, and a
+  later change to the grid must not silently switch this off. The max-height
+  gives a long conversation its own scroller rather than clipping it.
+*/
+.strat-chat-card {
+  position: sticky;
+  top: var(--sp-4);
+  align-self: start;
+  max-height: calc(100vh - var(--h-topbar) - var(--h-cmdbar) - var(--sp-7));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 @media (max-width: 900px) {
   .strat-flow { grid-template-columns: minmax(0, 1fr); }
+  /* STACKED, A STICKY RAIL PINS ITSELF OVER THE CONTENT BENEATH IT. Below the
+     breakpoint the two columns become one, so the card must let go. */
+  .strat-chat-card { position: static; max-height: none; }
 }
 
 .strat-stack {

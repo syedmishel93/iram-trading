@@ -85,3 +85,42 @@ describe("the desk column", () => {
     expect(afterCap).not.toMatch(/\.view-slot\s*>\s*\*\s*\{[^}]*width:\s*(fit-content|max-content|auto)/);
   });
 });
+
+describe("the Strategy desk's conversation is a rail", () => {
+  /* MEASURED at 1534: the conversation card is 134px tall beside a 1,017px stack
+     of rules, backtest, simulation and decision — 883px of imbalance. The empty
+     space under it is what reads as a hole, but the hole is the symptom: the
+     real cost is that the card you TALK to scrolled away while you read the
+     results it produced.
+
+     PROVED IN THE BROWSER by scrolling, which is the only way a sticky claim can
+     be checked: the stack went 262 -> -238 while the rail went 262 -> 133 and
+     held. */
+
+  const strat = readFileSync(join(DIR, "strategy.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+
+  function railRule(): string {
+    const m = strat.match(/\.strat-chat-card\s*\{([^}]*)\}/);
+    expect(m, "the conversation card should carry the rail rule").toBeTruthy();
+    return m?.[1] ?? "";
+  }
+
+  it("STICKS, AND DECLARES align-self: start", () => {
+    /* The pattern this copies documents why: a grid stretches its item to the
+       row height by default, and a sticky element as tall as its own scroller
+       can never move relative to it. `.strat-flow` says `align-items: start`
+       today — but a later change to the grid must not silently switch the rail
+       off, so the card states it for itself. */
+    const rule = railRule();
+    expect(rule).toMatch(/position:\s*sticky/);
+    expect(rule).toMatch(/align-self:\s*start/);
+    expect(rule, "a rail taller than the window needs its own scroller").toMatch(/overflow-y:\s*auto/);
+  });
+
+  it("AND LETS GO WHEN THE COLUMNS STACK", () => {
+    /* Below the breakpoint the two columns become one, and a sticky rail then
+       pins itself over the content beneath it. */
+    const narrow = strat.slice(strat.indexOf("@media (max-width: 900px)"));
+    expect(narrow).toMatch(/\.strat-chat-card\s*\{[^}]*position:\s*static/);
+  });
+});
