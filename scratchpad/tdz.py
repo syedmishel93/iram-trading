@@ -44,7 +44,25 @@ import sys
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "src")
 
-EAGER = re.compile(r"(^[ \t]*)(?:[\w.]+\s*=\s*)?\b(computed|renderEffect|effect)\s*\(", re.M)
+#: An eager reactive call, in any of the three spellings this codebase uses.
+#
+# THE DECLARATION KEYWORD IS THE WHOLE POINT. The first version was
+# `(?:[\w.]+\s*=\s*)?`, which cannot span the space in `const claimCount` - so on
+# `const x = computed(...)` the optional group matched EMPTY and `\b(computed)`
+# was then required at the indent, where `const` sits. MEASURED: 69 calls in that
+# form under app/src and this matched ZERO of them, two of them in the very file
+# whose defect the script was written for. It reported OK for months.
+EAGER = re.compile(
+    r"(^[ \t]*)(?:(?:const|let|var)\s+)?(?:[\w$.]+\s*(?::[^=\n]+)?=\s*)?"
+    r"\b(computed|renderEffect|effect)\s*[<(]",
+    re.M,
+)
+#: The declaration form alone, so a regression that loses it again FAILS.
+DECLARED_EAGER = re.compile(
+    r"^[ \t]*(?:const|let|var)\s+[A-Za-z_$][\w$]*\s*(?::[^=\n]+)?=\s*"
+    r"\b(?:computed|renderEffect|effect)\s*[<(]",
+    re.M,
+)
 DECL = re.compile(r"^([ \t]*)(?:const|let)\s+([A-Za-z_$][\w$]*)\s*[=:]", re.M)
 IDENT = re.compile(r"\b([A-Za-z_$][\w$]*)\b")
 #: `name:` — an object key or a type annotation, never a read of the binding.
@@ -148,6 +166,7 @@ def scan(path: str) -> list[str]:
     out: list[str] = []
     for m in EAGER.finditer(src):
         indent, kind = m.group(1), m.group(2)
+        # `computed<T>(...)` — the match may end on `<`, so walk to the paren.
         paren = src.index("(", m.end() - 1)
         body = body_of(src, paren)
         if not body:
@@ -195,10 +214,19 @@ def main() -> int:
         findings.extend(scan(f))
 
     print("PARSED : {} TypeScript files under app/src".format(len(files)))
-    eager = sum(len(EAGER.findall(open(f, encoding="utf-8").read())) for f in files)
+    texts = [strip_noise(open(f, encoding="utf-8").read()) for f in files]
+    eager = sum(len(EAGER.findall(t)) for t in texts)
+    declared = sum(len(DECLARED_EAGER.findall(t)) for t in texts)
     print("PARSED : {} eager reactive calls (computed / effect / renderEffect)".format(eager))
+    print("PARSED : {} of them in `const x = computed(...)` form".format(declared))
     if len(files) == 0 or eager == 0:
         print("FAIL   : parsed nothing, so this reported success about nothing")
+        return 2
+    # THE GUARD THAT WAS MISSING. A plausible total hid a systematic blind spot:
+    # the declaration form is how nearly every computed here is written, and this
+    # script matched none of them while printing a healthy-looking 220.
+    if declared == 0:
+        print("FAIL   : matched no `const x = computed(...)` — the pattern has regressed")
         return 2
 
     if findings:

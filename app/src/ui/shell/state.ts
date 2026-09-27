@@ -66,6 +66,14 @@ export interface ShellState {
   chartDrawerOpen: Signal<boolean>;
   chartDrawerTab: Signal<DrawerTab>;
   detectors: Signal<DetectorId[]>;
+  /**
+   * Whether the terminal's own past calls are drawn on the price.
+   *
+   * OFF BY DEFAULT. It is a record of hundreds of calls, and a chart that
+   * arrives already covered in them is a chart nobody can read the price on.
+   * The operator turns it on when the question is "was I right here before".
+   */
+  showClaims: Signal<boolean>;
   /** Higher timeframes whose structure is projected onto this chart. */
   htf: Signal<string[]>;
   density: Signal<Density>;

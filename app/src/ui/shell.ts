@@ -16,6 +16,9 @@ import type { PriceScale } from "../chart/viewport";
 import { ema } from "../chart/indicators";
 import { runStudies, studyColumns } from "../chart/studies";
 import { runPanes } from "../chart/panes";
+import { claimShapes, type Claim } from "../chart/claims";
+import { intervalMs } from "../data/history";
+import { recentClaims } from "../data/claims";
 import { sanitiseAll, tunedCount, type Params } from "../chart/params";
 import { pkRowsLive, type PkRow } from "./panelkit";
 import { PROFILE_BASIS, volumeProfile } from "../chart/profile";
@@ -291,6 +294,7 @@ export function mountShell(root: HTMLElement): void {
         : [...DEFAULT_DETECTORS],
       (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
     ),
+    showClaims: signal<boolean>(prefs["showClaims"] === true),
     htf: signal<string[]>(
       Array.isArray(prefs["htf"]) ? (prefs["htf"] as string[]) : [],
       (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
@@ -632,6 +636,7 @@ export function mountShell(root: HTMLElement): void {
       chartDrawerOpen: state.chartDrawerOpen(),
       chartDrawerTab: state.chartDrawerTab(),
       detectors: state.detectors(),
+      showClaims: state.showClaims(),
       htf: state.htf(),
       density: state.density(),
       accent: accent(),
@@ -1954,6 +1959,110 @@ export function mountShell(root: HTMLElement): void {
     }),
   ) as HTMLButtonElement;
 
+  /* DECLARED HERE, NOT BESIDE THE ANNOTATION EFFECT THAT DRAWS IT, and the
+     reason is the language: a `computed` in this codebase is EAGER, so the two
+     below that read these bindings would throw a temporal-dead-zone
+     ReferenceError at construction and hold `undefined` for the life of the
+     page - swallowed by `effect`, with no count on the button and nothing on
+     screen to say so. `scratchpad/tdz.py` found it, once it could see this
+     spelling at all. */
+  /**
+   * THE TERMINAL'S OWN RECORD, ON THE PRICE.
+   *
+   * The one thing a general chart cannot draw: whether THIS terminal was right
+   * the last four hundred times it said something about THIS market. Read once
+   * on boot and after a claim resolves; `chart/claims.ts` decides what may
+   * honestly be drawn, and counts everything it leaves out.
+   */
+  const claimRows = signal<readonly Claim[]>([]);
+  const claimsRefusal = signal("");
+  const loadClaims = async (): Promise<void> => {
+    const got = await recentClaims();
+    if (got.kind === "ok") claimRows.set(got.claims);
+    else claimsRefusal.set(got.why);
+  };
+  void loadClaims();
+
+  /**
+   * What the ledger says about the bars on screen, and what it could not say.
+   *
+   * COMPUTED WHETHER OR NOT IT IS SHOWN. Gating this on the toggle made the
+   * count unavailable until the layer was already on, so the control could not
+   * say whether pressing it would show anything - and a toggle that cannot
+   * answer that is one nobody presses a second time. Only the DRAWING is gated,
+   * below.
+   */
+  const claimLayer = computed(() => {
+    const series = bars();
+    if (series.length === 0) return null;
+    return claimShapes(claimRows(), series, {
+      symbol: state.symbol(),
+      timeframe: state.timeframe(),
+      intervalMs: intervalMs(state.timeframe()),
+    });
+  });
+
+  /**
+   * HOW MANY OF THIS TERMINAL'S CALLS ARE ON THESE BARS, and what they came to.
+   *
+   * THREE STATES, NEVER TWO. A ledger that is not answering must not render as a
+   * count of zero: "could not ask" and "nothing recorded" are different facts,
+   * and zero is the most alarming possible way to say the second one.
+   */
+  const claimCount = computed(() => {
+    if (claimsRefusal() !== "") return -1;
+    const l = claimLayer();
+    if (l === null) return 0;
+    /* WHAT IS ON THE CHART, not what is in the ledger. The two differ - pending
+       calls are counted and deliberately not drawn, and calls sharing a bar
+       collapse into one mark - and a badge the operator can see disagrees with
+       the screen costs the layer the credibility it exists to earn. The full
+       breakdown is in the title. */
+    return l.marks;
+  });
+
+  /** The sentence the record makes about itself, or the reason there is none. */
+  const claimTitle = computed(() => {
+    const refusal = claimsRefusal();
+    if (refusal !== "") return `Track record — ${refusal}`;
+    const l = claimLayer();
+    if (l === null) return "Track record — no bars loaded to place calls on yet";
+    return `Track record — ${l.why}`;
+  });
+
+  /**
+   * THE RECORD TOGGLE.
+   *
+   * A capability nobody can see is a capability nobody has, and this one is off
+   * by default — without a control it would be a feature that exists only in a
+   * preferences file. It sits beside Auto-marking because it answers the
+   * neighbouring question: that one marks what is on the chart NOW, this one
+   * marks what this terminal said about this chart BEFORE, and whether it held.
+   */
+  const recordBtn = h(
+    "button",
+    {
+      class: "tool-btn wide tb-pill",
+      type: "button",
+      title: () => claimTitle(),
+      "aria-label": () =>
+        `Track record on the chart, ${state.showClaims() ? "on" : "off"} — ${claimTitle()}`,
+      "aria-pressed": () => String(state.showClaims()),
+      "data-on": () => String(state.showClaims()),
+      onclick: () => state.showClaims.set(!state.showClaims.peek()),
+    },
+    icon("learn"),
+    h("span", { class: "tb-pill-label", text: "Track record" }),
+    /* A DASH FOR "COULD NOT ASK", a number for what is there. `data-zero` dims
+       it the way Auto-marking's count already dims at nothing, so an empty
+       record and a full one are told apart without reading the figure. */
+    h("span", {
+      class: "tb-count",
+      "data-zero": () => String(claimCount() <= 0),
+      text: () => (claimCount() < 0 ? "—" : String(claimCount())),
+    }),
+  ) as HTMLButtonElement;
+
   const overflowBtn: HTMLButtonElement = asMenuTrigger(
     h(
       "button",
@@ -2147,6 +2256,7 @@ export function mountShell(root: HTMLElement): void {
 
     indicatorsBtn,
     autoMarkBtn,
+    recordBtn,
 
     /*
      * THE SPACER, AND WHY IT IS HERE RATHER THAN BESIDE THE PRICE.
@@ -5166,7 +5276,11 @@ export function mountShell(root: HTMLElement): void {
        first so detected and hand-drawn shapes sit on top of it. */
     const sv = setupView();
     const plan = sv ? planShapes(sv.plan, bars().length - 1, sv.setupRefusal ? "unknown" : sv.verdict.kind) : [];
-    chart?.setAnnotations([...plan, ...detected, ...(drawLayer?.shapes() ?? [])]);
+    /* THE RECORD SITS UNDER EVERYTHING ELSE. It is context for what the chart
+       is showing, not a call about it, and a detector's finding about the bar
+       in front of you should never be hidden behind a mark about the past. */
+    const record = state.showClaims() ? (claimLayer()?.shapes ?? []) : [];
+    chart?.setAnnotations([...record, ...plan, ...detected, ...(drawLayer?.shapes() ?? [])]);
   });
 
   renderEffect(() => {
