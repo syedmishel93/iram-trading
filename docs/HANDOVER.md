@@ -1,6 +1,112 @@
 # MISHEL INTELLIGENCE TRADING — SESSION HANDOVER
 Terminal: **app/ v50 is the product** (see ../LEGACY.md) · index.html **v39.29** (FROZEN 2026-09-08, still openable at /legacy) + **app/ v58** (Vite/TS rewrite: 3,618 tests in 144 files, 23 desks, connected to the MT5 account for positions and equity — a Briefing, an Analyse and a Chart standing alone, the other 20 in 4 groups) + **desktop/** (Tauri native shell) · Server: proxy `ddt_data_server.py` (8787) + `mishel_service.py` (8788, **SQLite by default, PostgreSQL via `IRAM_DB_URL` — see `server/db/`**) + **`server/quant/` (8789, optional model service — GARCH, causal inference, calibrated classification; the terminal degrades to "not running" without it)** + mishel_ml.py + mishel_hmm.py + mishel_data.py · Launcher: **`run.py` — the only one** (starts `server/gateway`: all three services and the terminal on ONE port, 8787; `--status`, `--port`, `--legacy`, `--no-background`, `--build`, `--install`; `run.sh`/`.bat`/`.command` are three-line wrappers) · Tests: `tests/run_tests.sh`, `python -m pytest tests/test_quant_service.py`.
 
+## v63.25 — THE ONE THING A GENERIC CHART CANNOT DRAW
+
+The owner asked for a chart better than TradingView. TradingView draws this
+market better than this terminal will — more drawing tools, a larger indicator
+library, more data, years more work, and none of that is closable by wanting it.
+What it cannot draw is whether THIS terminal was right the last four hundred
+times it said something about this market, because it does not know.
+
+### WHAT IT SAYS, MEASURED
+
+BTCUSDT 1h, 429 claims on the loaded bars:
+
+> **Taken: 21 of 28 reached target. Refused: 56 of 97 would have.** 25 marks on
+> these bars; 10 could not be read (one bar hit both sides); 294 still open and
+> not drawn.
+
+The second sentence is the finding. The gates are declining a great many trades
+that would have won, which is exactly the comparison `gate_verdict` was written
+to make and which had no surface anywhere in the product.
+
+`chart/claims.ts` is a pure function returning `Shape[]` through the existing
+detector seam, so the marks pan, zoom and re-theme with everything else and can
+be tested without a canvas. `data/claims.ts` reads `/svc/claims`, which had a
+client for its SUMMARY and none for its ROWS.
+
+### FIVE THINGS MEASUREMENT OVERTURNED, each fixed with a failing test first
+
+**A FIFTH OUTCOME, found on the live ledger and not in the first draft.**
+`unknowable` — one bar covered the stop AND the target, so OHLC cannot say which
+came first — is 10 of 429 rows. The layer folded every unrecognised outcome into
+`pending`, so ten calls that can never open again were drawn and counted as
+still open. The buckets now PARTITION what was counted, and that test fails on a
+SIXTH outcome rather than letting it be drawn as open for ever. The server keeps
+the identical guarantee and says why: guessing puts a coin flip inside the hit
+rate, which is worse than having no hit rate because it still looks like one.
+
+**429 MARKS IS A FOG, NOT A RECORD.** Drawn at once they covered three days of
+candles — worse than TradingView, not better. Pending is not evidence; the file
+SAID so in its own header and drew them anyway, the rule enforced in the
+arithmetic and broken on the screen. Decided calls only by default, and calls
+sharing a bar collapse into one mark: **429 → 25**.
+
+**A TOWER OF MARKS IS A SET OF PRICES NOBODY TRADED.** Where a dozen calls shared
+a bar the renderer's collision handling pushed them into a vertical column
+reaching well above and below the candle. On a price chart a y position IS a
+price, so that drew claims at levels that never existed — plausible, unlabelled
+and not red, the same failure as a per-series scale on an equity chart. One mark
+per (bar, verdict), placed at the mean of the entries it stands for.
+
+**A POOLED RATE ANSWERS NEITHER QUESTION.** 315 of 429 are refusals, where
+reaching target means the refusal COST something, and the layer printed one
+figure over both. `mishel_claims.py` keeps the populations apart and compares
+them; the chart reports the same way rather than inventing a second
+interpretation of the same fact.
+
+**TWO GLYPHS A NUMBER CAN ABSORB.** The verdict was carried as a trailing dot, so
+a refused group of forty-five rendered `✓·45` and read at 1:1 as NEGATIVE
+forty-five. Position carries it now — taken below the bar, refused above — which
+costs no characters. Then the EXPIRED glyph was an en dash and `–10` read as
+negative ten: **the same defect surviving in the one glyph that is itself a minus
+sign**, and the one-character test could not see it because a dash is one
+character. The rule has to be about the CHARACTER CLASS, not the length.
+
+And the badge read **429 beside a chart carrying 25 marks**. It counts what is on
+the chart now; a number the operator can see is wrong costs the layer the
+credibility it exists to earn.
+
+### TWO GATE DEFECTS FOUND ON THE WAY, both worse than the bug that exposed them
+
+**`scratchpad/tdz.py` COULD NOT SEE `const x = computed(...)`.** Its pattern
+accepted `x = computed(` but not the declaration form, because `[\w.]+` cannot
+span the space in `const claimCount` — so the optional group matched empty and
+`(computed)` was then required where `const` sits. MEASURED: **0 of 69
+matched**, two of them in `ui/playbook.ts`, the file the script was written for.
+It printed a healthy-looking "220 eager calls" and reported OK. A plausible total
+hid a systematic blind spot, which is the same defect as an audit that parses
+nothing wearing a better disguise. It now counts the declaration form separately
+and FAILS on zero — and it immediately found a real temporal dead zone in this
+very change: two eager computeds reading bindings declared 3,260 lines below
+them, which would have held `undefined` for the life of the page with no count on
+the button and nothing on screen to say so.
+
+**`.gitignore` HELD A BARE `data/`.** A pattern with no leading slash matches that
+name AT ANY DEPTH, so a rule written for the bulk market archive was excluding
+`app/src/data/` — 53 files holding every vendor client, the backend address
+resolution and the history and archive clients — and `app/src/ui/data/`.
+MEASURED: **58 of 408 source files under `app/src` were untracked**, and a clone
+of this repository would not have compiled. Nothing said so, because every other
+check in this project reads the WORKING TREE: `verify.py` passes, `tsc` passes,
+the tests pass, the product runs. And the archive that rule was written for lives
+in `%LOCALAPPDATA%/iram/data/`, OUTSIDE the repository — so it cost the
+frontend's data layer and protected nothing at all.
+
+`tests/test_tracked_sources.py` is the guard, gated in `SCRIPT_TESTS`, printing
+what it parsed and failing on a zero. Anchoring the one rule was not the fix; the
+next such rule will look just as ordinary.
+
+### Gate
+
+`python verify.py --lint` — 7 of 7 stages, 156s. **4,846 frontend tests** in 227
+files (37 new), 29 script tests (1 new). Ruff caught a real `PLW1510` in the new
+guard: `git check-ignore` exits 1 when a path is NOT ignored, which is the
+ordinary case there, so `check=False` is deliberate and says so on the line.
+
+Verified live on :8787 after `npm run build`, never the dev server.
+
 ## v63.24 — HALF THE GRAPH WAS BEING DRAWN WHERE NOBODY COULD SEE IT
 
 The owner could not zoom, and asked for more figures. The zoom was the smaller
