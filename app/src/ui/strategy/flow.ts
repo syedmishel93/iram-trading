@@ -562,7 +562,13 @@ export function createStrategyFlow(opts: StrategyFlowOptions) {
       chatLog.appendChild(
         h("p", {
           class: "muted small",
-          text: "Describe the idea in words — for example “buy pullbacks to the 50 EMA while it is above the 200”. The analyst drafts it as rules and tests it.",
+          /* ONE SHORT LINE. The worked example moved into this card's own
+             "Why?" — see below — rather than being cut: shortening must MOVE
+             detail, never delete it. MEASURED on the Strategy desk, 53% of the
+             first screen went before the first control, and this was 142
+             characters of it, sitting above an input whose placeholder already
+             carries an example of its own. */
+          text: "Describe the idea in words. The analyst drafts it as rules and tests it.",
         }),
       );
       return;
@@ -633,7 +639,10 @@ export function createStrategyFlow(opts: StrategyFlowOptions) {
         }),
       ),
       pkWhy(
-        "Your words go to the analyst you chose in its settings, with the rules currently here. It is asked to draft ONE rule set in the terminal's rule language and test it with its own tool; the rules it tested are what appear, marked AI. " +
+        /* THE WORKED EXAMPLE LEADS, because it is the part that teaches the
+           rule language and it used to be the first thing on the card. */
+        "For example: “buy pullbacks to the 50 EMA while it is above the 200”. " +
+          "Your words go to the analyst you chose in its settings, with the rules currently here. It is asked to draft ONE rule set in the terminal's rule language and test it with its own tool; the rules it tested are what appear, marked AI. " +
           "A part of the idea the rule language cannot express — a session time, a news filter — is left out, and the analyst is told to say which. " +
           "The same exchange, tool calls included, is in the Analyst desk's transcript.",
         "Why?",

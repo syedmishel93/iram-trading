@@ -16,6 +16,8 @@
  */
 
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { signal } from "../src/core/signal";
 import { flushFrames } from "../src/core/frame";
 import { createKV, memoryRawStore, type KV } from "../src/store/kv";
@@ -435,5 +437,43 @@ describe("loading a discovered spec into the editor", () => {
     expect(byText.get("Buy when Close is above 100")).toBe("you");
     expect(byText.get("Buy when RSI(14) crosses above 35")).toBe("ai");
     f.el.remove();
+  });
+});
+
+describe("the conversation card leads with one line", () => {
+  /* MEASURED. On the Strategy desk 53% of the first screen went before the first
+     control, and after the headline was unwrapped 49.7% still did. A good part
+     of the rest is this card's empty state: a 147-character instruction shown
+     in full above an input whose own placeholder already carries an example.
+     v59's rule is that a surface leads with one short line per fact and the
+     detail goes behind "Why?" — and the card already had a `pkWhy`.
+
+     SHORTENING MUST MOVE DETAIL, NEVER DELETE IT. Three times in the v59 pass
+     the first short version dropped a fact that mattered and a test caught each
+     one, which is what this is. */
+
+  it("SAYS WHAT TO DO IN ONE SHORT LINE", () => {
+    const f = mount();
+    const empty = step(f.el, "conversation").querySelector(".strat-chat p");
+    expect(empty, "the empty conversation should still say what to do").toBeTruthy();
+    const text = empty?.textContent ?? "";
+    expect(text.length, `still a paragraph: "${text}"`).toBeLessThan(80);
+    expect(text).toMatch(/idea/i);
+  });
+
+  it("AND THE EXAMPLE SURVIVES, behind the Why", () => {
+    /* The worked example — "buy pullbacks to the 50 EMA while it is above the
+       200" — is the part that teaches the rule language. Cutting it to save a
+       line would be deleting the detail rather than moving it. */
+    const f = mount();
+    const whys = [...step(f.el, "conversation").querySelectorAll(".pk-why-body")].map((e) => e.textContent ?? "");
+    expect(whys.some((w) => /pullbacks to the 50 EMA/.test(w)), "the example must be reachable").toBe(true);
+  });
+
+  it("and the input keeps its own example, which is a different one", () => {
+    // Two examples in two places is not duplication: the placeholder shows the
+    // shape of a REFINEMENT, the Why shows the shape of a first idea.
+    const src = readFileSync(join(process.cwd(), "src", "ui", "strategy", "flow.ts"), "utf8");
+    expect(src).toContain("only take it when ADX is above 20");
   });
 });
