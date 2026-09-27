@@ -17,6 +17,7 @@ import {
 import { structuralColumns, STRUCTURAL_COLUMNS } from "../src/backtest/structural";
 import { EMPTY_METRICS, type Metrics } from "../src/backtest/metrics";
 import { SPECS, SPECS_BY_ID } from "../src/backtest/specs";
+import { deflatedSharpe } from "../src/study/stats";
 import { compileSpec, COLUMNS, validateSpec } from "../src/backtest/rules";
 import type { BarView } from "../src/chart/series";
 import type { StrategyContext, Trade } from "../src/backtest/engine";
@@ -397,8 +398,24 @@ describe("the v49 structural specs", () => {
     }
   });
 
-  it("brought the set to twenty-five, which is the number the PBO warning is about", () => {
-    expect(SPECS).toHaveLength(25);
+  it("WIDENING THE SET RAISES THE HURDLE, which is what the PBO warning is about", () => {
+    /* THIS REPLACED `expect(SPECS).toHaveLength(25)`, deliberately.
+       A guard that pins a COUNT fails on addition and passes on substitution:
+       it broke when eight rule sets were added and would have stayed green if
+       eight had been swapped for eight others. It also stated a number that
+       nothing consumes — the hurdle is computed from the trial count at
+       runtime, never from a constant.
+
+       The fact worth pinning is the one the old name claimed: a wider field
+       COSTS something. Every rule added is another arm of the same search, so
+       the best of them has to clear a higher bar before it means anything. */
+    const observations = 120;
+    const at = (tries: number): number => deflatedSharpe(0.2, tries, observations).hurdle;
+    expect(SPECS.length, "the set only ever grows by intent").toBeGreaterThanOrEqual(25);
+    expect(
+      at(SPECS.length),
+      "a wider field must not be free",
+    ).toBeGreaterThan(at(25));
   });
 
   it("each carry a note that says what to distrust", () => {

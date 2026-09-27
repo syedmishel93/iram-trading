@@ -19,6 +19,21 @@ export interface ZoneOptions {
   /** Drop zones already traded through. */
   hideMitigated?: boolean;
   maxZones?: number;
+  /**
+   * Bars the size floor is measured over, ending at each candidate bar.
+   *
+   * THE DEFAULT IS THE WHOLE SERIES, AND IT CANNOT BE USED IN A BACKTEST.
+   * `fvgFloor` takes a quantile of EVERY gap up to `len`, so a gap at bar 6
+   * clears the floor computed from 700 bars and fails the one computed from 900.
+   * MEASURED: the `infvg` column changed its own value at 8 bars between those
+   * two runs, and `fvg-retest` is a shipped strategy trading on it.
+   *
+   * A window makes the floor rolling and the verdict stable. The chart keeps the
+   * whole-series default, which is the same display/backtest split this file
+   * already carries for `hideMitigated`: a chart wants "unusual for this
+   * instrument", a backtest needs "unusual by what was known at the time".
+   */
+  floorWindow?: number;
 }
 
 /**
@@ -125,7 +140,36 @@ export function detectFVG(
   opts: ZoneOptions = {},
   len = data.c.length,
 ): Detection[] {
+  const window = opts.floorWindow ?? 0;
   const minSize = opts.minSize ?? fvgFloor(data, len);
+  /**
+   * The floor each candidate is judged against.
+   *
+   * An explicit `minSize` wins, then a rolling floor if a window was asked for,
+   * then the whole-series figure the chart has always used. Cached per bar
+   * because recomputing a quantile of several hundred gaps inside the loop would
+   * turn an O(n) pass into an O(n²) one on a 40,000-bar study.
+   */
+  const floors = new Map<number, number>();
+  const floorAt = (i: number): number => {
+    if (opts.minSize !== undefined || window <= 0) return minSize;
+    const start = Math.max(0, i - window);
+    if (i - start < 60) return Infinity;
+    const key = Math.floor(start / 32);
+    const hit = floors.get(key);
+    if (hit !== undefined) return hit;
+    const slice: DetectInput = {
+      t: data.t.slice(start, i),
+      o: data.o.slice(start, i),
+      h: data.h.slice(start, i),
+      l: data.l.slice(start, i),
+      c: data.c.slice(start, i),
+      v: data.v.slice(start, i),
+    };
+    const f = fvgFloor(slice, i - start);
+    floors.set(key, f);
+    return f;
+  };
   const hideMitigated = opts.hideMitigated ?? true;
   const maxZones = opts.maxZones ?? 12;
 
@@ -159,7 +203,7 @@ export function detectFVG(
     }
 
     const size = (top - bottom) / mid;
-    if (size < minSize) continue;
+    if (size < floorAt(i)) continue;
 
     // Mitigation: has any LATER bar traded back into the band? Checked with the
     // bar's full range, because a wick into the zone is a touch even if the
@@ -233,7 +277,37 @@ export function detectOrderBlocks(
   opts: ZoneOptions & { displacement?: number; lookback?: number } = {},
   len = data.c.length,
 ): Detection[] {
-  const displacement = opts.displacement ?? displacementFloor(data, len);
+  /**
+   * THE SAME ROLLING FLOOR AS `detectFVG`, for the same reason.
+   *
+   * `displacementFloor` is a quantile of EVERY candle body up to `len`, so the
+   * bar that counted as a displacement at 400 bars stops counting at 900.
+   * MEASURED: `inob`, `retest` and `breaker` all changed their own past across
+   * those lengths, and `ob-retest` is a shipped strategy trading on `inob`.
+   */
+  const obWindow = opts.floorWindow ?? 0;
+  const dispFloors = new Map<number, number>();
+  const displacementAt = (i: number): number => {
+    if (opts.displacement !== undefined || obWindow <= 0) {
+      return opts.displacement ?? displacementFloor(data, len);
+    }
+    const start = Math.max(0, i - obWindow);
+    if (i - start < 60) return Infinity;
+    const key = Math.floor(start / 32);
+    const hit = dispFloors.get(key);
+    if (hit !== undefined) return hit;
+    const slice: DetectInput = {
+      t: data.t.slice(start, i),
+      o: data.o.slice(start, i),
+      h: data.h.slice(start, i),
+      l: data.l.slice(start, i),
+      c: data.c.slice(start, i),
+      v: data.v.slice(start, i),
+    };
+    const f = displacementFloor(slice, i - start);
+    dispFloors.set(key, f);
+    return f;
+  };
   const hideMitigated = opts.hideMitigated ?? true;
   const maxZones = opts.maxZones ?? 8;
   const lookback = opts.lookback ?? 3;
@@ -251,7 +325,7 @@ export function detectOrderBlocks(
     if (!Number.isFinite(open) || open <= 0) continue;
 
     const move = (close - open) / open;
-    if (Math.abs(move) < displacement) continue;
+    if (Math.abs(move) < displacementAt(i)) continue;
     const bullish = move > 0;
 
     // Walk back for the last candle that closed AGAINST the displacement.

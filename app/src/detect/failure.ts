@@ -50,9 +50,32 @@ export interface FailureOptions {
   maxPerKind?: number;
   /** Bars of history to scan. */
   lookback?: number;
+  /**
+   * Ranges (springs) or order blocks (mitigation) the pass may consider.
+   *
+   * IT WAS HARDCODED, AND THAT IS A LOOK-AHEAD LEAK IN A BACKTEST. `detectRanges`
+   * ends `slice(-maxResults)`, so with a fixed 6 whether the range at bar 300
+   * survives depends on how many ranges formed AFTER it — and lifting the cap on
+   * THIS function did nothing, because the truncation happened one level down
+   * where no option reached. The defaults below are the numbers that were
+   * hardcoded, so nothing the chart draws changes.
+   */
+  sourceCap?: number;
+  /**
+   * Build the children the way a BACKTEST needs them rather than the way a chart
+   * does: ranges tiled forward, zone floors measured over a rolling window.
+   *
+   * It exists because this detector builds its own inputs. Passing `scanFrom` or
+   * `floorWindow` to THIS function would do nothing — the defaults that matter
+   * are two levels down, which is the same reason `sourceCap` exists.
+   */
+  causal?: boolean;
 }
 
 const DEFAULTS = { reclaimBars: 8, retestAtr: 0.4, maxPerKind: 4, lookback: 500 };
+
+/** Matches `backtest/structural.ts`'s window, so the two agree about a floor. */
+const CAUSAL_FLOOR_WINDOW = 400;
 
 /** The horizontal edges of a detection drawn as a box. */
 function boxEdges(d: Detection): { lo: number; hi: number } | null {
@@ -81,7 +104,20 @@ export function detectSprings(
   const maxPerKind = opts.maxPerKind ?? DEFAULTS.maxPerKind;
   if (len < 40) return [];
 
-  const ranges = detectRanges(data, { maxResults: 6 }, len);
+  /* THE WINDOW GOES DOWN TOO. A spring is a range boundary that lied, so a
+     range this pass cannot see is a spring it cannot find - and detectRanges
+     scans only the last `lookback` bars by default. */
+  const ranges = detectRanges(
+    data,
+    {
+      maxResults: opts.sourceCap ?? 6,
+      lookback: opts.lookback ?? DEFAULTS.lookback,
+      /* CAUSAL: ranges tiled forward, zone floors rolling. The defaults
+         that matter are in the CHILD, so they have to be threaded. */
+      ...(opts.causal === true ? { scanFrom: "start" as const } : {}),
+    },
+    len,
+  );
   const a = atr(data.h, data.l, data.c, 14, len);
   const out: Detection[] = [];
 
@@ -92,7 +128,24 @@ export function detectSprings(
     const height = hi - lo;
     if (!(height > 0)) continue;
 
-    for (let i = r.to + 1; i < len; i++) {
+    /**
+     * A RANGE STOPS BEING A RANGE WHEN PRICE LEAVES IT.
+     *
+     * This scanned to the END OF THE SERIES, so a range that died at bar 100
+     * went on reporting springs at its old boundary at bar 1,999 — hundreds of
+     * bars after anything was defending it. MEASURED once the source cap was
+     * lifted: **11,447 springs from 108 ranges**, 106 apiece, firing on 61.5% of
+     * all bars. `maxResults: 6` had been hiding an unbounded loop rather than
+     * limiting a list, and the desk's own trade count said so — 10,479 "Wyckoff
+     * springs" on 41,536 bars of BTCUSDT.
+     *
+     * `detectRanges` already knows when the range broke: a broken one comes back
+     * as kind `expansion` with `to` set to the breaking bar, and `settledAt` as
+     * the box's last bar. So the live window is exactly [settled + 1, break).
+     */
+    const settled = r.settledAt ?? r.to;
+    const until = r.kind === "expansion" ? r.to : len;
+    for (let i = settled + 1; i < until; i++) {
       const barLow = data.l[i] as number;
       const barHigh = data.h[i] as number;
       const unit = (a[i] as number) || height * 0.1;
@@ -293,7 +346,17 @@ export function detectMitigation(
   const maxPerKind = opts.maxPerKind ?? DEFAULTS.maxPerKind;
   if (len < 40) return [];
 
-  const blocks = detectOrderBlocks(data, { hideMitigated: false, maxZones: 24 }, len);
+  const blocks = detectOrderBlocks(
+    data,
+    {
+      hideMitigated: false,
+      maxZones: opts.sourceCap ?? 24,
+      /* CAUSAL: ranges tiled forward, zone floors rolling. The defaults
+         that matter are in the CHILD, so they have to be threaded. */
+      ...(opts.causal === true ? { floorWindow: CAUSAL_FLOOR_WINDOW } : {}),
+    },
+    len,
+  );
   const out: Detection[] = [];
 
   for (const block of blocks) {
@@ -369,7 +432,13 @@ function capPerKind(found: readonly Detection[], max: number): Detection[] {
   const out: Detection[] = [];
   for (const list of byKind.values()) {
     list.sort((x, y) => y.to - x.to);
-    out.push(...list.slice(0, max));
+    /* A LOOP, NOT A SPREAD. `push(...arr)` passes every element as a separate
+       ARGUMENT, and the engine's argument limit is a few tens of thousands — so
+       this threw `Maximum call stack size exceeded` the first time a backtest
+       column asked for an uncapped list. The cap had always hidden it at four
+       per kind; the defect was in the spread, not in the caller. */
+    const take = Math.min(list.length, max);
+    for (let i = 0; i < take; i++) out.push(list[i] as Detection);
   }
   out.sort((x, y) => x.to - y.to);
   return out;

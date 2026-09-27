@@ -37,6 +37,20 @@ export interface RangeOptions {
   maxHeightAtr?: number;
   lookback?: number;
   maxResults?: number;
+  /**
+   * Which end the greedy tiling is laid out from.
+   *
+   * `"end"` (the default, and what the chart has always drawn) walks DOWN from
+   * the last bar, so the most recent sideways stretch is claimed first and older
+   * ones fit around it — the right priority for a picture of now.
+   *
+   * IT IS UNUSABLE IN A BACKTEST. The partition is anchored to `len`, so every
+   * new bar can re-tile the whole history: MEASURED, the `inrange` and `spring`
+   * columns changed their own past between a 261-bar and a 900-bar run. `"start"`
+   * walks UP from the oldest bar in scope, so a block once claimed can never be
+   * changed by anything that happens after it.
+   */
+  scanFrom?: "end" | "start";
 }
 
 const DEFAULTS = { minBars: 10, maxHeightAtr: 3, lookback: 400, maxResults: 4 };
@@ -77,10 +91,12 @@ export function detectRanges(
   }
   const found: Found[] = [];
 
-  for (let end = len - 1; end >= from + minBars; end--) {
+  /* The inner search is identical in both directions — the maximal stretch
+     ending at `end` that fits inside the ATR budget — so only the ORDER in which
+     ends are offered differs, and that order is the whole of the leak. */
+  const claim = (end: number): { start: number; hi: number; lo: number } | null => {
     const budget = (a[end] as number) * maxHeightAtr;
-    if (!Number.isFinite(budget) || budget <= 0) continue;
-
+    if (!Number.isFinite(budget) || budget <= 0) return null;
     let hi = -Infinity;
     let lo = Infinity;
     let start = end;
@@ -94,12 +110,41 @@ export function detectRanges(
       lo = nextLo;
       start = i;
     }
+    if (end - start + 1 < minBars) return null;
+    return { start, hi, lo };
+  };
 
-    if (end - start + 1 < minBars) continue;
-    found.push({ start, end, hi, lo, heightAtr: (hi - lo) / (a[end] as number) });
-    /* Skip past what was just claimed. Without this every bar inside one
-       sideways stretch reports its own slightly shorter version of it. */
-    end = start;
+  if ((opts.scanFrom ?? "end") === "start") {
+    /* FORWARD. A block claimed here depends only on bars at or before its own
+       end, so nothing added later can move it. */
+    for (let end = from + minBars; end < len; end++) {
+      const got = claim(end);
+      if (got === null) continue;
+      found.push({
+        start: got.start,
+        end,
+        hi: got.hi,
+        lo: got.lo,
+        heightAtr: (got.hi - got.lo) / (a[end] as number),
+      });
+      /* THE SAME GREEDY SKIP THE BACKWARD WALK HAS, and it is not a nicety.
+         Without it every bar inside one sideways stretch reports its own
+         slightly shorter version of it — and since each detection then scans
+         forward for its break, that is O(n^2). MEASURED: it timed out the survey
+         at 900 bars, and an ordinary study here is 41,538. Skipping to the
+         earliest end whose range can start after this one keeps the tiling
+         non-overlapping and the pass linear. */
+      end += minBars - 1;
+    }
+  } else {
+    for (let end = len - 1; end >= from + minBars; end--) {
+      const got = claim(end);
+      if (got === null) continue;
+      found.push({ start: got.start, end, hi: got.hi, lo: got.lo, heightAtr: (got.hi - got.lo) / (a[end] as number) });
+      /* Skip past what was just claimed. Without this every bar inside one
+         sideways stretch reports its own slightly shorter version of it. */
+      end = got.start;
+    }
   }
 
   const out = found.map((r): Detection => {
@@ -159,6 +204,9 @@ export function detectRanges(
       direction: breakAt < 0 ? "neutral" : breakUp ? "long" : "short",
       from: r.start,
       to: breakAt < 0 ? r.end : breakAt,
+      /* The box's last bar, which does NOT move when the range later
+         breaks. See `settledAt` on Detection for the leak this closes. */
+      settledAt: r.end,
       confidence,
       reason:
         breakAt < 0
@@ -198,7 +246,7 @@ export interface BreakerOptions {
  */
 export function detectBreakers(
   data: DetectInput,
-  opts: BreakerOptions = {},
+  opts: BreakerOptions & { sourceCap?: number; requireRetest?: boolean; causal?: boolean } = {},
   len = data.c.length,
 ): Detection[] {
   const maxResults = opts.maxResults ?? 4;
@@ -207,7 +255,20 @@ export function detectBreakers(
   /* `hideMitigated: false` is essential: a mitigated block is exactly what
      this pass is looking for, and the default would filter every candidate
      out before it was examined. */
-  const blocks = detectOrderBlocks(data, { hideMitigated: false, maxZones: 24 }, len);
+  /* `sourceCap` for the same reason `detectMitigation` has one: a hardcoded 24
+     here truncates the block list by RECENCY, so which blocks a backtest sees at
+     bar 300 depends on how many formed after it. Default unchanged. */
+  const blocks = detectOrderBlocks(
+    data,
+    {
+      hideMitigated: false,
+      maxZones: opts.sourceCap ?? 24,
+      /* CAUSAL: ranges tiled forward, zone floors rolling. The defaults
+         that matter are in the CHILD, so they have to be threaded. */
+      ...(opts.causal === true ? { floorWindow: 400 } : {}),
+    },
+    len,
+  );
 
   const out: Detection[] = [];
 
@@ -245,6 +306,14 @@ export function detectBreakers(
     const flipped: "long" | "short" = bullish ? "short" : "long";
     /* A retested breaker is a stronger read than one price has not returned
        to, and the number says so rather than both scoring the same. */
+    /* A BREAKER THAT HAS NOT BEEN RETESTED IS NOT AN EVENT, it is a pending
+       zone - and its `to` is the BREAK bar, which moves to the RETEST bar the
+       moment one happens. MEASURED: one bar of the `breaker` column differed
+       between a 700-bar and a 900-bar run for exactly that reason. A backtest
+       asking "did price come back to the flipped block" wants only the ones
+       where it did; the chart wants both, so this is an option and not a
+       change of behaviour. */
+    if (opts.requireRetest === true && retestAt < 0) continue;
     const confidence = clamp01(block.confidence * (retestAt >= 0 ? 0.95 : 0.7));
 
     const shapes: Shape[] = [

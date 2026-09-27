@@ -144,6 +144,22 @@ export interface Detection {
   from: number;
   /** Bar index where it completes — the bar at which it became knowable. */
   to: number;
+  /**
+   * The bar the STRUCTURE itself was complete, when that differs from `to`.
+   *
+   * For most detectors the two are the same and this is omitted. A range is the
+   * exception and the distinction is load-bearing: the box is finished at its
+   * last bar, and the actionable event — the close that leaves it — happens
+   * later or not at all. `to` carries the event, so an unbroken range reports
+   * its last bar and a broken one reports the break, and the detection's whole
+   * IDENTITY changes with it (`kind` flips from `range` to `expansion`).
+   *
+   * MEASURED: that made the `inrange` column len-dependent. The same range was
+   * unbroken at 261 bars and broken at 900, so bars 259-260 were inside a range
+   * in one run and not in the other — a look-ahead leak that no cap or window
+   * could reach, because it lived in which KIND the detection claimed to be.
+   */
+  settledAt?: number;
   /** 0..1. Derived from measurable properties, never a guess. */
   confidence: number;
   /** Plain language, shown verbatim. Same contract as the confluence engine. */
