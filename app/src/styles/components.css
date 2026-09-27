@@ -518,6 +518,27 @@
 .view-slot > * {
   max-width: 1480px;
   margin-inline: auto;
+  /**
+   * `margin-inline: auto` TURNS OFF THE STRETCH IT SITS BESIDE.
+   *
+   * `.view-slot` is `place-items: stretch`, so a desk should fill its column up
+   * to the cap above. But a grid item with an AUTO margin in an axis stops
+   * stretching in that axis: the auto margins absorb the free space and the item
+   * is sized to fit-content instead. Adding the centring quietly undid the
+   * stretching for every desk that does not set a width of its own.
+   *
+   * `.dd`, `.screener` and `.flow` each carry `width: 100%` already, so they
+   * were unaffected and the defect was invisible on most of the product.
+   * `.desk`, `.view` and `.journal-desk` do not — which is Strategy, Conditions,
+   * Signals and the Journal. MEASURED on the Journal at 1920: 897px of an
+   * 1898px slot, 47% of the screen, 1,001 pixels of nothing either side. With
+   * this line: 1,480.
+   *
+   * It goes HERE rather than on the three classes for the same reason the cap
+   * above does, in that rule's own words: setting it on every desk at once is
+   * what stops there being a seventh root class that misses it.
+   */
+  width: 100%;
 }
 
 .view-pending {
