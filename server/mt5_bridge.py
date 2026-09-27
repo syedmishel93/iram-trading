@@ -318,6 +318,67 @@ def connect():
         return False, str(e)
 
 
+#: Errors that mean the pipe to the terminal died rather than "no".
+#:
+#: NAMED AND TESTED, because retrying a genuine refusal forever is its own
+#: defect. `-10001 IPC send failed` is what MT5 returns once `initialize()`'s
+#: handle is dead; "is MT5 logged in?" is this module's own wording for the same
+#: condition seen from `account_info()`.
+_LINK_ERRORS = ("ipc", "-10001", "-10004", "not initialized", "is mt5 logged in")
+
+
+def is_link_error(err):
+    """True when `err` means the connection dropped, not that the answer was no."""
+    t = str(err or "").lower()
+    return any(k in t for k in _LINK_ERRORS)
+
+
+def reconnect():
+    """Drop the cached handle and attach again.
+
+    `_ensure()` only connects when `connected` is falsy and NOTHING EVER SET IT
+    BACK — so `initialize()` succeeding once at start-up meant the bridge never
+    looked again. When the operator logs into a different account (a demo, to
+    test a strategy without losing money, and then back to live) the handle dies
+    and every later call goes down a pipe with nothing on the other end. That is
+    the `IPC send failed` this recovers from, without restarting the service.
+    """
+    try:
+        _MT5.shutdown()
+    except Exception:
+        pass
+    _STATE["connected"] = False
+    # The cached symbol list and clock offset belong to the OLD session. A demo
+    # and a live account can expose different symbol sets and sit on different
+    # servers, so keeping either would answer the new account with the old one's
+    # facts.
+    _STATE["symbols"] = None
+    _STATE["offset_s"] = None
+    _STATE["offset_t"] = 0.0
+    return connect()
+
+
+def retry_on_link(fn):
+    """Run `fn`, and if it fails because the LINK died, reconnect once and retry.
+
+    ONCE, never in a loop. A terminal that is closed will fail again immediately,
+    and a bridge that retries forever turns "MT5 is not running" into a hung
+    request — which is how a status page comes to show a spinner instead of an
+    answer.
+
+    Only link errors are retried; `is_link_error` names them. A symbol the broker
+    does not list is a real answer and retrying it would just cost two round
+    trips to reach the same refusal.
+    """
+    out, err = fn()
+    if err is None or not is_link_error(err):
+        return out, err
+    ok, why = reconnect()
+    if not ok:
+        return None, f"{err} — and reconnecting failed: {why}"
+    return fn()
+
+
 def _ensure():
     if not _STATE["connected"]:
         ok, why = connect()
@@ -448,6 +509,31 @@ def symbol_info(sym):
         return None, str(e)
 
 
+#: MT5's own `ACCOUNT_TRADE_MODE_*` constants.
+_TRADE_MODES = {0: "demo", 1: "contest", 2: "live"}
+
+
+def account_kind(trade_mode):
+    """DEMO, CONTEST, LIVE - or `unknown`, which is never guessed away.
+
+    A DEMO FILL IS NOT A REAL FILL. It has no queue position, no partial fills
+    and no requote, and its slippage is whatever the simulator felt like. These
+    deals feed the Journal, the reconciliation engine and `/svc/costs`, which
+    measures this broker's real spread and found the backtester charging 3-5x
+    too much - so demo fills reaching that path produce a cost model confidently
+    wrong in the CHEAP direction, and every strategy searched against it clears
+    a hurdle that does not exist.
+
+    An unrecognised mode returns "unknown" rather than defaulting. Defaulting to
+    "live" would let demo fills through as real; defaulting to "demo" would make
+    a real account's results look like practice. Both are claims, and the
+    absence of the field is not evidence for either.
+    """
+    if not isinstance(trade_mode, (int, float)):
+        return "unknown"
+    return _TRADE_MODES.get(int(trade_mode), "unknown")
+
+
 def account():
     """Balance / equity / margin — the inputs a Risk Governor cannot work without."""
     try:
@@ -455,10 +541,17 @@ def account():
         a = _MT5.account_info()
         if a is None:
             return None, "no account_info (is MT5 logged in?)"
+        mode = getattr(a, "trade_mode", None)
         return {"login": int(a.login), "currency": str(a.currency),
                 "balance": float(a.balance), "equity": float(a.equity),
                 "margin": float(a.margin), "margin_free": float(a.margin_free),
-                "leverage": int(a.leverage), "server": str(a.server)}, None
+                "leverage": int(a.leverage), "server": str(a.server),
+                # A hostname identifies the endpoint; this identifies the
+                # counterparty, and a reconciliation that cannot name who
+                # filled you is harder to audit.
+                "company": str(getattr(a, "company", "") or ""),
+                "trade_mode": int(mode) if isinstance(mode, (int, float)) else None,
+                "account_kind": account_kind(mode)}, None
     except Exception as e:
         return None, str(e)
 
@@ -466,7 +559,15 @@ def account():
 def positions():
     try:
         _ensure()
-        ps = _MT5.positions_get() or []
+        ps = _MT5.positions_get()
+        # NONE IS A FAILED CALL; AN EMPTY TUPLE IS AN EMPTY BOOK. `or []` made
+        # them the same answer, and the answer it chose was the reassuring one:
+        # MEASURED against a live terminal whose handle had gone stale,
+        # /mt5/account and /mt5/deals both errored while this returned
+        # {"positions": []} to a risk desk. "Zero is a value; absence is not."
+        if ps is None:
+            return None, f"positions_get returned None ({_MT5.last_error()})"
+        ps = ps or []
         off = offset_ms()
         return [{"ticket": int(p.ticket), "symbol": str(p.symbol), "type": int(p.type),
                  "volume": float(p.volume), "price_open": float(p.price_open),

@@ -81,7 +81,14 @@ CREATE TABLE IF NOT EXISTS kvstore(k TEXT PRIMARY KEY, v TEXT, rev INTEGER DEFAU
 CREATE TABLE IF NOT EXISTS mt5_deals(
     ticket INTEGER PRIMARY KEY, position_id INTEGER, time_ms INTEGER,
     type INTEGER, entry INTEGER, symbol TEXT, volume REAL, price REAL,
-    commission REAL, swap REAL, profit REAL, comment TEXT, src TEXT, imported REAL);
+    commission REAL, swap REAL, profit REAL, comment TEXT, src TEXT, imported REAL,
+    -- WHICH ACCOUNT FILLED IT. The operator switches between their broker's
+    -- demo and live accounts on purpose, and both sync into this one table.
+    -- `/svc/costs` measures the real spread from these rows, so a demo fill
+    -- reaching it makes the cost model wrong in the CHEAP direction - and a
+    -- cost model is a hurdle. NULL means "not recorded", never "live":
+    -- see db/migrations.py.
+    login INTEGER, account_kind TEXT);
 -- The broker's real cost profile per instrument. This is what retires the single
 -- flat costBps that every backtest has been using for every instrument.
 -- v37.0: the governor's rules. ONE row. His limits, not ours.

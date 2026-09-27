@@ -439,6 +439,21 @@ def ohlc():
 # v36.0 MT5 routes — bars come through /ohlc?provider=mt5 like any other provider;
 # these expose what ONLY the broker can tell you.
 # ----------------------------------------------------------------------------
+@app.route("/mt5/reconnect", methods=["POST"])
+def mt5_reconnect():
+    """Re-attach to the terminal after switching trading account.
+
+    A CONTROL, not a restart. The bridge recovers by itself on the next read,
+    and an operator who has just logged into a different account wants to see it
+    happen rather than wonder whether it did.
+    """
+    if mt5_bridge is None: return bad("mt5_bridge unavailable", 503)
+    ok, why = mt5_bridge.reconnect()
+    if not ok: return bad(why, 502)
+    d, err = mt5_bridge.account()
+    return jsonify({"ok": True, "why": why, "account": d, "account_error": err})
+
+
 @app.route("/mt5/health")
 def mt5_health():
     """Never 500s. Says exactly why it cannot serve, so the UI can show the real reason
@@ -481,14 +496,17 @@ def mt5_symbol():
 @app.route("/mt5/account")
 def mt5_account():
     if mt5_bridge is None: return bad("mt5_bridge unavailable", 503)
-    d, err = mt5_bridge.account()
+    # ONE RETRY ON A DROPPED LINK. The handle goes stale when the operator
+    # logs into a different account - a demo, to test without losing money -
+    # and `_ensure()` never looked again. See `retry_on_link`.
+    d, err = mt5_bridge.retry_on_link(mt5_bridge.account)
     if err: return bad(err, 502)
     return jsonify(d)
 
 @app.route("/mt5/positions")
 def mt5_positions():
     if mt5_bridge is None: return bad("mt5_bridge unavailable", 503)
-    d, err = mt5_bridge.positions()
+    d, err = mt5_bridge.retry_on_link(mt5_bridge.positions)
     if err: return bad(err, 502)
     return jsonify({"positions": d})
 
@@ -497,7 +515,7 @@ def mt5_deals():
     """Your closed fills. The raw material that turns 'the system's record' into YOURS."""
     days = int(request.args.get("days", "90"))
     if mt5_bridge is None: return bad("mt5_bridge unavailable", 503)
-    d, err = mt5_bridge.deals(days)
+    d, err = mt5_bridge.retry_on_link(lambda: mt5_bridge.deals(days))
     if err: return bad(err, 502)
     return jsonify({"deals": d, "days": days})
 

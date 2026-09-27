@@ -192,7 +192,34 @@ def migrate():
         #
         # SCHEMA_V is 4 and is written unconditionally below, which is correct as
         # long as every schema change so far has been additive.
+        # ADDITIVE ALTERS, exactly as the note above prescribes. `db/migrations`
+        # asks what columns exist and adds only what is missing, so it is safe on
+        # every start and on both dialects.
+        #
+        # RECORDED HERE, ANNOUNCED AFTER THE BLOCK CLOSES. `log_event()` opens
+        # its OWN connection and writes, so calling it in here asks for the lock
+        # this thread is already holding -- the deadlock that had `pair_scan_loop`
+        # failing on every run it ever made, with the raise rolling back the work
+        # the block existed to do. `tests/test_db_nested.py` caught this exact
+        # line, which is the whole reason that guard walks the tree.
+        try:
+            from db.migrations import run as _run_migrations
+            added = _run_migrations(c)
+        except Exception as e:
+            added = {}
+            note = str(e)
+        else:
+            note = None
         c.execute("INSERT INTO config(k,v) VALUES('schema_version',?) ON CONFLICT(k) DO UPDATE SET v=excluded.v",(str(SCHEMA_V),))
+
+    # Outside the transaction. A migration that cannot run must not stop the
+    # service booting -- every reader treats the new columns as absent, which is
+    # what they are -- but it must never be silent either.
+    if note is not None:
+        log_event("migrate_error", note)
+    for table, cols in (added or {}).items():
+        if cols:
+            log_event("migrate", f"{table}: added {', '.join(cols)}")
 
 # R4: nightly DB backup, keep 7
 def backup_loop():
