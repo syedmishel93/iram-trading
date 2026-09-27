@@ -1,0 +1,315 @@
+/**
+ * THE CONNECTIONS DESK — the graph surface.
+ *
+ * `.graph-` is its own prefix and `scratchpad/classcollide.py` was run before
+ * choosing it: ten prefixes in this project are already claimed by two sheets,
+ * and the last one to import wins silently — which is how the System desk spent
+ * two releases rendering in the Study desk's clothes.
+ *
+ * EVERY COLOUR IS A TOKEN. This terminal ships seven themes, and a hardcoded
+ * neon is right in exactly one of them. The canvas itself reads the same tokens
+ * at paint time through `viz/render.ts readPalette`, so a theme change reaches
+ * the drawing with no notification at all — the next paint already has it.
+ */
+
+.graph-desk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* The control row. What yields first is the note, which is the only part that
+   can be read from the picture underneath it. */
+.graph-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.graph-note {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-0);
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/**
+ * The canvas sits in a measured box.
+ *
+ * `aspect-ratio` is NOT used: the height comes from the measured width in
+ * `connections.ts` so the canvas backing store can be sized to match exactly.
+ * Letting CSS pick a height the script does not know about is how a canvas ends
+ * up stretched — every line soft, and nothing on screen to say why.
+ */
+/**
+ * THE STAGE OWNS ITS OWN HEIGHT, and that is a fix rather than a preference.
+ *
+ * MEASURED at 1900px before this: the script derived the canvas height from the
+ * WIDTH (1448 x 0.62 = 898px) inside a stage the layout had constrained to 448 —
+ * so **450 pixels of the graph were drawn where nobody could see them**, half the
+ * markets below the fold, silently, because of the `overflow: hidden` below. A
+ * picture that is clipped without saying so is worse than a broken one, because
+ * it looks complete.
+ *
+ * So CSS decides, the script MEASURES what CSS decided, and there is no loop: a
+ * bar that measures itself must not be sized by what it is showing. `vh` keeps
+ * the whole picture on a short screen; the clamp stops it becoming a letterbox
+ * on a tall one.
+ */
+.graph-stage {
+  position: relative;
+  width: 100%;
+  height: clamp(260px, 52vh, 720px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  overflow: hidden;
+  /* A drag pans the picture, so the browser must not also start a text
+     selection or a scroll gesture on it. */
+  touch-action: none;
+}
+
+.graph-canvas {
+  display: block;
+  cursor: grab;
+}
+
+.graph-canvas:active { cursor: grabbing; }
+
+/* How far it is zoomed, shown only when it is not at rest — a readout that says
+   "1.0x" forever is a readout people stop seeing. */
+.graph-zoom {
+  color: var(--text-faint);
+  font-size: var(--fs-0);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/**
+ * THE FIGURES, before the picture.
+ *
+ * A fixed `repeat(auto-fit, minmax(…, 1fr))` would pool every spare pixel into
+ * three enormous cells holding two words each — the defect this project has
+ * photographed on the data library and the calculator. These are capped and
+ * left-packed instead.
+ */
+.graph-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.graph-tiles:empty { display: none; }
+
+.graph-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 150px;
+  max-width: 260px;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+
+.graph-tile-label {
+  color: var(--text-faint);
+  font-size: var(--fs-0);
+}
+
+/* The answer leads, in the face this terminal uses for what it says on its own
+   account. Hierarchy is CONTRAST, not a second colour. */
+.graph-tile-value {
+  font-family: var(--font-serif);
+  font-size: var(--fs-4);
+  color: var(--text);
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-tile-note {
+  color: var(--text-muted);
+  font-size: var(--fs-0);
+}
+
+/**
+ * The rolling correlation of one pair.
+ *
+ * DRAWN ON A FIXED -1..+1 DOMAIN in the script, never scaled to its own range: a
+ * pair that wobbled between +0.62 and +0.66 would otherwise draw the identical
+ * dramatic zigzag as one that crossed from -0.9 to +0.9.
+ */
+.graph-spark {
+  width: 88px;
+  height: 22px;
+  overflow: visible;
+}
+
+.graph-spark-zero {
+  stroke: var(--border);
+  stroke-width: 1;
+}
+
+.graph-spark-line {
+  fill: none;
+  stroke: var(--text-muted);
+  stroke-width: 1.25;
+  stroke-linejoin: round;
+}
+
+.graph-row[data-sign="pos"] .graph-spark-line { stroke: var(--verdict-fav); }
+.graph-row[data-sign="neg"] .graph-spark-line { stroke: var(--verdict-unfav); }
+
+.graph-spark-none {
+  width: 88px;
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* The key. A picture whose channels are not explained is decoration, and this
+   one carries three different facts in three of them. */
+.graph-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+}
+
+.graph-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+}
+
+.graph-key-item::before {
+  content: "";
+  width: 18px;
+  height: 0;
+  border-top: 2px solid var(--text-faint);
+}
+
+.graph-key-item[data-kind="pos"]::before { border-top-color: var(--verdict-fav); }
+.graph-key-item[data-kind="neg"]::before { border-top-color: var(--verdict-unfav); }
+.graph-key-item[data-kind="thick"]::before { border-top-width: 5px; }
+.graph-key-item[data-kind="dash"]::before { border-top-style: dashed; }
+
+.graph-refusal {
+  margin: 0;
+  color: var(--attn);
+  font-size: var(--fs-1);
+}
+
+.graph-refusal[data-show="false"] { display: none; }
+
+/* What is under the pointer. */
+/* A floor, not a reservation. Measured on the real desk, 120px left a 126px
+   band of nothing under a single line of hint text — the dead-space defect this
+   project has photographed on four other surfaces. Enough to stop the counts
+   line jumping when the first row or two appears, and no more. */
+.graph-focus {
+  min-height: 64px;
+}
+
+.graph-focus-title {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-serif);
+  font-size: var(--fs-4);
+  font-weight: 400;
+  color: var(--text);
+}
+
+.graph-hint {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+}
+
+/**
+ * One relationship.
+ *
+ * The grid is FIXED, not `auto-fit` with `1fr`: this project has twice had a
+ * flexible track pool every spare pixel into one cell holding an em dash. The
+ * last column takes the slack because it holds a sentence, which is the only
+ * thing here that benefits from the room.
+ */
+.graph-row {
+  display: grid;
+  grid-template-columns: 88px 56px 72px 88px minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-1);
+}
+
+.graph-row-sym {
+  color: var(--text);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-row-r {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* COLOUR FOLLOWS THE STANDING, NEVER THE NUMBER: the direction of the
+   relationship, not its size. A sorted list always has a big number at the top. */
+.graph-row[data-sign="pos"] .graph-row-r { color: var(--verdict-fav); }
+.graph-row[data-sign="neg"] .graph-row-r { color: var(--verdict-unfav); }
+
+.graph-row-n {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+.graph-row-why {
+  color: var(--text-muted);
+  min-width: 0;
+}
+
+/* A relationship that did not hold is dimmed in the list exactly as it is
+   dashed on the canvas, so the two halves of the card cannot disagree. */
+.graph-row[data-held="false"] .graph-row-why { color: var(--text-faint); font-style: italic; }
+
+.graph-tail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.graph-counts {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-why {
+  margin: 0 0 var(--sp-1);
+  color: var(--text-faint);
+  font-size: var(--fs-0);
+}
+
+/* Below the narrow breakpoint the sentence goes under the numbers rather than
+   being squeezed into a column too thin to hold a clause. */
+@media (max-width: 720px) {
+  .graph-row {
+    grid-template-columns: 88px 56px 72px 88px;
+  }
+  .graph-row-why {
+    grid-column: 1 / -1;
+  }
+}

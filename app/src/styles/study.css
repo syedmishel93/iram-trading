@@ -1,0 +1,1865 @@
+/*
+ * The Analyse desk.
+ *
+ * Two columns everywhere: the choices on the left, what they COST on the
+ * right. The right column is the argument of the whole desk, so it is a real
+ * column rather than a collapsible drawer — a cost you have to open a panel to
+ * see is a cost nobody reads.
+ *
+ * House rules this file is bound by, each of which has drawn blood before:
+ *   every `:hover` sits inside `@media (hover: hover)`, or it sticks after a
+ *   tap on touch; no literal duration in a `transition`, or
+ *   `prefers-reduced-motion` cannot switch it off; colour follows the
+ *   STANDING — cleared the band, survived the correction — and never the size
+ *   of the number.
+ */
+
+.sy {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  background: var(--surface-base);
+}
+
+/* ── header ───────────────────────────────────────────────────────────── */
+
+.sy-head {
+  display: grid;
+  grid-template-columns: minmax(140px, 260px) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-4) var(--sp-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.sy-name {
+  height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  font: var(--fw-semi) var(--fs-4) / 1 var(--font-ui);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+
+.sy-head-acts {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+}
+
+.sy-rail {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  justify-self: center;
+}
+
+.sy-rail-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-5);
+  color: var(--text-faint);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--r-full);
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-ui);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease);
+}
+
+.sy-rail-n {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--r-full);
+  background: var(--surface-inset);
+  color: var(--text-faint);
+  font: var(--fw-semi) var(--fs-1) / 1 var(--font-mono);
+}
+
+.sy-rail-btn.is-on {
+  color: var(--text);
+  background: var(--surface-inset);
+  border-color: var(--border);
+}
+
+.sy-rail-btn.is-on .sy-rail-n {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.sy-run-btn {
+  height: var(--h-ctl);
+  padding: 0 var(--sp-6);
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text-on-accent);
+  background: var(--accent);
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  cursor: pointer;
+}
+
+.sy-run-btn[disabled] {
+  color: var(--text-faint);
+  background: var(--surface-inset);
+  border-color: var(--border);
+  cursor: not-allowed;
+}
+
+.sy-ghost {
+  height: var(--h-ctl);
+  padding: 0 var(--sp-5);
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  cursor: pointer;
+}
+
+.sy-blocknote:empty {
+  display: none;
+}
+
+.sy-blocknote {
+  padding: var(--sp-3) var(--sp-6);
+  font: var(--fw-med) var(--fs-2) / var(--lh-snug) var(--font-ui);
+  color: var(--neg);
+  background: var(--neg-wash);
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── the two-column body ──────────────────────────────────────────────── */
+
+.sy-body {
+  min-height: 0;
+  overflow: auto;
+}
+
+.sy-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 380px;
+  align-items: start;
+  gap: var(--sp-7);
+  padding: var(--sp-6);
+}
+
+.sy-main {
+  display: grid;
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+.sy-side {
+  display: grid;
+  gap: var(--sp-5);
+  align-content: start;
+  position: sticky;
+  top: var(--sp-6);
+}
+
+.sy-sec {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+
+.sy-sec-h {
+  margin: 0;
+  font: var(--fw-semi) var(--fs-4) / 1.2 var(--font-ui);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+
+.sy-sec-b {
+  margin: 0;
+  max-width: 68ch;
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-scope {
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--border-hi);
+  color: var(--text-faint);
+}
+
+.sy-panel {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+
+.sy-panel:empty {
+  display: none;
+}
+
+.sy-panel-h {
+  margin: 0;
+  font: var(--fw-semi) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sy-panel-h2 {
+  margin-top: var(--sp-3);
+}
+
+.sy-dim {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+/* ── subject: controls ────────────────────────────────────────────────── */
+
+.sy-field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-5);
+}
+
+.sy-field {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.sy-field-l {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sy-symbol {
+  width: 180px;
+  height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  font: var(--fw-semi) var(--fs-3) / 1 var(--font-mono);
+  color: var(--text);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+
+.sy-symbol-sm {
+  width: 220px;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-normal);
+}
+
+.sy-select,
+.sy-num {
+  height: var(--h-ctl);
+  padding: 0 var(--sp-3);
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+
+.sy-num {
+  width: 86px;
+  font-family: var(--font-mono);
+}
+
+/* ── subject: the series table ────────────────────────────────────────── */
+
+.sy-table {
+  display: grid;
+  gap: var(--sp-1);
+}
+
+.sy-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) 132px minmax(90px, 1fr) 76px minmax(80px, 1fr) 24px;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+}
+
+.sy-row-head {
+  padding-block: 0;
+  background: transparent;
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sy-row-subject {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+}
+
+.sy-row-fixed {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sy-row[data-state="failed"] {
+  background: var(--neg-wash);
+}
+
+.sy-row-id {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sy-row-sym {
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text);
+}
+
+.sy-row-label,
+.sy-row-note {
+  overflow: hidden;
+  font: var(--fw-normal) var(--fs-1) / 1.3 var(--font-ui);
+  color: var(--text-faint);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sy-row-bars {
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.sy-x {
+  width: 22px;
+  height: 22px;
+  color: var(--text-faint);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-2);
+  font-size: var(--fs-3);
+  cursor: pointer;
+}
+
+.sy-empty {
+  padding: var(--sp-5);
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+}
+
+/* Coverage: the held span with its gaps cut out. */
+
+.sy-cov {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.sy-cov-track {
+  width: 100%;
+  min-width: 40px;
+  height: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.sy-cov-held {
+  fill: var(--accent);
+  opacity: 0.55;
+}
+
+.sy-cov-gap {
+  fill: var(--surface-base);
+}
+
+.sy-cov-pc {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-muted);
+}
+
+.sy-cov-none {
+  font: var(--fw-normal) var(--fs-1) / 1 var(--font-ui);
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* Suggested series. */
+
+.sy-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+.sy-suggest-head {
+  flex: 1 0 100%;
+  font: var(--fw-normal) var(--fs-1) / 1.4 var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-4);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  cursor: pointer;
+}
+
+.sy-chip-sym {
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text);
+}
+
+.sy-chip-role {
+  font: var(--fw-normal) var(--fs-1) / 1 var(--font-ui);
+  color: var(--text-faint);
+}
+
+/* History segmented control. */
+
+.sy-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 2px;
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  width: fit-content;
+}
+
+.sy-seg-btn {
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-5);
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease);
+}
+
+.sy-seg-btn.is-on {
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+
+.sy-primary {
+  justify-self: start;
+  height: var(--h-ctl);
+  padding: 0 var(--sp-6);
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-2);
+  cursor: pointer;
+}
+
+/* ── subject: the cost panel ──────────────────────────────────────────── */
+
+.sy-stat {
+  display: grid;
+  gap: 2px;
+}
+
+.sy-stat-l {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.sy-stat-v {
+  font: var(--fw-semi) var(--fs-5) / 1.1 var(--font-mono);
+  color: var(--text);
+}
+
+.sy-stat-n {
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-callout {
+  padding: var(--sp-4);
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text);
+  background: color-mix(in srgb, var(--attn) 12%, transparent);
+  border-left: 2px solid var(--attn);
+  border-radius: 0 var(--r-2) var(--r-2) 0;
+}
+
+.sy-refuse {
+  margin: 0;
+  padding: var(--sp-4);
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text);
+  background: var(--neg-wash);
+  border-left: 2px solid var(--neg);
+  border-radius: 0 var(--r-2) var(--r-2) 0;
+}
+
+.sy-issue {
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--border-hi);
+}
+
+.sy-issue[data-sev="blocking"] {
+  color: var(--neg);
+  border-left-color: var(--neg);
+}
+
+.sy-issue[data-sev="caution"] {
+  border-left-color: var(--attn);
+}
+
+/* The split bar. */
+
+.sy-split {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.sy-split-bar {
+  display: flex;
+  height: 14px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-inset);
+}
+
+.sy-split-seg[data-seg="train"] {
+  background: var(--accent);
+  opacity: 0.75;
+}
+
+.sy-split-seg[data-seg="validate"] {
+  background: var(--p-series-mid, var(--alt));
+  opacity: 0.7;
+}
+
+.sy-split-seg[data-seg="holdout"] {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--border-hi),
+    var(--border-hi) 3px,
+    var(--surface-inset) 3px,
+    var(--surface-inset) 6px
+  );
+}
+
+.sy-split-seg[data-seg="gap"] {
+  background: var(--surface-base);
+}
+
+.sy-split-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-4);
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-faint);
+}
+
+/* ── method step ──────────────────────────────────────────────────────── */
+
+.sy-groups {
+  display: grid;
+  gap: var(--sp-6);
+}
+
+.sy-group-h {
+  margin: 0 0 2px;
+  font: var(--fw-semi) var(--fs-4) / 1.2 var(--font-ui);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+
+.sy-group-b {
+  margin: 0 0 var(--sp-4);
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--sp-4);
+  align-items: start;
+}
+
+.sy-card {
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  text-align: left;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease);
+}
+
+.sy-card[data-on="1"] {
+  border-color: var(--accent);
+  background: var(--surface-raised);
+}
+
+.sy-card[data-blocked="1"] {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.sy-card-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.sy-card-t {
+  font: var(--fw-semi) var(--fs-3) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-card-cost {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.sy-card-b,
+.sy-card-p {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-card-p {
+  color: var(--text-faint);
+}
+
+.sy-card-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sy-tests {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-faint);
+}
+
+.sy-card-block {
+  padding: var(--sp-3);
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+  background: var(--surface-inset);
+  border-left: 2px solid var(--neg);
+  border-radius: 0 4px 4px 0;
+}
+
+.sy-card-block[data-fixable="1"] {
+  border-left-color: var(--attn);
+}
+
+/* The pipeline. */
+
+.sy-pstep {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-top: 1px solid var(--border-hair);
+}
+
+.sy-pstep-n {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-full);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font: var(--fw-semi) var(--fs-1) / 1 var(--font-mono);
+}
+
+.sy-pstep-body {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.sy-pstep-t {
+  font: var(--fw-med) var(--fs-2) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-pstep-m {
+  font: var(--fw-normal) var(--fs-1) / 1.3 var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-pstep-ms {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-muted);
+}
+
+/* A guessed duration is written in the faintest role there is, because it is
+   the weakest claim on the screen. */
+.sy-pstep-ms[data-from="guess"] {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.sy-pstep-locked .sy-pstep-n {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.sy-lock-why {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-total {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text);
+}
+
+.sy-blocked-row {
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+/* ── automate ─────────────────────────────────────────────────────────── */
+
+.sy-cadences,
+.sy-actions,
+.sy-guards {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.sy-guards {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+
+.sy-cad {
+  display: grid;
+  gap: 2px;
+  padding: var(--sp-4);
+  text-align: left;
+  background: var(--surface-inset);
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  cursor: pointer;
+}
+
+.sy-cad.is-on {
+  border-color: var(--accent);
+}
+
+.sy-cad-t {
+  font: var(--fw-semi) var(--fs-2) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-cad-b {
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-action {
+  padding: var(--sp-4);
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+}
+
+.sy-action[data-locked="1"] {
+  opacity: 0.7;
+}
+
+.sy-action-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  cursor: pointer;
+}
+
+.sy-action-t {
+  font: var(--fw-med) var(--fs-2) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-locked {
+  padding: 1px var(--sp-3);
+  font: var(--fw-semi) var(--fs-1) / 1.4 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--attn);
+  background: color-mix(in srgb, var(--attn) 14%, transparent);
+  border-radius: var(--r-full);
+}
+
+.sy-action-b,
+.sy-action-why {
+  margin: var(--sp-2) 0 0;
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-action-why {
+  padding-left: var(--sp-4);
+  color: var(--text-muted);
+  border-left: 2px solid var(--attn);
+}
+
+.sy-guard {
+  display: grid;
+  gap: var(--sp-2);
+}
+
+.sy-guard-l {
+  font: var(--fw-med) var(--fs-1) / 1.3 var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-run {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--border-hair);
+}
+
+.sy-run-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.sy-run-name {
+  padding: 0;
+  font: var(--fw-semi) var(--fs-2) / 1.2 var(--font-ui);
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.sy-run-cad,
+.sy-run-last {
+  margin: 0;
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-faint);
+}
+
+.sy-run-note {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-run[data-decaying="1"] .sy-run-note {
+  color: var(--attn);
+}
+
+.sy-run-guard {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--neg);
+}
+
+.sy-spark {
+  display: block;
+  height: 24px;
+}
+
+.sy-spark svg {
+  width: 100%;
+  height: 24px;
+}
+
+.sy-spark-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.sy-run[data-decaying="1"] .sy-spark-line {
+  stroke: var(--attn);
+}
+
+.sy-spark-floor {
+  stroke: var(--border-hi);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ── report ───────────────────────────────────────────────────────────── */
+
+.sy-running {
+  display: grid;
+  gap: var(--sp-4);
+  place-content: center;
+  padding: var(--sp-9) var(--sp-6);
+  text-align: center;
+  grid-column: 1 / -1;
+}
+
+.sy-running-t {
+  margin: 0;
+  font: var(--fw-semi) var(--fs-5) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-running-b {
+  margin: 0 auto;
+  max-width: 60ch;
+  font: var(--fw-normal) var(--fs-3) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-headline-t {
+  margin: 0 0 var(--sp-3);
+  max-width: 34ch;
+  font: var(--fw-semi) var(--fs-6) / var(--lh-tight) var(--font-disp, var(--font-ui));
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+
+.sy-headline-b {
+  margin: 0;
+  font: var(--fw-med) var(--fs-1) / var(--lh-body) var(--font-mono);
+  color: var(--text-faint);
+}
+
+.sy-cards-out {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+.sy-sc {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+
+.sy-sc[data-state="refused"] {
+  border-left: 2px solid var(--attn);
+}
+
+.sy-sc[data-state="offline"] {
+  border-left: 2px solid var(--border-hi);
+}
+
+.sy-sc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-4);
+}
+
+.sy-sc-t {
+  font: var(--fw-semi) var(--fs-3) / 1.2 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-sc-g,
+.sy-sc-n {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-faint);
+}
+
+.sy-sc-headline {
+  margin: 0;
+  font: var(--fw-med) var(--fs-3) / var(--lh-snug) var(--font-ui);
+  color: var(--text);
+}
+
+.sy-sc-refuse {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-sc-kind,
+.sy-sc-caveat {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-sc-rows {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.sy-res {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--sp-4);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-hair);
+}
+
+.sy-res-l {
+  font: var(--fw-normal) var(--fs-2) / 1.3 var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-res-v {
+  font: var(--fw-semi) var(--fs-2) / 1.3 var(--font-mono);
+  color: var(--text);
+  text-align: right;
+}
+
+.sy-res[data-tone="pos"] .sy-res-v {
+  color: var(--pos);
+}
+
+.sy-res[data-tone="neg"] .sy-res-v {
+  color: var(--neg);
+}
+
+.sy-res[data-tone="attn"] .sy-res-v {
+  color: var(--attn);
+}
+
+.sy-res-n,
+.sy-res-w {
+  grid-column: 1 / -1;
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-res-w {
+  font-style: italic;
+}
+
+/* The lag profile. */
+
+.sy-lag-fig {
+  margin: 0;
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.sy-lag-cap {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.sy-lag-t {
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-lag-b,
+.sy-lag-axis {
+  font: var(--fw-normal) var(--fs-1) / 1 var(--font-mono);
+  color: var(--text-faint);
+}
+
+.sy-lag {
+  width: 100%;
+  height: 150px;
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+}
+
+.sy-lag-band {
+  fill: var(--border-hair);
+}
+
+.sy-lag-zero {
+  stroke: var(--border-hi);
+  stroke-width: 1;
+}
+
+/* Colour follows the STANDING — cleared the band or did not — never the size
+   of the bar. On noise the tallest bar is still drawn muted, which is the
+   whole point of drawing the band. */
+.sy-lag-bar {
+  fill: var(--text-faint);
+}
+
+.sy-lag-bar.is-clear {
+  fill: var(--accent);
+}
+
+.sy-lag-axis {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* The correction panel. */
+
+.sy-corr-text,
+.sy-corr-work {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-corr-work {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.sy-deflate {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+}
+
+.sy-deflate-l {
+  flex: 1;
+  font: var(--fw-normal) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-deflate-raw {
+  font: var(--fw-med) var(--fs-3) / 1 var(--font-mono);
+  color: var(--text-faint);
+}
+
+.sy-deflate-v {
+  font: var(--fw-semi) var(--fs-5) / 1 var(--font-mono);
+  color: var(--text);
+}
+
+.sy-claim {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: var(--sp-4);
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border-hair);
+  font: var(--fw-normal) var(--fs-1) / 1.3 var(--font-ui);
+  color: var(--text-faint);
+}
+
+.sy-claim-p,
+.sy-claim-q {
+  font-family: var(--font-mono);
+}
+
+.sy-claim[data-survives="1"] {
+  color: var(--text);
+}
+
+.sy-claim[data-survives="1"] .sy-claim-q {
+  color: var(--pos);
+}
+
+.sy-seal {
+  display: grid;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+  border-left: 2px solid var(--accent);
+}
+
+.sy-seal[data-state="opened"] {
+  border-left-color: var(--attn);
+}
+
+.sy-seal-t {
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text);
+}
+
+.sy-seal-b {
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+}
+
+/* What this does not establish. */
+
+.sy-limits {
+  padding: var(--sp-6);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+
+.sy-limits-h {
+  margin: 0 0 var(--sp-4);
+  font: var(--fw-semi) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--attn);
+}
+
+.sy-limit {
+  margin: 0 0 var(--sp-3);
+  max-width: 82ch;
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.sy-limit:last-child {
+  margin-bottom: 0;
+}
+
+/* ── narrow ───────────────────────────────────────────────────────────── */
+
+/*
+ * The cost column drops UNDER the choices rather than away.
+ *
+ * Written with the same class specificity as the rule it has to beat, because
+ * a media query adds none of its own — the trap recorded twice in CLAUDE.md
+ * and hit twice in the same block.
+ */
+@media (max-width: 1180px) {
+  .sy-step {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sy-side {
+    position: static;
+  }
+
+  .sy-head {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--sp-4);
+  }
+
+  .sy-rail {
+    justify-self: start;
+  }
+}
+
+/* ── hover, gated ─────────────────────────────────────────────────────── */
+
+@media (hover: hover) {
+  .sy-rail-btn:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  .sy-ghost:hover,
+  .sy-primary:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+
+  .sy-chip:hover {
+    border-color: var(--accent);
+  }
+
+  .sy-x:hover {
+    color: var(--neg);
+    background: var(--neg-wash);
+  }
+
+  .sy-card:not([data-blocked="1"]):hover {
+    border-color: var(--border-hi);
+    background: var(--surface-hover);
+  }
+
+  .sy-cad:hover {
+    background: var(--surface-hover);
+  }
+
+  .sy-run-name:hover {
+    color: var(--accent);
+  }
+
+  .sy-seg-btn:not(.is-on):hover {
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+}
+
+.sy-rail-btn:focus-visible,
+.sy-ghost:focus-visible,
+.sy-primary:focus-visible,
+.sy-chip:focus-visible,
+.sy-card:focus-visible,
+.sy-cad:focus-visible,
+.sy-seg-btn:focus-visible,
+.sy-run-btn:focus-visible,
+.sy-run-name:focus-visible,
+.sy-x:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+
+/* ══ Research ▸ Study: the steered flow (v59.2) ══════════════════════════
+ *
+ * The design's Research workspace: a header that says who leads, two tabs,
+ * and the study as four numbered cards on the left (what YOU choose) beside
+ * three on the right (what the AI chooses, and what it found). The same
+ * house rules as the rest of this file: hover only under `(hover: hover)`,
+ * durations only from tokens, colour by standing and never by size.
+ */
+
+.rs {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  background: var(--surface-base);
+}
+
+.rs-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-6) var(--sp-7) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.rs-intro { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+
+.rs-title {
+  margin: var(--sp-2) 0 0;
+  font: 400 var(--fs-6) / 1.15 var(--font-serif);
+  color: var(--text);
+}
+
+.rs-sub {
+  margin: 0;
+  max-width: 88ch;
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+.rs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.rs-bar-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.rs-bar-acts[hidden] { display: none; }
+
+.rs-body { min-height: 0; min-width: 0; overflow: auto; }
+/* The full stepper keeps its own three-row grid inside the body. */
+.rs-body > .sy { height: 100%; }
+.rs-library { height: 100%; min-height: 0; }
+
+.rs-study {
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  align-items: start;
+  gap: var(--sp-6);
+  padding: var(--sp-6) var(--sp-7);
+}
+
+@media (max-width: 900px) {
+  .rs-study { grid-template-columns: minmax(0, 1fr); padding: var(--sp-5) var(--sp-4); }
+  .rs-head { padding: var(--sp-5) var(--sp-4) var(--sp-4); }
+}
+
+.rs-col { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+
+.rs-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.rs-card-title {
+  margin: 0;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+}
+
+.rs-field { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.rs-field-label { font-size: var(--fs-1); color: var(--text-faint); letter-spacing: var(--track-micro); }
+
+.rs-input {
+  height: var(--h-ctl);
+  min-width: 0;
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-2);
+  color: var(--text);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+.rs-input:focus-visible { outline: none; border-color: var(--accent); box-shadow: var(--ring); }
+
+.rs-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4); }
+
+.rs-range { width: 100%; accent-color: var(--accent); }
+.rs-range:disabled { opacity: 0.5; }
+.rs-out { font-size: var(--fs-2); color: var(--text); }
+
+.rs-note { margin: 0; font-size: var(--fs-2); line-height: var(--lh-snug); color: var(--text-muted); }
+.rs-note:empty, .rs-block:empty { display: none; }
+.rs-block { margin: 0; font-size: var(--fs-2); line-height: var(--lh-snug); color: var(--neg); }
+.rs-empty { margin: 0; font-size: var(--fs-2); line-height: var(--lh-snug); color: var(--text-faint); }
+
+.rs-run { width: 100%; height: 40px; }
+
+.rs-tags { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.rs-tag {
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), background-color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+.rs-tag[aria-pressed="true"] {
+  color: var(--accent);
+  background: var(--accent-wash);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+/* A check nothing can run is struck through, not hidden: the reason is on it. */
+.rs-tag[data-blocked="true"] { text-decoration: line-through; color: var(--text-faint); }
+@media (hover: hover) { .rs-tag:hover { color: var(--text); border-color: var(--border-hi); } }
+.rs-tag:focus-visible, .rs-link:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.rs-chip {
+  padding: 2px var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+}
+
+.rs-link {
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* ── related assets ─────────────────────────────────────────────────── */
+
+.rs-rel-list { display: flex; flex-direction: column; min-width: 0; }
+
+.rs-rel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+
+.rs-rel-main {
+  display: grid;
+  grid-template-columns: 18px minmax(64px, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+  cursor: pointer;
+}
+.rs-rel-sym { color: var(--text); font-size: var(--fs-2); }
+.rs-rel-why { font-size: var(--fs-2); color: var(--text-muted); min-width: 0; }
+.rs-rel-state { font-size: var(--fs-1); color: var(--text-faint); text-align: right; white-space: nowrap; }
+.rs-rel[data-on="false"] .rs-rel-sym,
+.rs-rel[data-on="false"] .rs-rel-why { color: var(--text-faint); }
+.rs-rel .pk-why { margin-left: calc(18px + var(--sp-3)); }
+
+.rs-add { display: flex; gap: var(--sp-3); }
+.rs-add .rs-input { flex: 1 1 auto; max-width: 260px; }
+
+/* ── results ────────────────────────────────────────────────────────── */
+
+.rs-results { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+
+.rs-verdict {
+  margin: 0;
+  font: 400 var(--fs-5) / 1.3 var(--font-serif);
+  color: var(--text);
+}
+
+.rs-h3 {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+
+.rs-line { margin: 0; font-size: var(--fs-2); line-height: var(--lh-snug); color: var(--text); }
+
+.rs-list {
+  margin: 0;
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+.rs-decide { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-3); }
+
+/* ── data library additions (ui/data.ts) ────────────────────────────── */
+
+/*
+  A DATA TABLE HAS A WIDTH IT STOPS BEING READABLE PAST.
+
+  The old row gave "Used by" a `1fr` track, so on a 1825px desk that column
+  became roughly 560px of empty holding a single em dash — the gap the owner
+  pointed at. Widening a seven-column table to whatever the window offers is
+  also the same mistake as an unbounded line length: the eye loses the row
+  between the size and the buttons. Every block in the library is capped at one
+  measure and left-aligned, and the flexible track is then the only one that
+  can grow, to about 230px: the seven fixed tracks, their gaps and the row's
+  own padding come to 770px, so the cap is set at 1000 and there is no slack
+  left over to pool anywhere.
+*/
+.lib-dl,
+.lib-toolbar,
+.lib-table { max-width: 1000px; }
+
+/* --- the download control */
+.lib-dl {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-2);
+}
+.lib-dl-line { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+/*
+  `.dd-input` is `width: 100%`, which in a flex row resolves to the whole row —
+  MEASURED at 718px, so the field wrapped onto its own line and read as a bar of
+  empty surface. A field states its own width; the wrapper cannot do it for it.
+*/
+.lib-sym { flex: 1 1 260px; width: auto; min-width: 200px; max-width: 420px; }
+.lib-presets { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.lib-preset { height: var(--h-ctl-sm); padding: 0 var(--sp-3); font-size: var(--fs-1); }
+
+.lib-chips { display: flex; gap: var(--sp-1); }
+.lib-chip {
+  height: var(--h-ctl-sm);
+  min-width: 42px;
+  padding: 0 var(--sp-3);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+/* The set is the point, so a chosen chip is filled rather than merely tinted:
+   scanning "which sizes am I about to fetch" has to work at a glance. */
+.lib-chip[aria-pressed="true"] {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+@media (hover: hover) {
+  .lib-chip:hover { border-color: var(--border-hi); color: var(--text); }
+  .lib-chip[aria-pressed="true"]:hover { color: var(--accent); }
+}
+.lib-queue { margin: 0; font-size: var(--fs-1); color: var(--text-muted); }
+
+/* --- the toolbar: find, order, act on many */
+.lib-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+}
+.lib-filter { flex: 0 1 260px; width: auto; height: var(--h-ctl-sm); padding: 0 var(--sp-3); }
+.lib-toolbar .dd-select { height: var(--h-ctl-sm); padding: 0 var(--sp-3); font-size: var(--fs-1); }
+.lib-toolbar .ghost-btn { height: var(--h-ctl-sm); padding: 0 var(--sp-3); font-size: var(--fs-1); }
+.lib-spacer { flex: 1 1 var(--sp-4); }
+.lib-count { font-size: var(--fs-1); color: var(--text-faint); white-space: nowrap; }
+.lib-bulk-note { flex: 1 0 100%; margin: 0; font-size: var(--fs-1); color: var(--text-muted); }
+
+/* --- the table, grouped by market */
+/*
+  A MARKET IS A DISCLOSURE.
+
+  Ten markets at four bar sizes each is forty rows to scroll for a question
+  ("what do I hold, and where are the holes") whose answer is ten lines. Shut,
+  a market is its own summary; open, it is the rows. The caret is the same
+  glyph and the same `--dur-*` token as `.pk-why`, so the two disclosures in
+  this desk turn at the same speed and both stop under reduced motion.
+*/
+.lib-caret {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+}
+.lib-caret::before {
+  content: "›";
+  align-self: center;
+  color: var(--text-faint);
+  transition: transform var(--dur-1) var(--ease);
+}
+.lib-group[data-open="true"] .lib-caret::before { transform: rotate(90deg); }
+@media (hover: hover) {
+  .lib-caret:hover .lib-group-sym { color: var(--accent); }
+}
+.lib-caret:focus-visible { outline: none; box-shadow: var(--ring); border-radius: var(--r-1); }
+.lib-group-sel { font-size: var(--fs-1); color: var(--accent); white-space: nowrap; }
+.lib-group-chart { font-size: var(--fs-1); color: var(--text-faint); white-space: nowrap; }
+
+.lib-group {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  /* The first group needs no rule above it; `.lib-group + *` cannot express
+     that, so the space and the line go on the group and the first one drops
+     them. These children are NOT reordered, so adjacency is safe here. */
+  margin-top: var(--sp-5);
+  padding: 0 var(--sp-2) var(--sp-2);
+  border-bottom: 1px solid var(--border);
+}
+.lib-group:first-child { margin-top: 0; }
+/* Shut, the rule underneath is separating a row from another row rather than a
+   heading from its table, so it goes — and the markets close up into a list. */
+.lib-group[data-open="false"] { margin-top: 0; border-bottom-color: var(--border-hair); }
+.lib-group-sym { font-size: var(--fs-3); font-weight: var(--fw-semi); color: var(--text); }
+.lib-group-meta { font-size: var(--fs-1); color: var(--text-faint); }
+
+.dd-row.lib-row {
+  grid-template-columns: 24px 64px 84px 172px 78px 72px minmax(110px, 1fr) 148px;
+  min-width: 800px;
+}
+.lib-row .dd-tf { display: flex; align-items: center; gap: var(--sp-2); }
+.lib-check { width: 14px; height: 14px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+.rs-lib-acts { display: flex; justify-content: flex-end; gap: var(--sp-2); }
+.rs-lib-acts .ghost-btn { height: var(--h-ctl-sm); padding: 0 var(--sp-3); }
+
+.rs-lib-side {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: var(--sp-6);
+  min-width: 0;
+}
+
+.rs-learned { display: flex; flex-direction: column; min-width: 0; }
+.rs-learned-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.rs-learned-main { display: flex; flex-direction: column; gap: var(--sp-1); flex: 1 1 auto; min-width: 0; }
+.rs-learned-main strong { color: var(--text); font-size: var(--fs-2); }
+.rs-learned-detail { font-size: var(--fs-1); color: var(--text-muted); overflow-wrap: anywhere; }
+
+.rs-perm {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.rs-perm:has(input:disabled) { color: var(--text-faint); }
+.rs-perm-text { display: flex; flex-direction: column; gap: var(--sp-1); }
+.rs-perm-note { font-size: var(--fs-1); color: var(--text-muted); }
+
+/* ── v61.5: the layout law, and the coverage ribbon ─────────────────────── */
+
+/*
+  A DESK IS A GRID, NOT A STACK.
+
+  Every desk was one full-width column of full-width panels, so its content
+  either stretched to 1800px or sat capped beside 800px of nothing. Eight
+  columns hold the work; four hold what the work is measured against.
+
+  Below 1240px there is no room for two, and the rail goes under the primary
+  rather than squeezing both — a 300px table is not a smaller table, it is an
+  unreadable one.
+*/
+.dd-layout {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--sp-6);
+  align-items: start;
+  min-width: 0;
+}
+.dd-primary { grid-column: span 8; display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+.dd-rail    { grid-column: span 4; display: flex; flex-direction: column; gap: var(--sp-5); min-width: 0; }
+
+/* A SPLIT FOLLOWS THE CONTENT, not a default.
+   Sessions takes 7+5 because the clock's last column carries a sentence
+   ("closed — opens in 7.3h") that lands near 150px and wraps in a 4-column
+   rail. One attribute rather than a second pair of classes. */
+.dd-layout[data-split="7-5"] > .dd-primary { grid-column: span 7; }
+.dd-layout[data-split="7-5"] > .dd-rail    { grid-column: span 5; }
+
+/*
+  THE RAIL STICKS.
+
+  Smart money's two detection lists MEASURED 7,623px and 23,696px tall, and the
+  panel that decides what is IN them sat above the first one — so changing a
+  filter meant scrolling twenty thousand pixels back to reach it. A rail that
+  scrolls away on a desk like that is not a rail, it is a first screen.
+
+  `align-self: start` is required: the grid's default stretches the item to the
+  row height, and a sticky element as tall as its own scroll container can
+  never move relative to it. The max-height then gives a rail taller than the
+  window its own scroller instead of clipping it.
+*/
+.dd-rail {
+  position: sticky;
+  top: var(--sp-4);
+  align-self: start;
+  max-height: calc(100vh - var(--h-topbar) - var(--h-cmdbar) - var(--sp-7));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1240px) {
+  .dd-layout > .dd-primary,
+  .dd-layout > .dd-rail,
+  .dd-layout[data-split="7-5"] > .dd-primary,
+  .dd-layout[data-split="7-5"] > .dd-rail { grid-column: 1 / -1; }
+  /* Stacked, a sticky rail would pin itself over the content below it. */
+  .dd-rail { position: static; max-height: none; overflow: visible; }
+}
+
+/* --- the hero */
+.lib-hero { gap: var(--sp-5); }
+.lib-hero-head { display: flex; align-items: flex-end; justify-content: space-between; gap: var(--sp-5); }
+.lib-hero-title { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* THE FIGURE THE PANEL EXISTS TO STATE, in the serif this terminal already
+   uses for what it says on its own account. One per panel, never two. */
+.lib-figure { display: flex; align-items: baseline; gap: var(--sp-4); flex-wrap: wrap; }
+.lib-figure-n {
+  font-family: var(--font-serif);
+  font-size: calc(58px * var(--ui-scale));
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.lib-figure-of { font-size: var(--fs-3); color: var(--text-muted); max-width: 26ch; line-height: var(--lh-snug); }
+
+.lib-key { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-1); color: var(--text-faint); white-space: nowrap; }
+.lib-key-swatch { width: 18px; height: 5px; border-radius: var(--r-full); }
+.lib-key-swatch[data-kind="held"] { background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 62%, transparent), var(--accent)); }
+.lib-key-swatch[data-kind="gap"] { background: color-mix(in srgb, var(--p-fg) 7%, transparent); }
+.lib-key-swatch + span { margin-right: var(--sp-3); }
+
+/* --- the ribbon */
+.lib-ribbon { position: relative; display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+
+.lib-rib-row {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-1) var(--sp-2);
+  margin: 0 calc(var(--sp-2) * -1);
+  border-radius: var(--r-2);
+  transition: background var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .lib-rib-row:hover { background: color-mix(in srgb, var(--p-fg) 3%, transparent); } }
+.lib-rib-sym { font-size: var(--fs-2); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lib-rib-row[data-on="true"] .lib-rib-sym { color: var(--text); font-weight: var(--fw-semi); }
+
+.lib-rib-track {
+  position: relative;
+  display: block;
+  height: 12px;
+  border-radius: var(--r-full);
+  background: color-mix(in srgb, var(--p-fg) 6%, transparent);
+  overflow: hidden;
+}
+/* A held span. The lit edge is the same trick the panes use — it is what
+   stops the bar reading as a flat swatch of colour. */
+.lib-rib-seg {
+  position: absolute;
+  top: 0;
+  height: 12px;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 58%, transparent), var(--accent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, #fff 22%, transparent);
+}
+/* A market NOT on the chart is drawn in the neutral: colour follows the
+   standing, and "this is what you are looking at" is the standing here. */
+.lib-rib-row[data-on="false"] .lib-rib-seg {
+  background: linear-gradient(90deg, color-mix(in srgb, var(--p-fg) 18%, transparent), color-mix(in srgb, var(--p-fg) 30%, transparent));
+}
+.lib-rib-size { font-size: var(--fs-1); color: var(--text-faint); text-align: right; }
+
+/* The years sit UNDER the lanes and are positioned by percentage, from the
+   same axis the segments use — two independent scales would drift. */
+.lib-rib-grid { position: relative; height: 16px; margin-top: var(--sp-2); }
+.lib-rib-year {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.lib-sweep { margin-top: var(--sp-2); }

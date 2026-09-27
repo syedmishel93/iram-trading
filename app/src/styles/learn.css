@@ -1,0 +1,606 @@
+/* ===========================================================================
+   Learning desk — the terminal's own track record.
+
+   THE ONE VISUAL DECISION THAT CARRIES THE PAGE
+   Every rate here is drawn as `.ld-bar`: a wide pale band for the range the
+   true rate could be in, a thin line for the point estimate, and a hairline at
+   50% for a coin. The usual treatment — a solid bar with an error whisker
+   bolted on — gives all the visual weight to the point estimate and reads as a
+   fact, which is exactly backwards when the sample is four. Here the
+   UNCERTAINTY is the shape you see first, so a small sample looks small from
+   across the room and nobody has to read the caption to discover it.
+
+   The point line is the only saturated mark in the component. That is the
+   whole accent budget for the page, spent on the number being claimed rather
+   than on decoration around it.
+   =========================================================================== */
+
+/* The container stops imposing a reading measure it does not have.
+
+   Measured at 1600px: 760px of content in a 1240px slot, 480px empty, while
+   the panels below it — a headline, a gate comparison, a score table, two
+   claim lists and a per-instrument breakdown — stacked into a single column
+   that had to be scrolled past to compare any two of them. The measure belongs
+   on the prose, and the prose already carries it: `.ld-lede`, `.ld-blurb` and
+   `.ld-headline` each cap at 68–70ch on their own. */
+.ld {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+.ld-head { display: flex; align-items: flex-start; gap: var(--sp-6); }
+.ld-head-text { flex: 1; min-width: 0; }
+
+.ld-h1 {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-disp);
+  font-size: var(--fs-5);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+
+.ld-lede {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+  max-width: 68ch;
+}
+
+.ld-switch {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: none;
+  padding-top: 2px;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.ld-switch input { accent-color: var(--accent); cursor: pointer; }
+
+/* --- tabs ---------------------------------------------------------------- */
+
+.ld-tabs {
+  display: flex;
+  gap: var(--sp-1);
+  border-bottom: 1px solid var(--border);
+}
+
+.ld-tab {
+  appearance: none;
+  margin-bottom: -1px;
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+@media (hover: hover) { .ld-tab:hover { color: var(--text); } }
+.ld-tab[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+.ld-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.ld-notice {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--accent);
+  background: var(--accent-wash);
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+.ld-notice[hidden] { display: none; }
+
+/* THE POINT OF THE GRID, ON THIS DESK SPECIFICALLY.
+
+   The question the desk exists to answer — "do the gates earn their refusals"
+   — is a COMPARISON, and a comparison read by scrolling is not read. Two
+   columns put the cleared population and the blocked one, or the score bands
+   and the per-instrument split, on the same screen at the same time.
+
+   `align-items: start` because a claim list and a two-line verdict differ in
+   height by a factor of ten, and stretching them to match fills the difference
+   with emptiness that looks like missing data. */
+.ld-stack {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(32rem, 1fr));
+  align-items: start;
+  gap: var(--sp-4);
+}
+
+/* The headline panel spans: it is the sentence every other panel qualifies,
+   and it reads as one of several findings if it sits in a column beside them. */
+.ld-panel-lead,
+.ld-wide { grid-column: 1 / -1; }
+
+/* --- panels -------------------------------------------------------------- */
+
+.ld-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface);
+}
+.ld-panel-lead { background: var(--surface-inset); }
+
+.ld-h2 {
+  margin: 0;
+  font-size: var(--fs-4);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+
+.ld-blurb {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+  max-width: 70ch;
+}
+
+.ld-headline {
+  margin: 0;
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text);
+  max-width: 70ch;
+}
+
+.ld-window { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }
+
+.ld-verdict {
+  margin: 0;
+  padding: var(--sp-4);
+  border-left: 2px solid var(--text-faint);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+/* A separated comparison is a finding; an overlapping one is a non-finding,
+   and the two must not look alike. Only the finding gets the accent. */
+.ld-verdict[data-separated="true"] { border-left-color: var(--accent); }
+
+/* --- the rate bar -------------------------------------------------------- */
+
+.ld-bar { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+
+.ld-bar-track {
+  position: relative;
+  flex: 1;
+  min-width: 80px;
+  height: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.ld-bar-range {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+.ld-bar-point {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--accent);
+}
+
+.ld-bar-coin {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: var(--border-hi);
+}
+
+.ld-bar-value {
+  flex: none;
+  min-width: 4.5em;
+  text-align: right;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+/* Below the sample floor the desk prints `3/12` rather than a percentage, and
+   mutes it so it cannot be mistaken for a headline number. */
+.ld-bar-value[data-weak="true"] { font-weight: var(--fw-normal); color: var(--text-faint); }
+
+/* --- the cleared / blocked comparison ------------------------------------ */
+
+.ld-compare { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-5); }
+@media (max-width: 720px) { .ld-compare { grid-template-columns: 1fr; } }
+
+.ld-compare-col { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+.ld-compare-head { display: flex; align-items: center; gap: var(--sp-3); }
+
+.ld-compare-label {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-muted);
+}
+
+.ld-compare-note {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+/* --- score bands --------------------------------------------------------- */
+
+.ld-bands { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ld-band { display: flex; align-items: center; gap: var(--sp-4); }
+
+.ld-band-label {
+  flex: none;
+  width: 5.5em;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.ld-band-r {
+  flex: none;
+  width: 5em;
+  text-align: right;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* --- claim rows ---------------------------------------------------------- */
+
+/* THE LIST SCROLLS INSIDE THE PANEL, NOT THE PANEL INSIDE THE PAGE.
+
+   Measured: the pending list rendered 1,858px tall and the settled list
+   1,333px, in a two-column grid where the panels beside them were 200px. The
+   whole desk became one long scroll whose only purpose was to get past a list,
+   and the "By instrument" panel — a comparison the page exists to make —
+   ended up two screens below the headline it qualifies.
+
+   The cap is generous enough that a short list never scrolls at all, and the
+   fade at the bottom is what says there is more, since a hard edge on a dark
+   surface reads as the end. */
+.ld-claims {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 26rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ld-claim {
+  display: grid;
+  grid-template-columns: minmax(9em, 1.2fr) 4em 7em minmax(6em, 1fr) 5em 7em;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  border: 0;
+  border-radius: var(--r-1);
+  background: var(--surface-inset);
+  font: inherit;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) { .ld-claim:hover { background: var(--surface-hover); } }
+.ld-claim:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.ld-claim-sym { font-weight: var(--fw-med); color: var(--text); }
+.ld-claim-side { text-transform: uppercase; letter-spacing: var(--track-wide); }
+.ld-claim-side[data-side="long"] { color: var(--pos); }
+.ld-claim-side[data-side="short"] { color: var(--neg); }
+.ld-claim-verdict[data-verdict="take"] { color: var(--text); }
+.ld-claim-verdict[data-verdict="stand-down"] { color: var(--text-faint); }
+
+.ld-claim-r,
+.ld-claim-age,
+.ld-claim-left { font-variant-numeric: tabular-nums; }
+.ld-claim-r[data-tone="pos"] { color: var(--pos); }
+.ld-claim-r[data-tone="neg"] { color: var(--neg); }
+
+.ld-claim[data-outcome="target"] .ld-claim-out { color: var(--pos); }
+.ld-claim[data-outcome="stop"] .ld-claim-out { color: var(--neg); }
+.ld-claim[data-outcome="unknowable"] .ld-claim-out { color: var(--attn); }
+
+/* --- by instrument, and forgetting --------------------------------------- */
+
+.ld-syms { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ld-sym { display: flex; align-items: center; gap: var(--sp-4); }
+
+.ld-sym-name {
+  flex: none;
+  width: 9em;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  color: var(--text);
+}
+
+.ld-sym-r {
+  flex: none;
+  width: 5em;
+  text-align: right;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.ld-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.ld-actions-danger { border-top: 1px solid var(--border); padding-top: var(--sp-4); }
+
+.ld-btn,
+.ld-forget,
+.ld-mini {
+  appearance: none;
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  font: inherit;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+@media (hover: hover) { .ld-btn:hover:not(:disabled), .ld-forget:hover, .ld-mini:hover { border-color: var(--accent); color: var(--accent); } }
+.ld-btn:disabled { opacity: .45; cursor: not-allowed; }
+@media (hover: hover) { .ld-btn-danger:hover, .ld-mini-danger:hover { border-color: var(--neg); color: var(--neg); } }
+.ld-forget,
+.ld-mini { flex: none; padding: 1px var(--sp-3); }
+
+/* --- model runs ---------------------------------------------------------- */
+
+.ld-drifts { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.ld-drift {
+  display: grid;
+  grid-template-columns: minmax(10em, auto) 5em;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+}
+.ld-drift-what { font-size: var(--fs-2); font-weight: var(--fw-med); color: var(--text); }
+
+.ld-drift-change {
+  text-align: right;
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.ld-drift-change[data-tone="pos"] { color: var(--pos); }
+.ld-drift-change[data-tone="neg"] { color: var(--neg); }
+
+.ld-drift-text {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+.ld-runs { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.ld-run {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+}
+.ld-run[data-pinned="true"] { border-color: var(--accent); }
+
+.ld-run-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.ld-run-sym { font-size: var(--fs-2); font-weight: var(--fw-med); color: var(--text); }
+.ld-run-kind { text-transform: uppercase; letter-spacing: var(--track-wide); }
+.ld-run-metric { font-variant-numeric: tabular-nums; color: var(--text); }
+.ld-run-metric[data-tone="pos"] { color: var(--pos); }
+.ld-run-metric[data-tone="neg"] { color: var(--neg); }
+.ld-run-age { margin-left: auto; }
+
+.ld-run-verdict {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+.ld-run-drivers { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+
+.ld-run-driver {
+  padding: 1px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+
+.ld-run-actions { display: flex; align-items: center; gap: var(--sp-3); }
+.ld-run-bars { margin-right: auto; font-size: var(--fs-1); color: var(--text-faint); }
+
+/* --- glossary ------------------------------------------------------------ */
+
+.ld-glossary {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(26rem, 1fr));
+  align-items: start;
+  gap: var(--sp-4) var(--sp-6);
+}
+.ld-entry { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.ld-term { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3); }
+.ld-term-plain { font-size: var(--fs-3); font-weight: var(--fw-med); color: var(--text); }
+
+/* The jargon is kept and made small, never deleted. It is what you would need
+   to go and argue with the number somewhere that is not this terminal. */
+.ld-term-jargon {
+  padding: 1px var(--sp-2);
+  border-radius: var(--r-1);
+  background: var(--surface-inset);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.ld-def {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+  max-width: 70ch;
+}
+.ld-def-not { color: var(--attn); }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   THE DETECTOR SCORECARD
+
+   Sits between the claims and the housekeeping. Everything above it is out of
+   sample; this is not, and the pairing is deliberate — see ui/kindtable.ts.
+
+   The four row tones are the whole readout: a reader should be able to tell
+   "clears", "flat", "against it" and "not enough yet" apart without reading a
+   number, and "flat" and "not enough" must not look the same, because one is
+   the market answering and the other is nobody having asked.
+   ────────────────────────────────────────────────────────────────────────── */
+.kindtable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+}
+
+.kindtable-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+.kindtable-title {
+  margin: 0;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+}
+.kindtable-sub {
+  margin-left: auto;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The caveat reads as prose, at body weight, above the numbers. Styled as a
+   footnote it would be read as one, which is to say not at all. */
+.kindtable-note {
+  margin: 0;
+  max-width: 68ch;
+  font-size: var(--fs-2);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+/* A long table must scroll inside its own box; the desk must never scroll
+   sideways. */
+.kindtable-body { overflow-x: auto; }
+
+.kindtable-grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+}
+.kindtable-grid th {
+  padding: var(--sp-2) var(--sp-3);
+  text-align: left;
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.kindtable-grid td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.kindtable-grid th.num,
+.kindtable-grid td.num { text-align: right; }
+
+.kindtable-kind { color: var(--text); }
+.kindtable-side { color: var(--text-faint); }
+.kindtable-verdict { color: var(--text-faint); }
+
+/* A stripe rather than a fill: at a dozen rows a coloured background reads as
+   a heat map, which invites reading the colour as a magnitude. */
+.kindtable-grid tr[data-tone] td:first-child {
+  border-left: 2px solid transparent;
+  padding-left: calc(var(--sp-3) - 2px);
+}
+.kindtable-grid tr[data-tone="clears"] td:first-child { border-left-color: var(--pos); }
+.kindtable-grid tr[data-tone="adverse"] td:first-child { border-left-color: var(--neg); }
+.kindtable-grid tr[data-tone="flat"] td:first-child { border-left-color: var(--border-hi); }
+
+.kindtable-grid tr[data-tone="clears"] .kindtable-edge { color: var(--pos); }
+.kindtable-grid tr[data-tone="adverse"] .kindtable-edge { color: var(--neg); }
+
+/* Uncharacterised rows are dimmed, not hidden. Hiding them would answer
+   "which kinds work" with a list that silently omitted most of the detectors. */
+.kindtable-grid tr[data-tone="thin"] td { color: var(--text-faint); opacity: 0.72; }
+
+.kindtable-empty,
+.kindtable-fine {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.kindtable-foot { display: flex; align-items: center; }
+.kindtable-deepen {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  cursor: pointer;
+}
+@media (hover: hover) { .kindtable-deepen:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); } }
+.kindtable-deepen:disabled { opacity: 0.5; cursor: default; }

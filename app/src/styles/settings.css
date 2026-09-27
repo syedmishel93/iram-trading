@@ -1,0 +1,504 @@
+/* ============================================================================
+   SETTINGS — one surface for everything that was previously homeless.
+
+   Reads only semantic roles, so it re-themes with the other five themes for
+   free. Laid out as head / nav+main / foot so the search field and the footer
+   stay put while the panel scrolls, which is what stops a long section feeling
+   like a different screen from a short one.
+   ============================================================================ */
+
+.settings-overlay { width: min(1080px, 92vw); }
+
+.settings {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: min(760px, 86vh);
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-4);
+  box-shadow: var(--elev-modal);
+  overflow: hidden;
+}
+
+/* --- head ---------------------------------------------------------------- */
+.set-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-5) var(--sp-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: var(--sheen);
+}
+.set-title {
+  margin: 0;
+  font-family: var(--font-disp);
+  font-size: var(--fs-6);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+}
+.set-key {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-1);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border-hi);
+  color: var(--text-muted);
+}
+
+/* The search field leads because the question this screen is actually asked is
+   "where is that option", and the honest answer is a field you type it into. */
+.set-search {
+  margin-left: auto;
+  width: min(320px, 42%);
+  height: var(--h-ctl);
+  padding: 0 var(--sp-5);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: var(--fs-3);
+}
+.set-search::placeholder { color: var(--text-faint); }
+.set-search:focus-visible { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+
+.set-close {
+  width: var(--h-ctl);
+  height: var(--h-ctl);
+  border-radius: var(--r-2);
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+@media (hover: hover) { .set-close:hover { background: var(--surface-hover); color: var(--text); } }
+
+/* --- body ---------------------------------------------------------------- */
+.set-body { display: grid; grid-template-columns: 232px minmax(0, 1fr); min-height: 0; }
+
+.set-nav {
+  border-right: 1px solid var(--border);
+  background: var(--surface-inset);
+  padding: var(--sp-4) var(--sp-4) var(--sp-6);
+  overflow-y: auto;
+}
+.set-group {
+  padding: var(--sp-5) var(--sp-4) var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  font-weight: var(--fw-semi);
+}
+.set-navitem {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px var(--sp-5);
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-3);
+  cursor: pointer;
+}
+@media (hover: hover) { .set-navitem:hover { background: var(--surface-hover); color: var(--text); } }
+.set-navitem[data-on="true"] {
+  background: var(--accent-wash);
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  color: var(--text);
+  font-weight: var(--fw-med);
+}
+
+.set-main { overflow-y: auto; padding: var(--sp-6) var(--sp-7) var(--sp-8); }
+.set-sectiontitle {
+  margin: 0 0 var(--sp-3);
+  font-family: var(--font-disp);
+  font-size: var(--fs-5);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+}
+.set-sectionhead {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  margin-bottom: var(--sp-5);
+}
+.set-blurb {
+  margin: 0 0 var(--sp-6);
+  max-width: 74ch;
+  color: var(--text-muted);
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+}
+.set-empty { color: var(--text-muted); font-size: var(--fs-3); }
+
+/* --- a row --------------------------------------------------------------- */
+/* Rows are read by scanning the LABEL column, so the label leads and the hint
+   sits under it at lower contrast. `align-items: start` rather than `center`:
+   a control centred against a three-line hint floats in the middle of nothing,
+   and lining it up with the label it belongs to is what makes a long row still
+   scan as one row. */
+.set-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: var(--sp-5) var(--sp-6);
+  align-items: start;
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+/* The control keeps its optical alignment with the label's cap-height. */
+.set-row .set-control { padding-top: 1px; }
+.set-row:last-child { border-bottom: 0; }
+
+/* A statement spans the width: it has no control to align against. And so
+   does the appearance preview, which is not a statement — hence its own
+   attribute rather than a second meaning bolted onto `data-note`. */
+.set-row[data-span="true"] { grid-template-columns: minmax(0, 1fr); }
+.set-row[data-span="true"] .set-control { justify-content: stretch; }
+.set-row[data-off="true"] .set-control { opacity: 0.5; }
+
+.set-crumb {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+.set-name { font-size: var(--fs-3); font-weight: var(--fw-med); }
+.set-hint {
+  margin-top: 4px;
+  /* Narrower than the column. Long measure is what made this screen read as a
+     document rather than as a settings panel. */
+  max-width: 58ch;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+.set-why { margin-top: 4px; font-size: var(--fs-2); color: var(--attn); }
+
+.set-control { display: flex; justify-content: flex-end; }
+
+.set-input {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border-hi);
+}
+.set-input:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
+.set-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3);
+}
+.set-unit { color: var(--text-faint); font-size: var(--fs-2); }
+
+/* --- colour ---------------------------------------------------------------
+   A swatch and the hex beside it, sharing one field so the pair reads as one
+   control. Built on `.set-input`'s vocabulary rather than a new look. */
+.set-colour {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  height: var(--h-ctl);
+  padding: 0 var(--sp-3) 0 var(--sp-3);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border-hi);
+}
+.set-colour:focus-within { border-color: var(--accent); box-shadow: var(--ring); }
+
+/* `appearance: none` strips the platform's chrome so the swatch is the colour
+   and nothing else — Chrome otherwise draws a bevelled button around it that
+   reads as a second control. */
+.set-swatch {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 26px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-1);
+  background: none;
+  cursor: pointer;
+}
+.set-swatch::-webkit-color-swatch-wrapper { padding: 0; }
+.set-swatch::-webkit-color-swatch { border: 0; border-radius: 2px; }
+.set-swatch::-moz-color-swatch { border: 0; border-radius: 2px; }
+.set-swatch:disabled { cursor: not-allowed; opacity: 0.5; }
+
+.set-hex {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: none;
+  border: 0;
+  outline: none;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  text-transform: lowercase;
+}
+
+.set-select {
+  width: 100%;
+  height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border-hi);
+  color: var(--text);
+  font-size: var(--fs-3);
+}
+.set-select:focus-visible { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+
+.set-toggle {
+  width: 38px;
+  height: 21px;
+  border-radius: var(--r-full);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border-hi);
+  position: relative;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.set-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 15px;
+  height: 15px;
+  border-radius: var(--r-full);
+  background: var(--text-faint);
+  transition: left var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+.set-toggle[data-on="true"] { background: var(--accent); border-color: var(--accent); }
+.set-toggle[data-on="true"]::after { left: 19px; background: var(--text-on-accent); }
+
+.set-action {
+  height: var(--h-ctl);
+  padding: 0 var(--sp-5);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  border: 1px solid var(--border-hi);
+  color: var(--text);
+  font-size: var(--fs-3);
+  cursor: pointer;
+}
+@media (hover: hover) { .set-action:hover:not(:disabled) { background: var(--surface-hover); border-color: var(--accent); } }
+.set-action:disabled { opacity: 0.5; cursor: default; }
+
+/* A statement, toned by what it is telling you. Never a control. */
+.set-note {
+  margin: 0;
+  max-width: 84ch;
+  padding: var(--sp-5);
+  border-radius: var(--r-3);
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text);
+  background: var(--surface-inset);
+  border-left: 3px solid var(--border-hi);
+}
+.set-note[data-tone="good"] { background: var(--pos-wash); border-left-color: var(--pos); }
+.set-note[data-tone="warn"] { background: var(--attn-wash); border-left-color: var(--attn); }
+
+/* --- foot ---------------------------------------------------------------- */
+.set-foot {
+  display: flex;
+  align-items: center;
+  padding: var(--sp-4) var(--sp-6);
+  border-top: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.set-foot-note { font-size: var(--fs-2); color: var(--text-muted); }
+
+@media (max-width: 760px) {
+  .set-body { grid-template-columns: 1fr; }
+  .set-nav { border-right: 0; border-bottom: 1px solid var(--border); max-height: 34vh; }
+  .set-row { grid-template-columns: minmax(0, 1fr); }
+  .set-control { justify-content: flex-start; }
+}
+
+/* --- the appearance preview (v55.2) ---------------------------------------
+   A MINIATURE OF THE TERMINAL, NOT A PICTURE OF ONE. Every value below is a
+   role token, so this restyles in the same frame the real chrome does and
+   cannot drift from it: theme, accent, density, card radius, gutter,
+   inspector width, live-bar height, candle colours and wick weight all
+   arrive here by inheritance, with no JavaScript in the path at all.
+
+   THE MINIATURE'S SCALE IS ONE NUMBER, DECLARED ONCE. The metric tokens
+   (--shell-gap, --r-card, --w-dock, --h-status, --h-cmdbar) are multiplied
+   by --mini rather than replaced by literals, so the PROPORTIONS shown are
+   the real ones — a wide inspector is really wider here by the ratio it is
+   wider out there. Type is left at its own scale, because that is how the
+   density setting shows itself.
+
+   No `:hover` and no `transition`: it is not a control and it answers
+   nothing. It also carries no interactive element, so nothing in it can take
+   focus away from the setting it is illustrating.                          */
+.set-preview {
+  --mini: 0.45;
+  width: 100%;
+  /* Capped: stretched to the full row the miniature is four times wider than
+     it is tall and stops reading as a screen. */
+  max-width: 480px;
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  background: var(--surface-sunk);
+  overflow: hidden;
+  user-select: none;
+}
+
+.sp-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  gap: calc(var(--shell-gap) * var(--mini));
+  height: 168px;
+}
+
+.sp-cmd {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: calc(var(--h-cmdbar) * 0.62);
+  padding: 0 var(--sp-3);
+  border-radius: calc(var(--r-card) * var(--mini));
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}
+.sp-mark {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--r-1);
+  background: var(--accent);
+}
+/* The selected desk is a FILLED accent pill — the v55 navigation decision,
+   restated here so changing the accent shows where it actually lands. */
+.sp-pill {
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-med);
+}
+.sp-tab { font-size: var(--fs-1); color: var(--text-faint); }
+
+.sp-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) calc(var(--w-dock) * var(--mini) * 0.42);
+  gap: calc(var(--shell-gap) * var(--mini));
+  min-height: 0;
+}
+
+.sp-main,
+.sp-dock {
+  border-radius: calc(var(--r-card) * var(--mini));
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.sp-main { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.sp-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3) 0;
+}
+.sp-sym {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+/* The one big number, at the headline's own proportion. */
+.sp-price {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-4);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+.sp-chg { font-size: var(--fs-1); color: var(--pos); }
+
+.sp-plot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-5);
+  min-height: 0;
+  background: var(--surface-base);
+}
+.sp-candle {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 46px;
+}
+.sp-wick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* The wick weight token is a bare multiplier, so it can serve both the
+     canvas (device pixels) and this (CSS pixels) from one declaration. */
+  width: calc(var(--chart-wick) * 1px);
+}
+/* NOT `.sp-body`. It was, and `.sp-body` is also the shell's middle ROW —
+   so `position: absolute; width: 10px` landed on the row holding the chart
+   card and the inspector, and the preview collapsed to a 10x24 sliver with
+   nothing in it. Measured that way rather than guessed at: the row reported
+   10x24 and `.sp-plot` reported a height of zero. One class, two meanings,
+   in a file where the shorter name was the tempting one. */
+.sp-cbody { position: absolute; width: 10px; height: 24px; }
+.sp-candle[data-dir="up"] .sp-wick,
+.sp-candle[data-dir="up"] .sp-cbody { background: var(--candle-up); }
+.sp-candle[data-dir="down"] .sp-wick,
+.sp-candle[data-dir="down"] .sp-cbody { background: var(--candle-down); }
+
+.sp-dock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+}
+.sp-line {
+  height: 5px;
+  border-radius: var(--r-1);
+  background: var(--surface-active);
+}
+.sp-line[data-short="true"] { width: 60%; }
+.sp-btn {
+  margin-top: auto;
+  padding: 3px 0;
+  border-radius: var(--r-2);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-med);
+  text-align: center;
+}
+
+.sp-status {
+  height: calc(var(--h-status) * 0.62);
+  border-radius: calc(var(--r-card) * var(--mini));
+  background: var(--surface);
+  box-shadow: var(--card-shadow);
+}

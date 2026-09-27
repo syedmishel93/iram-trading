@@ -1,0 +1,104 @@
+/* ============================================================================
+   "CAN I TRADE NOW?" — the risk governor card (ui/cards/govcard.ts)
+
+   Height budget: <=150px at a 360px dock in the allow/warn state. What pays
+   for it:
+   - the four counters sit two to a line (the flat label/value pairs pkRows
+     emits flow into a four-column grid) once the card is wide enough, and fall
+     back to one per line below that, measured on the card, not the viewport;
+   - reasons are one line each, their full sentence one click away.
+   No animation of its own: it repaints every 30s and nothing here should move.
+   ============================================================================ */
+
+.gov-card { container-type: inline-size; }
+
+.gov-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+.gov-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+
+/* The answer. Colour follows the SERVER's verdict — the standing — never a
+   number on the card. */
+.gov-head {
+  margin: 0;
+  min-width: 0;
+  /* v59.2: an answer, in the answer face — see fonts.css. */
+  font-family: var(--font-serif);
+  font-size: var(--fs-5);
+  font-weight: 400;
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+.gov-head[data-tone="pos"]  { color: var(--pos); }
+.gov-head[data-tone="neg"]  { color: var(--neg); }
+.gov-head[data-tone="attn"] { color: var(--attn); }
+.gov-head[data-tone="mute"] { color: var(--text-muted); }
+
+/* --- counters ------------------------------------------------------------- */
+.gov-rows .pk-kv { row-gap: var(--sp-2); }
+
+@container (min-width: 380px) {
+  .gov-rows .pk-kv {
+    grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr);
+    column-gap: var(--sp-4);
+  }
+}
+
+/* --- reasons -------------------------------------------------------------- */
+.gov-reasons {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+}
+
+/* Text and its "Why?" on one line; an opened "Why?" takes the full width
+   underneath rather than squeezing into the gap beside the text. */
+.gov-reason {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-3);
+  min-width: 0;
+  color: var(--text-muted);
+}
+.gov-reason::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--text-faint);
+  align-self: center;
+}
+.gov-reason[data-level="warn"]::before  { background: var(--attn); }
+.gov-reason[data-level="block"]::before { background: var(--neg); }
+
+.gov-reason-text { flex: 1 1 0; min-width: 0; }
+
+.gov-reason .pk-why { margin-top: 0; flex: 0 0 auto; }
+.gov-reason .pk-why[open] { flex-basis: 100%; }
+
+/* The offline state's own "Why?" keeps the shared spacing. */
+.gov-body > .pk-why { margin-top: 0; }
+
+.gov-foot {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  line-height: var(--lh-snug);
+}

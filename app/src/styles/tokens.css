@@ -1,0 +1,732 @@
+/* ============================================================================
+   IRAM TERMINAL — DESIGN TOKENS  (v40)
+   ----------------------------------------------------------------------------
+   THE ONE RULE: this file is the only place a raw colour, size, or duration is
+   allowed to exist. Everything downstream consumes semantic roles.
+
+   The v39 stylesheet drifted into five overlapping generations arbitrated by
+   198 `!important` declarations, with duplicate token families that meant the
+   same thing (--r-s vs --r-sm, --fs-N vs --fz-N, --rail-w vs --railw). The cure is
+   two layers, not more tokens:
+
+     LAYER 1  palette   — raw values, per theme. Never referenced by components.
+     LAYER 2  roles     — what a thing IS (surface, border, positive). Themes
+                          re-point roles; components only ever read roles.
+
+   A component that reads a LAYER 1 token is a bug: it cannot be re-themed.
+   ============================================================================ */
+
+/* ---------------------------------------------------------------- LAYER 1 --
+   Palette. One block per theme. Only these blocks contain literal colours.
+
+   `--p-on-brand` is the ink for text sitting ON the brand colour. Every block
+   declares it, because a theme block that omits a variable inherits the
+   :root value rather than a default — a pale brass wants dark ink, a saturated
+   blue wants white, and one literal in layer 2 could only ever be right for
+   one of them.                                                              */
+
+/* THE HOUSE THEME, v2: GRAPHITE AND BRASS.
+   The previous house palette was a blue-slate ground with a blue brand — the
+   same two decisions as three of the other four themes, so the terminal's own
+   identity was the one that was hardest to tell apart from its presets.
+
+   Four decisions, one reason each:
+   - GROUND: neutral-warm graphite, not blue. A long session in front of a
+     blue-black field reads cold and tints every grey toward it; graphite keeps
+     the greys grey, so the market colours are the only chroma on screen.
+   - BRAND: brushed brass, used sparingly — the active desk, the primary
+     action, focus and selection. It is desaturated on purpose: the brand says
+     "this is where you are", and must never out-shout a price.
+   - ATTENTION moved to burnt orange. Brass and the old amber were 5 degrees of
+     hue apart, and a warning that looks like the brand is a warning nobody
+     reads. They now differ in hue AND saturation.
+   - MARKET: jade and coral, kept clear of the brass so a filled tab is never
+     read as a rising price.
+   The previous palette is kept verbatim as "classic" below.                 */
+:root,
+[data-theme="iram"] {
+  --p-bg-base:   #0F1012;
+  --p-bg-sunk:   #0A0B0C;
+  --p-bg-panel:  #16171A;
+  --p-bg-panel2: #121315;
+  --p-line:      #26282C;
+  --p-line-hi:   #34373C;
+
+  --p-fg:        #E8E4DA;
+  --p-fg-mute:   #9A958A;
+  --p-fg-faint:  #6B675F;
+
+  --p-up:        #34C49A;
+  --p-down:      #F2616B;
+  --p-brand:     #D2AE6D;
+  --p-on-brand:  #1A160E;
+  --p-attn:      #F08A4B;
+  --p-alt:       #9C8FE8;
+  --p-series-mid: #6FA8DC;
+}
+
+/* INK (v55) — the Fusion design's institutional theme: deep navy ground, an
+   ice-blue brand, violet and amber for the averages. Dense-desk colours with
+   the same role discipline as the house theme: the brand is not a market hue,
+   and attention (amber) is not the brand. */
+[data-theme="ink"] {
+  --p-bg-base:   #0A0F1A;
+  --p-bg-sunk:   #060A13;
+  --p-bg-panel:  #0E1525;
+  --p-bg-panel2: #131C2F;
+  --p-line:      #1E2A41;
+  --p-line-hi:   #2A3853;
+
+  --p-fg:        #E4EAF3;
+  --p-fg-mute:   #A5B1C5;
+  --p-fg-faint:  #8290A6;
+
+  --p-up:        #3DD68C;
+  --p-down:      #FF6B6B;
+  --p-brand:     #8CC8FF;
+  --p-on-brand:  #07101E;
+  --p-attn:      #FFB454;
+  --p-alt:       #C69BFF;
+  --p-series-mid: #E7B96A;
+}
+
+[data-theme="classic"] {
+  --p-bg-base:   #0B0E14;
+  --p-bg-sunk:   #080B10;
+  --p-bg-panel:  #141922;
+  --p-bg-panel2: #0F141C;
+  --p-line:      #232B38;
+  --p-line-hi:   #2E3846;
+
+  --p-fg:        #D4DAE3;
+  --p-fg-mute:   #7A8494;
+  --p-fg-faint:  #566072;
+
+  --p-up:        #2DBE8E;
+  --p-down:      #F0616D;
+  --p-brand:     #4C82FB;
+  --p-on-brand:  #FFFFFF;
+  --p-attn:      #E8A33D;
+  --p-alt:       #9B8CFF;
+  --p-series-mid: #E8A33D;
+}
+
+[data-theme="binance"] {
+  --p-bg-base:   #0B0E11;
+  --p-bg-sunk:   #07090B;
+  --p-bg-panel:  #181A20;
+  --p-bg-panel2: #0F1216;
+  --p-line:      #2B3139;
+  --p-line-hi:   #3A424D;
+
+  --p-fg:        #EAECEF;
+  --p-fg-mute:   #848E9C;
+  --p-fg-faint:  #5E6673;
+
+  --p-up:        #0ECB81;
+  --p-down:      #F6465D;
+  --p-brand:     #3B82F6;
+  --p-on-brand:  #FFFFFF;
+  --p-attn:      #FCD535;
+  --p-alt:       #C99BFF;
+  --p-series-mid: #FCD535;
+}
+
+[data-theme="tradingview"] {
+  --p-bg-base:   #131722;
+  --p-bg-sunk:   #0E111A;
+  --p-bg-panel:  #1E222D;
+  --p-bg-panel2: #171B26;
+  --p-line:      #2A2E39;
+  --p-line-hi:   #363A45;
+
+  --p-fg:        #D1D4DC;
+  --p-fg-mute:   #787B86;
+  --p-fg-faint:  #5D606B;
+
+  --p-up:        #26A69A;
+  --p-down:      #EF5350;
+  --p-brand:     #2962FF;
+  --p-on-brand:  #FFFFFF;
+  --p-attn:      #FF9800;
+  --p-alt:       #7E57C2;
+  --p-series-mid: #FF9800;
+}
+
+[data-theme="institutional"] {
+  --p-bg-base:   #0C0F14;
+  --p-bg-sunk:   #090C10;
+  --p-bg-panel:  #141922;
+  --p-bg-panel2: #10151D;
+  --p-line:      #212834;
+  --p-line-hi:   #2C3542;
+
+  --p-fg:        #E6EAF0;
+  --p-fg-mute:   #8A93A2;
+  --p-fg-faint:  #5A6474;
+
+  --p-up:        #3FB981;
+  --p-down:      #E5695E;
+  --p-brand:     #5B8DEF;
+  --p-on-brand:  #FFFFFF;
+  --p-attn:      #C89B4A;
+  --p-alt:       #8898B8;
+  --p-series-mid: #C89B4A;
+}
+
+/* A genuine light theme. v39 had none — the four themes were all dark, so
+   "theme" only ever meant "which dark". Daylight desk work needs this.        */
+/* DAYLIGHT, retuned in v55 to the Fusion design's "Porcelain": white cards on
+   a cool porcelain ground, and a MONOCHROME brand — ink black — so on the
+   light theme colour only ever means the market. The old faint text (#8A93A2)
+   was 3.0:1 on white, under the 4.5:1 body-text floor; #666D7A is 5.3:1. */
+[data-theme="daylight"] {
+  /* The AI blue on white: #9DB8FF fails contrast there (1.9:1). */
+  --p-ai: #3B5BC4;
+  --p-bg-base:   #F7F8FA;
+  --p-bg-sunk:   #ECEEF1;
+  --p-bg-panel:  #FFFFFF;
+  --p-bg-panel2: #F4F5F7;
+  --p-line:      #E2E5EA;
+  --p-line-hi:   #CDD2DA;
+
+  --p-fg:        #14161B;
+  --p-fg-mute:   #4D5461;
+  --p-fg-faint:  #666D7A;
+
+  --p-up:        #0E9F6E;
+  --p-down:      #D23B53;
+  --p-brand:     #14161B;
+  --p-on-brand:  #FFFFFF;
+  --p-attn:      #B9530B;
+  --p-alt:       #2B6CB0;
+  --p-series-mid: #8A6FD8;
+}
+
+/* ---------------------------------------------------------------- LAYER 2 --
+   Semantic roles + scales. Theme-independent: these names are what components
+   are allowed to use.                                                        */
+
+:root {
+  /* --- surfaces: named by depth, so elevation is a decision not an accident */
+  --surface-sunk:    var(--p-bg-sunk);
+  --surface-base:    var(--p-bg-base);
+  --surface:         var(--p-bg-panel);
+  --surface-raised:  color-mix(in srgb, var(--p-bg-panel) 92%, var(--p-fg) 3%);
+  --surface-inset:   var(--p-bg-panel2);
+  --surface-hover:   color-mix(in srgb, var(--p-bg-panel) 88%, var(--p-fg) 7%);
+  --surface-active:  color-mix(in srgb, var(--p-bg-panel) 80%, var(--p-fg) 12%);
+  /* Floating panels.
+     MEASURED: at 85% over a candle chart the palette was legible only where the
+     chart happened to be dark, and `backdrop-filter` — which IS applied and IS
+     supported here — does not rescue it, because blurring a high-contrast
+     candlestick field still leaves a high-contrast field. Text you have to
+     squint at is not a style choice. 96% keeps the glass character (the blur
+     and the saturation boost still read as depth) while making every row
+     legible over anything behind it.                                          */
+  --surface-overlay: color-mix(in srgb, var(--p-bg-panel) 96%, transparent);
+
+  /* --- borders */
+  --border:      var(--p-line);
+  --border-hi:   var(--p-line-hi);
+  --border-hair: color-mix(in srgb, var(--p-fg) 8%, transparent);
+
+  /* --- text: three weights of emphasis, no more. */
+  --text:           var(--p-fg);
+  --text-muted:     var(--p-fg-mute);
+  --text-faint:     var(--p-fg-faint);
+  --text-on-accent: var(--p-on-brand);
+
+  /* --- market semantics. `pos/neg` are about VALUE, `up/down` about PRICE;
+         they happen to share a hue but must stay separately nameable.        */
+  --pos:      var(--p-up);
+  --neg:      var(--p-down);
+  --pos-wash: color-mix(in srgb, var(--p-up) 14%, transparent);
+  --neg-wash: color-mix(in srgb, var(--p-down) 14%, transparent);
+
+  /* THE CANDLE COLOURS, separate from the terminal's up/down.
+     They default to `--pos`/`--neg`, so a theme still decides them and nothing
+     changes unless someone asks. Separate because the two are NOT the same
+     question: `--pos` also colours a P&L figure, a passing gate and a rising
+     correlation, and someone who wants blue-and-orange candles has said nothing
+     at all about whether a winning trade should stop being green.
+     Settings > Chart appearance writes these two on :root; the chart reads them
+     through `themeFromCss`, so an override needs no code path of its own. */
+  --candle-up:   var(--pos);
+  --candle-down: var(--neg);
+  --candle-up-wash:   color-mix(in srgb, var(--candle-up) 14%, transparent);
+  --candle-down-wash: color-mix(in srgb, var(--candle-down) 14%, transparent);
+
+  --accent:      var(--p-brand);
+  --accent-wash: color-mix(in srgb, var(--p-brand) 14%, transparent);
+
+  /* v59.2 — THE AI COLOUR (the v5 design). Everything the terminal says on
+     its own account — an AI tag, an AI card's edge, an Ask button — is this
+     blue; everything that is YOURS is the brand accent. Two voices, two
+     colours, so "who said this" is answerable at a glance on every screen.
+     Never used for direction or P&L: blue means "the terminal", not "good". */
+  --ai:      var(--p-ai, #9DB8FF);
+  --ai-wash: color-mix(in srgb, var(--ai) 9%, transparent);
+  --ai-line: color-mix(in srgb, var(--ai) 30%, transparent);
+  --attn:        var(--p-attn);
+  --attn-wash:   color-mix(in srgb, var(--p-attn) 14%, transparent);
+  --alt:         var(--p-alt);
+  --alt-wash:    color-mix(in srgb, var(--p-alt) 14%, transparent);
+
+  /* --- the three moving averages. Their own roles because "the brand" and
+         "the middle average" are not the same question: in the house theme the
+         brand is brass and the attention colour is orange, and two warm lines
+         10 degrees apart are one line to the eye. Every other theme points the
+         middle one at its attention colour, which is what it drew before. */
+  --ma-fast: var(--accent);
+  --ma-mid:  var(--p-series-mid);
+  --ma-slow: var(--alt);
+
+  /* --- decision scale: deliberately NOT the bull/bear hues, so "the model
+         likes this" is never misread as "price went up".                     */
+  --verdict-fav:   var(--p-brand);
+  --verdict-neut:  var(--p-fg-mute);
+  --verdict-unfav: var(--p-attn);
+
+  /* --- data-quality scale. The honesty contract is a VISUAL contract too:
+         a delayed or dead feed must never be able to render as plain live.   */
+  --feed-live:    var(--p-up);
+  --feed-delayed: var(--p-attn);
+  --feed-stale:   var(--p-down);
+  --feed-off:     var(--p-fg-faint);
+  /* A shut venue is not a broken feed: neutral, never alarm-coloured. */
+  --feed-closed:  var(--p-fg-mute);
+
+  /* --- spacing: a 4px-ish base scale. One family, no aliases. */
+  --sp-0: 0;
+  --sp-1: 2px;
+  --sp-2: 4px;
+  --sp-3: 6px;
+  --sp-4: 8px;
+  --sp-5: 12px;
+  --sp-6: 16px;
+  --sp-7: 24px;
+  --sp-8: 32px;
+  --sp-9: 48px;
+
+  /* --- radius */
+  --r-1: 3px;
+  --r-2: 5px;
+  --r-3: 8px;
+  --r-4: 12px;
+  --r-full: 999px;
+
+  /* --- type -----------------------------------------------------------------
+     TWO FAMILIES, NOT THREE. The v40 ramp named "Plus Jakarta Sans",
+     "JetBrains Mono" and "Space Grotesk"; none of them is loaded and the build
+     has zero external references, so all three resolved to the SAME system
+     fallback. The display face was therefore identical to the UI face and the
+     entire heading hierarchy the design assumed simply did not exist. Naming a
+     font you do not ship is not a fallback strategy, it is a wish.
+
+     So: one UI family, one monospace family, and hierarchy built from SIZE,
+     WEIGHT and TRACKING — which always render — instead of from a family that
+     might not arrive.
+
+     MEASURED ON THE TARGET MACHINE, AND THE ABOVE WAS STILL TOO OPTIMISTIC.
+     `document.fonts.check()` is useless for this: it returned true for all
+     eleven families probed, including deliberately fictional ones. Measuring
+     rendered text WIDTH against a known-missing family is the test that works,
+     and on Windows 10 it says:
+
+         Segoe UI Variable Text      ABSENT   (shipped with Windows 11)
+         Segoe UI Variable Display   ABSENT   (shipped with Windows 11)
+         Inter                       ABSENT
+         JetBrains Mono              ABSENT
+         Segoe UI                    present
+         Cascadia Mono               present
+
+     Which means --font-ui and --font-disp BOTH resolve to plain Segoe UI here,
+     and the display face is once again identical to the UI face — the exact
+     failure the paragraph above was written to fix, one layer down. The names
+     are kept because they are a real upgrade on Windows 11 and degrade
+     silently, but NOTHING may depend on them differing. Every heading on this
+     page therefore carries its own weight and tracking, and none of them are
+     distinguished by family alone.
+
+     A note on the mono choice: the shipped face is Geist Mono (JetBrains Mono
+     until v53 — see fonts.css), and the
+     fallback is Cascadia MONO, never Cascadia CODE. All three have programming
+     ligatures, and a terminal that fuses `->` or `!=` inside a price expression
+     is actively misleading. This comment used to say ligatures were "switched
+     off explicitly further down"; they were not, anywhere in the build. They
+     are now, in type.css, on :root, with both of the two properties that
+     control them — see the note there for why it takes both.                  */
+
+  /* Shipped faces lead; the system stacks behind them are what renders if the
+     embedded file ever fails to parse. See fonts.css for the measurement that
+     made shipping them necessary. */
+  --font-ui:
+    "Geist Variable", "Inter Variable", "Segoe UI Variable Text", "Segoe UI", -apple-system,
+    BlinkMacSystemFont, "Roboto", system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono:
+    "Geist Mono Variable", "Cascadia Mono", ui-monospace, "SF Mono", "Menlo",
+    "DejaVu Sans Mono", Consolas, monospace;
+  /* Display: the UI face, optically sized where the platform offers it. The
+     difference is carried by weight and tracking, set on the elements.        */
+  --font-disp:
+    "Geist Variable", "Inter Variable", "Segoe UI Variable Display", "Segoe UI", -apple-system,
+    BlinkMacSystemFont, system-ui, sans-serif;
+
+  /* v59.2: the answer face — see fonts.css. For a line that IS an answer,
+     at 400 only. Falls back to a system serif, never to the sans: a fallback
+     that looked like the UI would erase the distinction it exists for. */
+  --font-serif: "Instrument Serif", "Iowan Old Style", Georgia, "Times New Roman", serif;
+
+  /* One knob scales the whole terminal. Density is a real preference — a 27"
+     desk monitor and a 13" laptop are not the same instrument — and it must be
+     ONE number, or half the app scales and the other half does not.           */
+  --ui-scale: 1;
+
+  /* MEASURED, and the reason this ramp changed:
+     of 193 font-size declarations in the stylesheet, 148 — SEVENTY-SEVEN PER
+     CENT — sat on --fs-1 and --fs-2, and --fs-4 was used exactly twice in the
+     whole application. The ramp was well-formed on paper and bottom-heavy in
+     practice, so the terminal read as a wall of 10.5px text with occasional
+     large headings and nothing in between.
+
+     Two changes rather than one. The floor is raised, which lifts the 148
+     declarations that were never going to be individually re-assigned. And the
+     gaps are WIDENED, because steps of 1px cannot carry hierarchy — at 10.5 vs
+     11.5 the eye reads two sizes as one. */
+  /* THE ORPHAN. Raising the floor deleted `--fs-0` and left 13 uses of it
+     behind, across four stylesheets. `font-size: var(--fs-0)` with an
+     undefined variable and no fallback is not "small text" — it is an invalid
+     declaration, dropped at computed-value time, so every one of those
+     elements silently inherits its PARENT's size instead. Measured: `.qd-blurb`
+     was rendering at its panel's size rather than the smallest step, which is
+     why the Quant desk's explanatory lines had the same visual weight as the
+     text they were explaining.
+
+     Aliased to the floor rather than re-defined at the old 10.5px, because
+     raising the floor is exactly what the note above set out to do; a
+     resurrected 10.5px step would quietly undo it for those 13 sites. */
+  --fs-0: var(--fs-1);
+  --fs-1: calc(11.5px * var(--ui-scale));  /* micro labels, chips */
+  --fs-2: calc(12.5px * var(--ui-scale));  /* dense readouts — the workhorse */
+  --fs-3: calc(14px   * var(--ui-scale));  /* body */
+  --fs-4: calc(15.5px * var(--ui-scale));  /* emphasis */
+  --fs-5: calc(18px   * var(--ui-scale));  /* section heads */
+  --fs-6: calc(22px   * var(--ui-scale));  /* panel titles */
+  --fs-7: calc(34px   * var(--ui-scale));  /* the one big number */
+
+  --lh-tight: 1.15;
+  --lh-snug:  1.35;
+  --lh-body:  1.55;
+  /*
+    RELAXED IS NOT A SYNONYM FOR BODY. It is the measure for the prose blocks
+    that explain a refusal or a verdict — longer lines, read once, carefully —
+    and thirty-eight rules in `risk.css` asked for it while it did not exist.
+    An undefined custom property makes the declaration invalid at
+    computed-value time, so every one of them silently INHERITED its parent's
+    line-height instead. `tokens.test.ts` is what stops that happening again.
+  */
+  --lh-relaxed: 1.65;
+
+  --fw-normal: 400;
+  --fw-med:    500;
+  --fw-semi:   600;
+  --fw-bold:   700;
+
+  /* Optical tracking. Small text needs to OPEN UP and large text needs to
+     close in; applying one value to both is what makes a ramp look untuned.
+     These are applied by size class in type.css, not left to call sites.      */
+  --track-micro:  0.02em;   /* 10-11px */
+  --track-dense:  0.005em;  /* 11-13px */
+  --track-tight: -0.011em;  /* 15-20px */
+  --track-display:-0.022em; /* 30px */
+  --track-wide:   0.07em;   /* uppercase micro-labels */
+
+  /* --- elevation */
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.28);
+  --elev-2: 0 2px 4px rgb(0 0 0 / 0.24), 0 8px 24px -18px rgb(0 0 0 / 0.6);
+  --elev-3: 0 4px 12px rgb(0 0 0 / 0.3), 0 16px 48px -24px rgb(0 0 0 / 0.7);
+  --ring:   0 0 0 1px var(--accent), 0 0 0 4px var(--accent-wash);
+
+  /* --- motion. Terminal motion is FEEDBACK, never decoration: nothing that
+         delays reading a number is allowed past 180ms.                       */
+  --dur-1: 90ms;
+  --dur-2: 140ms;
+  --dur-3: 180ms;
+  /* The one exception to "nothing past 180ms": a notice that something is NEW,
+     shown once per scan, never per tick. Long enough to be seen arriving. */
+  --dur-note: 1400ms;
+  --ease:     cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* --- control heights.
+         Introduced because every button, input and row height in the sheet was
+         a literal, so raising the type ramp would have crowded all of them and
+         the fix would have been thirty separate edits. One family, so type and
+         controls move together and can never drift apart again.              */
+  --h-ctl-xs:  22px;   /* tiny ghost buttons, chips */
+  --h-ctl-sm:  28px;   /* toolbar buttons, segment buttons */
+  --h-ctl:     32px;   /* the default: inputs, primary buttons */
+  --h-ctl-lg:  38px;   /* symbol box, anything that leads a row */
+  --h-row:     34px;   /* table and list rows */
+
+  /* --- layout metrics. Single source: the grid reads these and nothing else
+         hard-codes a chrome height ever again.                               */
+  /* The command bar carries the brand, the menus, the ten desk tabs and the
+     utilities on one line. 42px is the height at which a 16px icon beside a
+     13px label has real breathing room; below about 38px the tab chips start
+     to look like they are being squeezed, which is the note this redesign was
+     asked to fix.                                                            */
+  --h-cmdbar:    42px;
+  /* 42, and the number is now the SAME as the command bar's on purpose.
+     58 -> 48 was the right direction and stopped half way: at 48 the context
+     row was still six pixels TALLER than the command bar above it, which
+     inverts the hierarchy geometrically. The upper row carries the navigation
+     and the identity of the whole program; the lower row carries the controls
+     for one instrument. The heavier band was the subordinate one.
+
+     What held 48 up was one control: the symbol box at --h-ctl-lg (38px). It
+     is now --h-ctl (32px), which is the height every other input in the
+     terminal uses, so 42 keeps the same 5px of air around the tallest control
+     that 48 kept around a 38px one. Nothing is more cramped than it was.
+
+     MEASURED: chrome 42 + 48 + 30 = 120px -> 42 + 42 + 30 = 114px, six pixels
+     back to the chart, and the two rows now share one rhythm instead of
+     reading as two densities stacked. */
+  --h-topbar:    42px;
+  --h-status:    30px;
+  --w-dock:      360px;
+  /* The closed dock's icon strip (v59.2): a 28px button and 4px either side.
+     Was 22px when it carried a vertical word; icons need a real target. */
+  --w-dock-rail: 36px;
+  --w-dock-min:  260px;
+  --w-dock-max:  720px;
+
+  /* --- z-index: a named ladder. Ad-hoc z-index was how v39 tooltips ended up
+         reparented to <body> to escape a clipping ancestor.                  */
+  --z-base:     0;
+  --z-chart-ui: 10;
+  --z-dock:     20;
+  --z-topbar:   40;
+  --z-popover:  60;
+  --z-modal:    80;
+  --z-toast:    90;
+  --z-tour:    100;
+}
+
+/* Density. Three steps is the right number: more and nobody can tell them
+   apart, fewer and the laptop case is unserved.
+   Since v55 density also sets the GUTTER between the shell's cards: compact
+   is a laptop, and 12px of air four times across a 1366px screen is a column
+   of chart it cannot spare.                                                  */
+[data-density="compact"]     { --ui-scale: 0.92; --shell-gap: 6px; }
+[data-density="standard"]    { --ui-scale: 1;    --shell-gap: 10px; }
+[data-density="comfortable"] { --ui-scale: 1.09; --shell-gap: 12px; }
+
+/* --- v55: the floating-card shell (styles/shell.css, "THE FLOATING-CARD
+       SHELL"). The gutter, the card radius and its shadow are three decisions
+       made once here, so every card in the terminal agrees on them. */
+:root {
+  --shell-gap: 10px;
+  --r-card: 12px;
+  /* A top highlight rather than a drop shadow on the dark themes: on a sunk
+     ground the card reads as raised by its own lit edge, which a dark shadow
+     on a darker ground cannot show. */
+  --card-shadow: var(--sheen);
+  /* The watchlist rail beside the chart (ui/watchrail.ts). */
+  --w-watchrail: 236px;
+}
+[data-theme="daylight"] { --card-shadow: 0 1px 2px rgb(20 22 27 / 0.07); }
+
+/* ---------------------------------------------------------------- v42 --
+   Additions for the new chrome. Same two-layer rule: these are ROLES, and
+   the only literal values here are geometry and timing, never colour.       */
+
+:root {
+  /* --- link channels. Bloomberg's best idea: a pane wears a colour, and
+         changing the symbol in one moves every pane wearing the same one.
+         Deliberately NOT the bull/bear or feed hues — a pane's channel must
+         never be misread as a market state or a data-quality warning.       */
+  --link-none:   transparent;
+  --link-amber:  #E8A33D;
+  --link-cyan:   #35C7D6;
+  --link-violet: #9B8CFF;
+  --link-rose:   #F0709A;
+
+  /* --- floating layers. A menu and a modal are different distances away,
+         and one shadow token for both is why popovers look pasted on.       */
+  --elev-pop:   0 2px 6px rgb(0 0 0 / 0.30), 0 12px 32px -12px rgb(0 0 0 / 0.55);
+  --elev-modal: 0 8px 24px rgb(0 0 0 / 0.36), 0 40px 96px -32px rgb(0 0 0 / 0.72);
+
+  /* Blur behind floating panels. Real depth cue, and it keeps the chart
+     legible THROUGH a menu, which matters when the menu is about the chart. */
+  --blur-pop: saturate(1.4) blur(14px);
+
+  /* A one-pixel inner highlight along the top of a raised surface. This is
+     what separates a panel from its background without a heavy border — the
+     same trick the OS uses on its own chrome.                               */
+  --sheen: inset 0 1px 0 0 color-mix(in srgb, var(--p-fg) 7%, transparent);
+
+  --scrim: color-mix(in srgb, var(--p-bg-sunk) 62%, transparent);
+
+  /* --- v61.5: THE PANE MATERIAL.
+     ------------------------------------------------------------------------
+     A surface used to be `background: var(--surface)` plus a 1px border, so
+     every element on a desk carried the SAME EDGE and nothing had a position.
+     The owner's word for it was "broken". A pane now separates three ways:
+
+       1. a vertical tone shift, panel -> panel2, so it is lit from above
+       2. a WARM one-pixel lip along its top edge (`--sheen` already did this)
+       3. a COOL cast beneath it
+
+     Two and three are the point. A dark interface where the light and the
+     shade are both neutral grey reads as unlit plastic; a degree of hue
+     separation between them is most of what registers as material. The lip is
+     mixed from `--p-fg` (warm ivory on every dark theme here) and the cast
+     from `--p-bg-sunk` (cool), so both follow the theme rather than being
+     painted on top of it.
+
+     Built from the palette variables, NOT from hex, because this terminal
+     ships seven themes and a hardcoded shadow is right in exactly one. */
+  --pane-lip: inset 0 1px 0 0 color-mix(in srgb, var(--p-fg) 5%, transparent);
+  --pane-cast:
+    0 1px 2px color-mix(in srgb, var(--p-bg-sunk) 72%, transparent),
+    0 24px 56px -28px color-mix(in srgb, var(--p-bg-sunk) 92%, transparent);
+  --pane-shadow: var(--pane-lip), var(--pane-cast);
+  --pane-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--p-bg-panel) 96%, var(--p-fg) 4%) 0%,
+    var(--p-bg-panel2) 100%
+  );
+
+  /* Film grain over the whole app. A flat CSS surface is what makes a dark
+     interface look like a screenshot of a stylesheet rather than a product;
+     4% of fractal noise is the difference. One value, so it can be turned
+     down in one place — and it is the only effect applied to the whole
+     window rather than to an element. */
+  --grain: 0.04;
+
+  /* --- new layout metrics */
+  --w-pane-head: 28px;
+  --w-agent:    380px;
+  --splitter:    5px;
+
+  --z-toast-layer: 95;
+
+  /* The chart header's price headline. Between --fs-6 (22, a panel title)
+     and --fs-7 (34, which does not fit a 42px row with any air): 26px sits
+     in --h-topbar with 8px either side. See styles/topbar.css. */
+  --fs-headline: calc(26px * var(--ui-scale));
+
+  /* THE CHART'S LAST PRICE, which is NOT the same size as a headline.
+     `--fs-headline` was doing both jobs and the two rows want different
+     things: the Today desk's answer is the only thing on its line and 26px
+     serif is right there, while the chart's price shares a 42px band with a
+     symbol box, five timeframes and four pills. MEASURED at 26px: a
+     six-figure price is 138px wide and 62% of the row's height, which is what
+     "the btc price is too big" was pointing at. 20px is the size the approved
+     mockup uses (`docs/iram-redesign-v5.html`, `#lastPx`) and still leaves it
+     the largest thing in the row by five points. */
+  --fs-quote: calc(20px * var(--ui-scale));
+}
+
+/* The light theme cannot share the dark shadow stack: black at 30% over a
+   white panel reads as dirt rather than depth.                              */
+[data-theme="daylight"] {
+  --elev-pop:   0 2px 6px rgb(15 23 42 / 0.10), 0 12px 32px -12px rgb(15 23 42 / 0.18);
+  --elev-modal: 0 8px 24px rgb(15 23 42 / 0.12), 0 40px 96px -32px rgb(15 23 42 / 0.24);
+  --sheen: inset 0 1px 0 0 rgb(255 255 255 / 0.9);
+  --scrim: color-mix(in srgb, #0F172A 34%, transparent);
+
+  /* The pane inverts on a light ground: the lip is WHITE and the cast is a
+     real shadow rather than a deeper shade of the background. And the grain
+     goes off — noise over white reads as a dirty screen, not as paper. */
+  --pane-lip: inset 0 1px 0 0 rgb(255 255 255 / 0.9);
+  --pane-cast: 0 1px 2px rgb(15 23 42 / 0.06), 0 18px 40px -24px rgb(15 23 42 / 0.20);
+  --pane-bg: linear-gradient(180deg, #FFFFFF 0%, var(--p-bg-panel2) 100%);
+  --grain: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-1: 0ms; --dur-2: 0ms; --dur-3: 0ms; --dur-note: 0ms; }
+}
+
+/* --- session wash.
+       The tint behind candles that says which trading session a bar belongs to.
+       Deliberately at the threshold of visibility: London and New York overlap
+       for four hours and the washes ADD, so the busiest stretch of the day
+       emerges as the darkest band without a separate colour being invented for
+       it. Anything louder competes with the candles it sits behind. */
+:root { --session-wash: rgba(255, 255, 255, 0.022); }
+[data-theme="daylight"] { --session-wash: rgba(15, 23, 42, 0.028); }
+
+/* --- v55: ACCENT, chosen independently of the theme ------------------------
+   The Fusion design's accent tweak, as a preference (Settings > Appearance).
+   `data-accent` on :root re-points the BRAND only — never a market colour —
+   so "brass on Ink" is a real combination. Each block redeclares
+   `--p-on-brand` too, for the reason at the top of this file: text on a pale
+   accent needs dark ink and on a deep one white.
+
+   Specificity: `[data-accent]` (0,1,0) ties with `[data-theme]`, and these
+   rules come LATER in the file, so an explicit accent wins over the theme's
+   own brand. The light theme gets its own darker shades at (0,2,0): a pale
+   brass on white is 1.9:1 and could not carry a selected tab's label.
+   "theme" (the default) sets no attribute at all, so it costs nothing.      */
+[data-accent="brass"]  { --p-brand: #D2AE6D; --p-on-brand: #1A160E; }
+[data-accent="ice"]    { --p-brand: #8CC8FF; --p-on-brand: #07101E; }
+[data-accent="violet"] { --p-brand: #A99BF0; --p-on-brand: #120E24; }
+[data-theme="daylight"][data-accent="brass"]  { --p-brand: #8A6A2E; --p-on-brand: #FFFFFF; }
+[data-theme="daylight"][data-accent="ice"]    { --p-brand: #2F6FB5; --p-on-brand: #FFFFFF; }
+[data-theme="daylight"][data-accent="violet"] { --p-brand: #6D5BD0; --p-on-brand: #FFFFFF; }
+
+/* --- v55.2: SHAPE, SPACING AND CHART WEIGHT -------------------------------
+   Settings ▸ Appearance and ▸ Chart appearance, owned by ui/appearance.ts.
+   The same shape as the accent block above and for the same reason: ONE
+   attribute on :root re-points ONE role, so nothing downstream learns a new
+   name and no component gets closer to a palette value than it already was.
+
+   EVERY DEFAULT IS AN ABSENT ATTRIBUTE, never a rule that repeats the value
+   above. So an upgrade changes nobody's terminal — until a control is
+   touched, not one of these rules matches anything — and the default can
+   never silently disagree with the token it would otherwise have copied.
+
+   SPECIFICITY, WHICH HAS BITTEN THIS FILE TWICE. Every selector here is
+   (0,1,0): exactly the weight of the `[data-density]` block that also writes
+   `--shell-gap`, and of the `:root` blocks that declare `--r-card`,
+   `--w-dock` and `--h-status`. A tie is broken by ORDER, so THIS BLOCK MUST
+   STAY LAST IN THE FILE. Moved above the density block it would quietly hand
+   the gutter back to density with nothing failing and nothing on screen.
+
+   `--shell-gap` deliberately has no "standard" rule: density owns the gutter
+   (6 / 10 / 12px) and the standard choice is to leave it there, so Tight and
+   Airy are the only two that overrule it.                                   */
+:root {
+  /* Read by chart/engine.ts `themeFromCss`, exactly as --candle-up is: a
+     canvas inherits nothing, so what it needs is pulled from here once per
+     change rather than measured per frame. A keyword and a multiplier,
+     because these two are the grid's dialect and the wick's weight — not
+     colours, which the theme already owns. */
+  --chart-grid-style: lines;
+  --chart-wick: 1;
+}
+
+[data-radius="square"] { --r-card: var(--r-1); }
+[data-radius="round"]  { --r-card: 18px; }
+
+[data-gutter="tight"] { --shell-gap: 6px; }
+[data-gutter="airy"]  { --shell-gap: 16px; }
+
+/* Inside --w-dock-min (260) and --w-dock-max (720), so a preset can never
+   put the inspector somewhere the splitter would refuse to drag it. */
+[data-dock-size="narrow"] { --w-dock: 288px; }
+[data-dock-size="wide"]   { --w-dock: 460px; }
+
+/* The news strip is declared as `--h-news: var(--h-status)` in shell.css, so
+   these two rows keep one rhythm rather than becoming a fourth height. */
+[data-livebar="slim"] { --h-status: 26px; }
+[data-livebar="tall"] { --h-status: 38px; }
+
+[data-grid="dots"] { --chart-grid-style: dots; }
+
+[data-wick="medium"] { --chart-wick: 1.5; }
+[data-wick="heavy"]  { --chart-wick: 2; }

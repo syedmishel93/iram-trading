@@ -1,0 +1,1298 @@
+/* ============================================================================
+   SHELL — THE ONE GRID.
+   ----------------------------------------------------------------------------
+   v39 defined `.app` five separate times across successive redesigns and
+   settled the fight with 198 `!important` declarations. Height assumptions
+   leaked into unrelated modules, which is how the live bar ended up rendering
+   26px below a 30px-clamped row.
+
+   Here there is exactly ONE `.shell` rule. Every layout MODE is a data
+   attribute that re-points a named area or a track width — never a second
+   competing definition, never `!important`. If you need a new mode, add an
+   attribute selector that changes tracks; do not redeclare the grid.
+
+   Areas (v46 merged the tab strip into the command bar):
+       cmd    cmd
+       ctx    ctx
+       main   dock
+       status status
+
+   The chrome is now TWO rows where v45 had three and v44 had three plus a
+   56px rail. `cmd` says what you are looking at; `ctx` holds the controls for
+   that and collapses to nothing on desks it does not describe.
+   ============================================================================ */
+
+/* ============================================================================
+   v55 — THE FLOATING-CARD SHELL (the "Fusion" design the owner chose)
+   ----------------------------------------------------------------------------
+   Every area is a card on a sunk ground, separated by `--shell-gap`. The gaps
+   are BUILT INTO THE TRACKS rather than taken from `gap`, and that is the whole
+   design of this block: a grid gap is laid between tracks whether or not the
+   track has any height, so a collapsed row (news off, focus mode, a desk the
+   context bar does not describe) would still leave a phantom gap — two gutters
+   where there should be one. Here a track that is present is its content PLUS
+   one gutter, the card takes the gutter as a margin on its near side, and a
+   track at zero takes its gutter with it.
+
+   Collapsed areas are also `display: none` (see "AREAS THAT ARE NOT THERE"):
+   a card in a zero track still paints its 1px border, and CLAUDE.md already
+   records that a zero-height track hides nothing on its own.
+
+   The context row (`ctx`, the instrument header) and the chart (`main`) are
+   ONE card: the header is its top, the chart its body, no gutter between.
+   The rail and the dock span both rows, so they start where the card starts.
+   ========================================================================= */
+.shell {
+  --g: var(--shell-gap);
+  display: grid;
+  box-sizing: border-box;
+  height: 100dvh;
+  padding: var(--g);
+  grid-template-columns: var(--w-rail-t) minmax(0, 1fr) var(--w-dock-t);
+  grid-template-rows:
+    var(--h-cmdbar) var(--h-ctx-t) minmax(0, 1fr) var(--h-news-t) var(--h-status-t);
+  grid-template-areas:
+    "cmd    cmd    cmd"
+    "rail   ctx    dock"
+    "rail   main   dock"
+    "news   news   news"
+    "status status status";
+  background: var(--surface-sunk);
+  transition: grid-template-columns var(--dur-3) var(--ease-out);
+
+  /* Track sizes, each including its gutter. */
+  --w-rail-t: 0px;
+  --w-dock-t: calc(var(--w-dock) + var(--g));
+  --h-ctx-t: calc(var(--h-topbar) + var(--g));
+  --h-news-t: 0px;
+  --h-status-t: calc(var(--h-status) + var(--g));
+}
+.shell[data-rail="on"] { --w-rail-t: calc(var(--w-watchrail) + var(--g)); }
+
+/* --- MODES: each changes tracks only. ------------------------------------- */
+
+/* Dock closed — the track collapses TO THE RAIL, not to nothing.
+
+   WHY IT IS NOT ZERO ANY MORE. It was, and a closed dock then had no presence
+   on screen at all: the only way back was a 22px toolbar icon, which the
+   comment on `dockIntent` in shell.ts already called "a toolbar icon most
+   people never find standing between the user and their layout". That is not a
+   hypothetical — the person who owns this product asked twice where the panel
+   had gone, having read it as missing rather than closed. A `B` keypress and
+   the icon both work; neither is discoverable from a screen with no evidence
+   that anything is there.
+
+   So closed is now VISIBLE: a full-height rail (v59.2: an icon per card),
+   which reopens the dock. The chart gives up 36px and stops being able to
+   silently swallow a whole panel. The track still goes to zero in full focus
+   and below the breakpoint — see those rules below.                          */
+.shell[data-dock="closed"] { --w-dock-t: calc(var(--w-dock-rail) + var(--g)); }
+
+/* A desk the context bar does not describe collapses that row entirely. This
+   is not decoration: the Data, Risk, Analyst and Workspace desks are not
+   looking at one instrument, and a symbol box above them is a control that
+   claims to change the view and does not.                                    */
+.shell[data-scoped="no"] { --h-ctx-t: 0px; }
+
+/* Focus mode keeps the COMMAND row: it holds the palette, the desk switcher
+   and the escape route out of focus mode, and a mode with no visible way out
+   is a trap. Everything else collapses to zero tracks, so canvas contexts
+   survive and restoring is one flip.                                         */
+.shell[data-focus="on"] { --h-ctx-t: 0px; }
+.shell[data-focus="full"] {
+  --w-rail-t: 0px;
+  --w-dock-t: 0px;
+  --h-ctx-t: 0px;
+  /* Full focus is the chart and nothing else. The news row goes with the rest
+     of the chrome — it is the most interruptive thing on screen and this is
+     the mode for not being interrupted. */
+  --h-news-t: 0px;
+  --h-status-t: 0px;
+}
+
+/* Anything living in a collapsed track must not paint outside it. One rule,
+   applied to the areas themselves, replaces v39 per-element `display:none
+   !important` scattered across four blocks.                                  */
+.shell > * { overflow: hidden; min-width: 0; min-height: 0; }
+
+/* --- AREAS ---------------------------------------------------------------- */
+
+.commandbar { grid-area: cmd;    z-index: var(--z-topbar); }
+.topbar     { grid-area: ctx;    z-index: var(--z-topbar); }
+.main       { grid-area: main;   position: relative; }
+.dock       { grid-area: dock;   z-index: var(--z-dock); }
+.status     { grid-area: status; }
+.newsbar    { grid-area: news; }
+.watchrail-area { grid-area: rail; }
+
+/* --- THE CARDS ------------------------------------------------------------ */
+.commandbar,
+.topbar,
+.main,
+.dock,
+.livebar,
+.newsbar,
+.watchrail-area {
+  box-sizing: border-box;
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--card-shadow);
+}
+.topbar {
+  margin-top: var(--g);
+  border-bottom-color: var(--border-hair);
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.main {
+  border-top-width: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+.dock          { margin-top: var(--g); margin-left: var(--g); }
+.watchrail-area { margin-top: var(--g); margin-right: var(--g); background: var(--surface); }
+.newsbar       { margin-top: var(--g); }
+.livebar       { margin-top: var(--g); }
+
+/* With no header above it, the chart is a whole card of its own. */
+.shell[data-scoped="no"] .main,
+.shell[data-focus="on"] .main,
+.shell[data-focus="full"] .main {
+  margin-top: var(--g);
+  border-top-width: 1px;
+  border-radius: var(--r-card);
+}
+
+/* --- AREAS THAT ARE NOT THERE -------------------------------------------
+   `display: none` as well as the zero track, because a card in a zero track
+   still draws its border — a 1px line where a whole panel used to be. */
+.shell[data-scoped="no"] .topbar,
+.shell[data-focus="on"] .topbar,
+.shell[data-focus="full"] .topbar,
+.shell[data-focus="full"] .dock,
+.shell[data-focus="full"] .livebar,
+.shell[data-focus="full"] .newsbar,
+.shell[data-focus="full"] .watchrail-area,
+.shell:not([data-rail="on"]) .watchrail-area { display: none; }
+
+/* Off by default at the token level, so a build that never mounts the bar
+   costs no track at all. */
+.shell { --h-news: 0px; }
+.shell[data-news="on"] { --h-news: var(--h-status); --h-news-t: calc(var(--h-status) + var(--g)); }
+.shell[data-news="on"][data-focus="full"] { --h-news-t: 0px; }
+
+/* AND THE ELEMENT IS REMOVED, NOT MERELY GIVEN A ZERO-HEIGHT TRACK.
+   MEASURED, and this was the visible "the bottom is broken" bug.
+
+   Zeroing `--h-news` collapses the GRID ROW. It does not stop the bar being
+   rendered: the element is still in the tree, `.newsbar` sets `overflow:
+   visible` on purpose so its list can open upward, and `align-items: center`
+   then centres 16-18px children on a zero-height line. So every child straddled
+   it — measured at y 821-839 against a row at y 830 — painting nine pixels over
+   the chart's time axis above and nine over the live bar below.
+
+   What made it look like a permanent fixture rather than a glitch: the bar is
+   off, so `refreshNews` returns early and the feed never leaves its initial
+   `{feeds: 0}` state, which renders as the words "No feeds configured." So the
+   artefact smeared across the bottom of the terminal was a placeholder for a
+   bar that was switched off.
+
+   `display: none` on the element itself, because the row height alone cannot
+   contain something explicitly allowed to overflow it. */
+.shell:not([data-news="on"]) .newsbar { display: none; }
+
+/* --- COMMAND BAR ----------------------------------------------------------
+   Brand · menus · rule · desks · spacer · utilities. One row, one navigation.
+
+   `overflow: visible` is deliberate and is the one place the blanket clip on
+   `.shell > *` is lifted: the menus and the spill list open DOWNWARD out of
+   this row, and clipping them to a 42px band would leave every dropdown a
+   sliver.                                                                    */
+.commandbar {
+  display: flex;
+  /* ONE CENTRE LINE. It was `stretch`, and every control in this row declares
+     its own height — so nothing stretched and everything sat at the TOP of a
+     row the v5 header had made 58px tall. MEASURED at 1920 before the fix:
+     the desk tabs (42px, `align-self: center`) were centred at y=29 and every
+     other control (28px, top-aligned) at y=14.8, so the brand, the two menus,
+     the search field, the status strip, the account chip and the four icon
+     buttons all sat FOURTEEN PIXELS above the navigation they share a row
+     with. That is what "the top panel is very inconsistent" was describing,
+     and no amount of spacing fixes a row whose items are on two baselines. */
+  align-items: center;
+  gap: var(--sp-3);
+  /* --sp-5, matching `.topbar` below, and this is an ALIGNMENT fix rather than
+     a spacing preference. Measured at 1600px: the command row's first control
+     began at x=8 and the context row's at x=12, and the two rows' last
+     controls ended at 1592 and 1588. So every column in the chrome was offset
+     from the one above it by four pixels in both directions — a zig-zag down
+     both edges of the frame that nothing could point at and everything read
+     as slightly loose. One padding value, one column. */
+  padding: 0 var(--sp-5);
+  /* ONE SURFACE FOR THE WHOLE FRAME, and this row was the only one not on it.
+     MEASURED, because the first version of this comment guessed and got it
+     wrong: the context row, the dock and the live bar are all --surface
+     (rgb 20,25,34) and this row alone was --surface-inset (rgb 15,20,28). So
+     the frame around the chart was three sides of one plane and a darker
+     fourth — and the darker one was the row that owns the whole program,
+     which inverts the hierarchy it should be leading.
+
+     Now the frame is one raised plane at --surface, the chart well is the only
+     recessed thing on screen at --surface-base, and the inset controls inside
+     the frame (the omnibox at --surface-sunk, the segmented groups and the
+     feed badge at --surface-inset) read as sunk INTO it. Three steps of depth
+     with a reason for each.
+
+     Side effect worth having: the omnibox previously sat at --surface-sunk on
+     --surface-inset, two of the closest colours in the palette. Against
+     --surface it finally reads as the field it behaves as. */
+  background: var(--surface);
+  /* The seam BETWEEN the two chrome rows, not the edge of the chrome. It
+     groups; it does not divide. --border at full weight was the same line the
+     bottom of the whole frame uses, so the chrome had two equal rules 42px
+     apart and read as two bars rather than one two-row band. */
+  /* No bottom seam since v55: the command row is its own card, and the card
+     border (see "THE CARDS") is even on all four sides. */
+  min-width: 0;
+  overflow: visible;
+}
+
+/* A hairline, not a pipe character. It separates "what this program can do"
+   from "what you are looking at" without adding a third weight to the row.   */
+.bar-rule {
+  flex: 0 0 auto;
+  align-self: center;
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 var(--sp-2);
+}
+/* One metric for every hairline divider inside the chrome. There were two —
+   16px here and 18px before the feed badge — which is not a difference anyone
+   can see individually and is exactly the kind of thing that makes a row look
+   unconsidered in aggregate. */
+
+.bar-spacer { flex: 1 1 var(--sp-4); min-width: var(--sp-3); }
+
+/* --- CONTEXT BAR ----------------------------------------------------------
+   Symbol, timeframe, chart style, moving averages, feed quality. Everything
+   here is about the INSTRUMENT; everything in the command bar is about the
+   PROGRAM. That split is what stopped this row overflowing when it was also
+   carrying the utilities.                                                    */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: 0 var(--sp-5);
+  /* Same plane as the command bar above — see the note there. The strong
+     border stays on THIS row, because this is where the chrome ends and the
+     chart begins, and that is the one edge in the stack that is a boundary
+     rather than a seam. */
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  /* The control groups are the one thing here that legitimately runs long.
+     Scrolling THEM beats either wrapping (which changes the chrome height and
+     shifts the chart) or clipping (which hides controls with no way to reach
+     them). `min-width: 0` is required or the flex item refuses to shrink and
+     widens its parent instead — see the v41 note in HANDOVER.                */
+  overflow-x: auto;
+  overflow-y: hidden;
+  min-width: 0;
+  scrollbar-width: none;
+}
+.topbar::-webkit-scrollbar { height: 0; }
+
+/* A SCROLL REGION WITH NO SCROLLBAR READS AS A CLIPPED ONE.
+   The controls above are reachable — they scroll — but with the bar hidden and
+   the last group cut mid-word ("EMA20 EM…") the row looks broken rather than
+   continued. The fade is the affordance: it says there is more this way, and it
+   is applied ONLY while the row actually overflows, so a bar with room to spare
+   is not dimmed for no reason. `data-overflow` is set by a ResizeObserver in
+   shell.ts, because CSS cannot ask whether a box scrolls.                     */
+.topbar[data-overflow="true"] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent 100%);
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), transparent 100%);
+}
+
+/* The narrow-width rules that used to hide the moving-average and chart-style
+   button groups are gone with those groups (v55): both are now single menu
+   pills, and the row measures itself and sheds content in steps — see
+   styles/topbar.css and ui/shell/topbar.ts. */
+
+/* ───────────────────────────────────────────────────────────────────────────
+   THE VIEW ACTIONS
+
+   Replay, Live edge, Reload, Export — moved up out of the chart toolbar.
+
+   THE MEASUREMENT: at 1920px this bar carried 811px of controls, a 103px feed
+   badge, and a 994px spacer between them. Fifty-two per cent of the row was
+   air, and directly beneath it a THIRD strip of chrome held these four buttons
+   plus the drawing tools. The bar now has two anchored groups — what you are
+   looking at on the left, what you can do to that view on the right — instead
+   of one cluster and a void.
+
+   The labels are the first thing given up when the row gets tight, before the
+   row starts scrolling: the icons carry the meaning and every button keeps its
+   title, so nothing becomes unreachable.
+   ────────────────────────────────────────────────────────────────────────── */
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: 0 0 auto;
+}
+/* A hairline between the actions and the feed badge: they are read as one
+   right-hand cluster otherwise, and the badge is a readout, not a control. */
+.topbar-actions::after {
+  content: "";
+  width: 1px;
+  height: 16px;
+  margin-left: var(--sp-3);
+  background: var(--border);
+}
+
+@media (max-width: 1280px) {
+  .topbar-actions .tool-btn.wide > span { display: none; }
+  .topbar-actions .tool-btn.wide { padding: 0 var(--sp-2); }
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+  font-family: var(--font-disp);
+  font-size: var(--fs-3);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+  padding-right: var(--sp-2);
+}
+.brand-mark {
+  display: grid;
+  place-items: center;
+  width: 18px; height: 18px;
+  border-radius: var(--r-1);
+  /* Solid brand since v55 — the gradient to --alt was the one decorative
+     colour wash in the chrome, and the Fusion mark is a plain accent square. */
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--fs-1);
+}
+
+/* `1 1 0`, and the `0` is the whole point. It was `1 0 var(--sp-5)`: a 12px
+   basis that could GROW but never shrink, so a row 2px too wide reported
+   itself as overflowing while holding 12px of blank. MEASURED at a 1282px
+   column: the `snug` rung overflowed by exactly 2, the fit loop dropped a
+   rung it did not need, and the spacer that caused it then grew to 248px.
+   A spacer is what is LEFT; it must be the first thing to give the room back,
+   and the row's own 12px gap already separates the two groups. */
+.topbar-spacer { flex: 1 1 0; }
+
+/* --- APP MENU -------------------------------------------------------------
+   The brand IS the menu now. Seven text menus collapsed into one button, which
+   is where every desktop application of the last decade put them, and it gave
+   the row about 250px back for controls that are used constantly.           */
+.appmenu-btn {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-3) 0 var(--sp-2);
+  border-radius: var(--r-2);
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text);
+  font-family: var(--font-disp);
+  font-size: var(--fs-3);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-tight);
+  cursor: pointer;
+}
+@media (hover: hover) { .appmenu-btn:hover { background: var(--surface-hover); } }
+.appmenu-btn[aria-expanded="true"] { background: var(--surface-active); border-color: var(--border); }
+.appmenu-caret { font-size: 9px; color: var(--text-faint); }
+
+/* --- OMNIBOX --------------------------------------------------------------
+   The palette used to be a 27px magnifier that advertised nothing. It is the
+   fastest route to every command and symbol in the terminal, so it looks like
+   the field it behaves as, and it prints its own shortcut.                   */
+.omnibox {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  /* Never grows, and gives way BEFORE the workspace tabs (v59): a shrink
+     factor this large means the field narrows to its 180px floor before the
+     tabs lose a pixel. Sharing the room equally, measured at 1280px, it held
+     362-418px while the five workspaces needed 435 — Review and Lab went into
+     "More", or were clipped, on a normal desktop. The navigation must fit;
+     the field still reads as a search box at 180px. */
+  flex: 0 1000 380px;
+  min-width: 180px;
+  max-width: 460px;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-3) 0 var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  color: var(--text-faint);
+  font-size: var(--fs-2);
+  cursor: text;
+  /* Transition owned by `press.css`, which now carries this class — same
+     reason as `.tool-btn`: one owner per shorthand. */
+}
+@media (hover: hover) { .omnibox:hover { border-color: var(--border-hi); background: var(--surface-inset); } }
+.omnibox:focus-visible { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+.omnibox-icon { display: grid; place-items: center; color: var(--text-faint); flex: 0 0 auto; }
+.omnibox-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: left;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.omnibox-key {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+/* --- ACCOUNT CHIP ---------------------------------------------------------
+   The number every position size starts from, visible from the chart rather
+   than only on the Risk desk. One source, so it cannot disagree with it.     */
+.acct-chip {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+@media (hover: hover) { .acct-chip:hover { border-color: var(--border-hi); background: var(--surface-inset); } }
+/* --- ALL TOOLS / VIEW -----------------------------------------------------
+   Two text buttons beside the workspaces. Words rather than icons: "All
+   tools" is the index of everything the backend runs, and an index nobody
+   can name is an index nobody opens. Transitions live in press.css.        */
+.tools-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-2);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.tools-btn .icon { opacity: 0.55; }
+.tools-btn[aria-expanded="true"] { color: var(--text); background: var(--surface-hover); }
+@media (hover: hover) { .tools-btn:hover { color: var(--text); background: var(--surface-hover); } }
+.tools-btn:focus-visible { color: var(--text); }
+
+/* --- STATUS STRIP ----------------------------------------------------------
+   Five readings: alerts, signals, risk, MT5, services. Colour follows the
+   STANDING (connected, stale), never the number — 12 alerts is not worse
+   than 3. `warn` is the attention hue, not red: an offline broker is a thing
+   to know, not an error.                                                     */
+.status-strip {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  height: var(--h-ctl-sm);
+  padding: 0 2px;
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border: 1px solid var(--border);
+}
+.sitem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: calc(var(--h-ctl-sm) - 6px);
+  padding: 0 var(--sp-2);
+  border: 0;
+  border-radius: calc(var(--r-2) - 2px);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  cursor: pointer;
+}
+.sitem .icon { opacity: 0.6; }
+.sitem[data-tone="pos"] .sitem-v { color: var(--pos); }
+.sitem[data-tone="warn"] .sitem-v { color: var(--attn); }
+@media (hover: hover) { .sitem:hover { color: var(--text); background: var(--surface-hover); } }
+.sitem:focus-visible { color: var(--text); }
+/* WHAT GIVES WAY, IN ORDER, as the row narrows. The workspaces are the
+   navigation, so everything else yields before a workspace goes into "More".
+   Measured at 1024, 1100, 1280, 1366, 1440 and 1920 — see HANDOVER v59.
+
+   <=1600  the strip drops its values; icon colour still carries the standing
+           and every reading is in the button's title
+   <=1280  dock and focus icons go: they duplicate View > Inspector and
+           Focus mode, which show their keys (B, F)
+   <=1100  the strip goes, and the account chip's risk %
+   <=900   View goes; text size and layout are in Settings > Appearance   */
+@media (max-width: 1600px) {
+  .sitem-v { display: none; }
+  .sitem[data-tone="warn"] .icon,
+  .sitem[data-tone="pos"] .icon { opacity: 1; }
+  .sitem[data-tone="warn"] .icon { color: var(--attn); }
+  .sitem[data-tone="pos"] .icon { color: var(--pos); }
+}
+@media (max-width: 1280px) {
+  .commandbar .bar-dock,
+  .commandbar .bar-focus { display: none; }
+}
+@media (max-width: 1100px) {
+  .status-strip { display: none; }
+  .acct-risk { display: none; }
+}
+@media (max-width: 900px) {
+  .commandbar .tools-btn + .tools-btn { display: none; }
+}
+/* <=600  "All tools" goes too. MEASURED at 375: its 76px took the deskbar to
+   0px wide — no tab and no "More", navigation gone without a trace. The IRAM
+   menu and the palette still reach every desk. */
+@media (max-width: 600px) {
+  .commandbar .tools-btn { display: none; }
+}
+
+/* Present only while a broker is answering. `display: none` rather than a
+   faded state, because the absence of the word is the "manual" signal and a
+   greyed LIVE reads as live at a glance. */
+.acct-live { display: none; }
+.acct-live[data-on="1"] {
+  display: inline-block;
+  padding: 0 4px;
+  border-radius: var(--r-1);
+  background: var(--pos-wash);
+  color: var(--pos);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-wide);
+}
+.acct-equity { font-size: var(--fs-2); font-weight: var(--fw-semi); color: var(--text); }
+.acct-ccy { font-size: var(--fs-1); color: var(--text-faint); }
+.acct-risk { font-size: var(--fs-1); color: var(--text-muted); }
+
+/* Below this the brand word and the omnibox label are the cheapest things to
+   give up: the mark still identifies the app, the omnibox keeps its icon, and
+   the row keeps every control.                                               */
+/* v59: the search field goes to its icon below 1100px, not 900. Measured at
+   1024px with the five workspaces, a 180-200px field left the tabs 349px of
+   the 435 they need, and Review and Lab went into "More". The workspaces are
+   the navigation; the field is one keystroke away (Ctrl+K) at any width.
+   `min-width: 0` undoes the 180px floor set above for wide screens.
+
+   v59 stage 1 moved it to 1500. "All tools", "View" and the status strip
+   took 356px of the row, and MEASURED at 1440 the deskbar got 458px of the
+   546 the five workspaces need: Strategy and Review went into "More" at the
+   most common laptop width. The field at its 180px floor is a label for
+   Ctrl+K; the workspaces are the navigation. */
+@media (max-width: 1500px) {
+  .omnibox { flex: 0 0 auto; min-width: 0; max-width: none; padding: 0 var(--sp-3); }
+  .omnibox-text,
+  .omnibox-key { display: none; }
+}
+@media (max-width: 900px) {
+  .commandbar { gap: var(--sp-2); padding: 0 var(--sp-3); }
+  .appmenu-name { display: none; }
+  .acct-risk { display: none; }
+}
+
+/* --- DESK SWITCHER --------------------------------------------------------
+   The one navigation. It carries an icon AND a word: an icon strip alone was
+   what read as cramped when the rail was still here, but an icon beside a word
+   is faster to find than the word by itself.
+
+   `min-width: 0` is what lets the bar measure its own allotted width — see
+   ui/deskbar.ts. Without it the group refuses to shrink and pushes the
+   utilities off the end instead of spilling.
+
+   ITS BASIS IS SET BY ui/deskbar.ts (v59), to the width of EVERY tab plus
+   the gaps. With `auto` the bar's share of the row depended on whatever had
+   not spilled: once two tabs spilled it shrank to fit three, the field grew
+   into the room, and every later measurement agreed two did not fit — a
+   stable wrong state, measured at 1024px as 349px allotted for 435px of tabs.
+   The `0` here is only the value before the first measurement. Grow 10 so the
+   bar, not the spacer, takes any spare room.                                  */
+.deskbar {
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-1);
+  flex: 10 1 0;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.desk-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  font-size: var(--fs-3);
+  font-weight: var(--fw-med);
+  color: var(--text-muted);
+  white-space: nowrap;
+  position: relative;
+  transition:
+    color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease);
+}
+.desk-tab .icon { opacity: 0.7; flex: 0 0 auto; }
+@media (hover: hover) { .desk-tab:hover { color: var(--text); background: var(--surface-hover); } }
+@media (hover: hover) { .desk-tab:hover .icon { opacity: 0.95; } }
+
+/* The selected desk is marked by a filled chip AND an underline. One signal
+   would do at full contrast; two survive a colour-blind reader and a glance. */
+/* v55: THE SELECTED DESK IS A FILLED ACCENT PILL (the Fusion navigation).
+   One strong signal — fill plus its own ink — replaces the chip-and-underline
+   pair; the fill survives a colour-blind reader because it is also the only
+   filled thing in the row. The tabs sit at control height, centred, rather
+   than stretching to the full row: a 42px-tall selection band reads as a
+   header cell, a 30px pill reads as a choice. */
+.desk-tab { align-self: center; height: 30px; }
+.desk-tab[aria-selected="true"] {
+  color: var(--text-on-accent);
+  background: var(--accent);
+}
+.desk-tab[aria-selected="true"] .icon { opacity: 1; color: var(--text-on-accent); }
+
+/* THE UNDERLINE IS ON EVERY TAB, AND SCALES.
+
+   It used to exist only on the selected tab, which means it could not move: it
+   was destroyed at one x and constructed at another, so switching desks made
+   the one continuous marker in the chrome blink out and reappear somewhere
+   else. Rendering it on all of them at `scaleX(0)` gives the transition
+   something to interpolate, and the marker grows out of the centre of the tab
+   you just chose.
+
+   `transform` only — the property is free, it is the one thing `.desk-tab` is
+   allowed to animate, and `press.css` excludes desk tabs from press scaling
+   for a different reason (a tab shrinking against its neighbours reads as a
+   layout glitch). That exclusion is about the TAB. This is a 2px pseudo-
+   element inside it and moves nothing.
+
+   `--dur-1` (90ms), the shortest step in the vocabulary, because a desk switch
+   is navigation: the marker should have arrived by the time the eye does.
+   Reduced motion is already handled — tokens.css re-points every --dur-* to
+   0ms — and a CSS transition does not run on the initial style resolution, so
+   this costs nothing at boot. */
+.desk-tab::after {
+  content: "";
+  position: absolute;
+  left: var(--sp-4);
+  right: var(--sp-4);
+  bottom: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--accent);
+  transform: scaleX(0);
+  transition: transform var(--dur-1) var(--ease-out);
+}
+/* Retired in v55 by the filled pill above; kept at scaleX(0) rather than
+   deleted so a theme that wants the underline back has one line to change. */
+.desk-tab[aria-selected="true"]::after { transform: scaleX(0); }
+
+/* The chevron on a GROUP button. Muted well below the label and the leading
+   icon: it marks the button as openable and must not compete with the desk
+   name, which is the thing being read. */
+.desk-tab .icon + .desk-tab-text + .icon { opacity: 0.4; margin-left: -2px; }
+.desk-tab[aria-selected="true"] .icon + .desk-tab-text + .icon {
+  opacity: 0.7;
+  color: var(--text-on-accent);
+}
+
+/* WHO LEADS, on the workspace you are in: "Chart · AI-led". Only the current
+   workspace carries it (deskbar.ts), so it costs width on one tab, not five.
+   Smaller and quieter than the name, which is the thing being read. */
+.desk-tab-text { display: inline-flex; align-items: baseline; gap: var(--sp-2); }
+.desk-tab-lead { font-size: var(--fs-1); font-weight: var(--fw-normal); opacity: 0.72; }
+.desk-tab-lead:empty { display: none; }
+@media (max-width: 1280px) { .desk-tab-lead { display: none; } }
+
+/* Spilled tabs leave layout entirely rather than merely hiding: they must not
+   contribute width to the measurement that decided to spill them.            */
+.desk-tab[data-spilled] { display: none; }
+
+.desk-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 0 0 auto;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.desk-more[aria-expanded="true"] { color: var(--text); background: var(--surface-hover); }
+@media (hover: hover) { .desk-more:hover { color: var(--text); background: var(--surface-hover); } }
+.desk-more[data-spilled] { display: none; }
+.desk-more .icon { opacity: 0.6; }
+
+/* The count is the difference between "three desks are hidden" and "this
+   button does nothing", which a bare chevron cannot express.                 */
+.desk-more-count:not(:empty) {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--fs-0);
+  font-weight: var(--fw-bold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- MAIN / DOCK ---------------------------------------------------------- */
+
+.main { display: grid; grid-template-rows: minmax(0, 1fr); background: var(--surface-base); }
+
+.dock {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+}
+
+/* A ZERO-width grid track still paints its border, and that border is real
+   layout: it pushed the document one device pixel wider than the viewport and
+   left the whole page horizontally scrollable with the dock shut. Measured at
+   0.926px on a 1.08 device-pixel-ratio display, which is exactly one device
+   pixel — the kind of number that looks like a rounding artefact and is not.
+
+   NOW SCOPED TO THE TRACKS THAT ARE ACTUALLY ZERO. A closed dock is 22px of
+   rail, and a rail with no left border has nothing separating it from the
+   chart. The two remaining zero-width cases are full focus and the narrow
+   breakpoint, and both keep the original fix.                                 */
+.shell[data-focus="full"] .dock { border-left-width: 0; }
+
+/* --- THE CLOSED DOCK'S RAIL ----------------------------------------------- */
+
+/* The panel's own contents go; the rail is the exception that stays.
+   `display: none` rather than relying on the overflow rule, because the track
+   is no longer zero — at 22px the overflow rule would leave a 22px vertical
+   slice of the panel showing, which reads as a rendering fault.              */
+.shell[data-dock="closed"] .dock > *:not(.dock-rail) { display: none; }
+
+/* v59.2: AN ICON STRIP, not the vertical word. One icon per card on the
+   column (pins first), each opening the inspector on that card, under a
+   chevron that opens it as it was. The word said something was there; the
+   icons say what. Built by `ui/shell/dockcards.ts` from the same list the
+   column uses, so the two cannot disagree. */
+.dock-rail {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: var(--sp-2) 0;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.shell[data-dock="closed"] .dock-rail { display: flex; }
+.rail-icons { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.rail-open,
+.rail-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.rail-open { margin-bottom: var(--sp-2); color: var(--text); }
+/* A pinned card's icon carries the accent, so the strip shows what you chose
+   to keep on top as well as what exists. */
+.rail-icon[data-pinned="true"] { color: var(--accent); }
+@media (hover: hover) {
+  .rail-open:hover,
+  .rail-icon:hover { background: var(--surface-hover); color: var(--text); }
+}
+.rail-open:active,
+.rail-icon:active { background: var(--surface-active); color: var(--accent); }
+.rail-open:focus-visible,
+.rail-icon:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* Full focus is the chart and nothing else, so the rail goes with the rest of
+   the chrome rather than being the one thing that survives it. */
+.shell[data-focus="full"] .dock-rail { display: none; }
+
+/* The drag handle straddles the main/dock seam. It is positioned against
+   `.main` rather than inserted as a grid track so resizing never re-runs the
+   grid algorithm mid-drag.                                                   */
+.dock-resizer {
+  position: absolute;
+  top: 0; right: -3px; bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: var(--z-dock);
+}
+.dock-resizer::after {
+  content: "";
+  position: absolute;
+  inset: 0 2px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease);
+}
+.shell[data-resizing="dock"] .dock-resizer::after { opacity: 1; }
+@media (hover: hover) { .dock-resizer:hover::after { opacity: 1; } }
+
+/* While dragging, kill the grid transition or the panel lags the cursor. */
+.shell[data-resizing] { transition: none; user-select: none; }
+.shell[data-resizing] * { cursor: col-resize; }
+
+/* --- STATUS BAR ----------------------------------------------------------- */
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: 0 var(--sp-5);
+  /* NOTHING RENDERS THIS RULE TODAY. `.livebar` below takes `grid-area:
+     status`, and it has always been --surface; `.status-item` and
+     `.status-spacer` are live and are ITS children. Matched to the frame
+     anyway rather than left at --surface-inset, so reviving a status bar
+     cannot reintroduce the odd-one-out this pass removed from the command
+     row. Recorded rather than deleted: deleting a container whose two child
+     classes are in use is a separate change with its own risk. */
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.status-spacer { flex: 1; }
+
+.status-item { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
+
+/* Feed-health dot. The colour is bound to the freshness contract, never set
+   ad hoc — see tokens.css `--feed-*`.                                        */
+.feed-dot {
+  width: 6px; height: 6px;
+  border-radius: var(--r-full);
+  background: var(--feed-off);
+}
+.feed-dot[data-feed="live"]    { background: var(--feed-live); }
+.feed-dot[data-feed="delayed"] { background: var(--feed-delayed); }
+.feed-dot[data-feed="stale"]   { background: var(--feed-stale); }
+.feed-dot[data-feed="closed"]  { background: var(--feed-closed); }
+
+/* --- RESPONSIVE ------------------------------------------------------------
+   Narrow desks drop the dock to an overlay rather than squeezing the chart:
+   below ~1100px a 360px dock leaves the chart unreadable.
+
+   The top offset is COMPUTED from the same tokens the grid uses, and the
+   context-bar term is zeroed by the same attribute that collapses its track —
+   a hard-coded offset here is exactly how v39 ended up with a panel floating
+   26px below the row it was supposed to hang from.                           */
+@media (max-width: 1100px) {
+  .shell { --w-dock-t: 0px; --w-rail-t: 0px; }
+  .shell .watchrail-area { display: none; }
+  /* No rail here. Below the breakpoint the dock is a floating overlay that
+     narrow closes on purpose so the desk behind it stays reachable, and 22px
+     of permanent rail is a real subtraction from a screen that has none to
+     spare. The toolbar toggle is the affordance at this width.
+
+     BOTH LINES ARE REQUIRED, and shipping only the second was a bug —
+     MEASURED at 1000px with the dock closed: the rail was correctly
+     `display: none` and the track was still 22px wide. `.shell` alone (0,1,0)
+     loses to `.shell[data-dock="closed"]` (0,2,1) above, and a media query
+     adds NO SPECIFICITY, so the narrow rule never reached the track it was
+     written to collapse. The chart gave up 22px to hold an invisible element
+     on exactly the screens that have the least to spare.
+
+     This is the same trap the rail's own `display` rule was written to avoid
+     one line down — caught there, missed here, in the same change. */
+  .shell[data-dock="closed"] { --w-dock-t: 0px; }
+  .shell[data-dock="closed"] .dock { border-left-width: 0; }
+  .shell[data-dock="closed"] .dock-rail { display: none; }
+  .shell[data-dock="open"] .dock {
+    position: fixed;
+    top: calc(var(--g) + var(--h-cmdbar) + var(--g) + var(--h-topbar));
+    right: var(--g);
+    bottom: calc(var(--h-status) + 2 * var(--g));
+    margin: 0;
+    /* Never wider than the viewport can spare: a fixed 360px overlay on a
+       narrow screen leaves nothing of the view it floats above. */
+    width: min(var(--w-dock), 86vw);
+    box-shadow: var(--elev-3);
+  }
+  .shell[data-dock="open"][data-scoped="no"] .dock { top: calc(var(--g) + var(--h-cmdbar) + var(--g)); }
+}
+
+/* --- LIVE BAR --------------------------------------------------------------
+   The bottom row, rebuilt: the terminal's plumbing collapses into one health
+   chip and the space carries the market and your money instead. Fields drop by
+   rank when the row cannot hold them — see ui/livebar.ts for the measurement
+   that made that necessary.                                                  */
+.livebar {
+  grid-area: status;
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  height: var(--h-status);
+  padding: 0 var(--sp-4);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  overflow: hidden;
+}
+
+.lb-health {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+  padding: 0 var(--sp-4) 0 var(--sp-2);
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  cursor: pointer;
+  border-right: 1px solid var(--border);
+}
+@media (hover: hover) { .lb-health:hover { color: var(--text); background: var(--surface-hover); } }
+.lb-health-caret { font-size: 8px; opacity: 0.5; }
+
+.lb-dot { width: 7px; height: 7px; border-radius: var(--r-full); background: var(--feed-off); }
+.lb-dot[data-feed="live"] { background: var(--feed-live); }
+.lb-dot[data-feed="delayed"] { background: var(--feed-delayed); }
+.lb-dot[data-feed="stale"] { background: var(--feed-stale); }
+
+.lb-zone {
+  display: flex;
+  align-items: center;
+  gap: 14px; /* mirrored as FIELD_GAP in livebar.ts */
+  padding: 0 var(--sp-5);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+.lb-zone + .lb-zone { border-left: 1px solid var(--border); }
+.lb-zone[hidden] { display: none; }
+
+/* The money zone is pushed right; the two before it stay left, so the eye
+   learns one map and keeps it.                                              */
+.lb-zone[data-zone="money"] { margin-left: auto; }
+
+.lb-field { display: flex; align-items: baseline; gap: var(--sp-3); white-space: nowrap; }
+.lb-field[hidden] { display: none; }
+.lb-key {
+  /* Kept in caps when the v53 pass moved labels to sentence case: these are
+     short DATA KEYS, several of them abbreviations (ATR, RSI), written in
+     lowercase in the code and capitalised here. "Atr" is not a word. */
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: var(--track-wide);
+  color: var(--text-faint);
+}
+.lb-val {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+/* A named gap is never mistaken for a value: no tabular figures, dimmed, and
+   it says what is missing rather than printing a zero.                       */
+.lb-val[data-gap="true"] {
+  font-family: var(--font-ui);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  font-style: italic;
+}
+.lb-field[data-tone="pos"] .lb-val { color: var(--pos); }
+.lb-field[data-tone="neg"] .lb-val { color: var(--neg); }
+.lb-field[data-tone="warn"] .lb-val { color: var(--attn); }
+.lb-field[data-tone="mute"] .lb-val { color: var(--text-muted); }
+/* Price direction of the last print, in the CANDLE colours. No transition on
+   purpose: a price prints thousands of times a day, and the motion rule says
+   anything met that often does not animate. See `nextTickTone`. */
+.lb-field[data-tone="up"] .lb-val   { color: var(--candle-up); }
+.lb-field[data-tone="down"] .lb-val { color: var(--candle-down); }
+
+.lb-trailing {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+  padding-left: var(--sp-5);
+  border-left: 1px solid var(--border);
+}
+
+/* ── The tape ──────────────────────────────────────────────────────────────
+   One line, held still, in the space the context bar was wasting.
+
+   It replaces `.topbar-spacer`, so it inherits the job of absorbing the slack
+   in that row: `flex: 1 1 auto` with `min-width: 0`, which is what lets the
+   text truncate instead of pushing the actions off the end on a narrow window.
+
+   Deliberately quiet by default. This sits between the controls you use and
+   the actions you press, and a permanently coloured strip in that position
+   would compete with both. Only `alarm` earns colour — and the one thing that
+   raises an alarm here is the feed having stopped, which is worth competing
+   with everything.                                                          */
+.tape {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  /* Fills its slot rather than bidding for one. v53 gave this `flex: 1 1 18rem`
+     so it would take the context bar's slack and keep a stable width whatever
+     headline was on it — right about the stability, wrong about the row. In a
+     bar with eleven controls that each have a hard minimum there was no slack
+     to take, and it collapsed to about forty pixels: `Te…`, with a live dot
+     next to it.
+     It now lives in the live bar, which decides whether there is room for it
+     BEFORE laying it out and drops it whole when there is not. So here it
+     simply fills what it was given. See ui/livebar.ts. */
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  cursor: default;
+  user-select: none;
+}
+.tape[data-empty="true"] { visibility: hidden; }
+.tape[data-tone="alarm"] { color: var(--neg); cursor: pointer; }
+.tape[data-tone="attention"] { color: var(--attn); cursor: pointer; }
+@media (hover: hover) { .tape[data-tone="neutral"]:hover, .tape[data-tone="attention"]:hover, .tape[data-tone="alarm"]:hover { cursor: pointer; } }
+
+/* The dot is the only always-on mark: it says the tape is live without
+   spending colour on the text beside it. */
+.tape-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  align-self: center;
+}
+.tape[data-tone="alarm"] .tape-dot { opacity: 1; }
+
+/* The line truncates; the source and the position never do. Losing the tail
+   of a headline is recoverable — it is on the Decision desk, one click away,
+   and the title attribute carries it. Losing WHO SAID IT is not: an
+   unattributed headline in a trading terminal is worse than no headline. */
+.tape-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.tape-src,
+.tape-dots {
+  flex: none;
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+}
+.tape-dots { min-width: 2.5em; text-align: right; }
+
+/* The 1360px breakpoint that used to hide the tape is gone with the tape's
+   move to the live bar. A breakpoint is a guess about when something stops
+   fitting; the live bar MEASURES it, against the actual fields on the actual
+   row, so the guess is no longer needed and no longer wrong at the edges. */
+
+/* --- LIVE BAR: the ticker slot ------------------------------------------- */
+.lb-ticker {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 0 var(--sp-5);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+.lb-ticker[hidden] { display: none; }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   THE NEWS BAR
+
+   One headline, held still, above the live bar. Not a marquee — ui/livebar.ts
+   makes that argument for numbers and it holds for text: a headline sliding
+   past cannot be finished, clicked, or found again once it has gone.
+
+   The title is the ONLY thing allowed to shrink. The source and the age are
+   fixed-width and never truncate, because an unattributed or undated headline
+   in a trading terminal is worse than no headline — the same rule the tape has
+   carried since v53.
+   ────────────────────────────────────────────────────────────────────────── */
+/* The rule is on the SHELL, not the bar: a collapsed track is zero-height but
+   a border still paints, so an off news bar left a 1px hairline sitting above
+   the live bar for no reason anybody could see a cause for. */
+.shell[data-news="on"] .newsbar { border-top: 1px solid var(--border); }
+
+.newsbar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--h-news);
+  padding: 0 var(--sp-4);
+  background: var(--surface-inset);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  /* The list opens UPWARD out of this row, so the blanket clip on `.shell > *`
+     has to be lifted here exactly as it is for the command bar. */
+  overflow: visible;
+}
+
+.nb-label {
+  flex: none;
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-wide);
+  color: var(--text-faint);
+}
+
+/* `min-width: 0` on both, or the flex item refuses to shrink and the row
+   widens its parent instead — the v41 note in HANDOVER, again. */
+.nb-slot { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; }
+
+.nb-item {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.nb-item:disabled { cursor: default; }
+@media (hover: hover) { .nb-item:hover:not(:disabled) .nb-title { color: var(--text); text-decoration: underline; } }
+
+.nb-dot {
+  flex: none;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.55;
+  align-self: center;
+}
+
+/* The one element that truncates. */
+.nb-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.nb-src,
+.nb-age,
+.nb-pos {
+  flex: none;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Reserved width so the headline does not shuffle sideways as the counter goes
+   from "9/12" to "10/12" — but only while there IS a counter. `positionText`
+   returns "" with no items, and an empty 4.5em block then sits between the
+   message and the health chip as a gap with nothing in it. */
+.nb-pos { min-width: 4.5em; text-align: right; }
+.nb-pos:empty { display: none; }
+
+.nb-empty { color: var(--text-faint); }
+
+.nb-health,
+.nb-btn {
+  flex: none;
+  padding: 1px var(--sp-2);
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  cursor: pointer;
+}
+@media (hover: hover) { .nb-health:hover, .nb-btn:hover { background: var(--surface-hover); color: var(--text); } }
+/* A partial failure is the case worth colouring: four of five feeds working
+   looks fine and means a fifth of the coverage is silently gone. */
+.nb-health[data-tone="warn"] { color: var(--attn); }
+.nb-health[data-tone="bad"]  { color: var(--neg); }
+.nb-health[data-tone="off"]  { color: var(--feed-off); }
+
+/* Opens upward: there is nothing below this row but the live bar. */
+.nb-list {
+  position: absolute;
+  right: var(--sp-4);
+  bottom: calc(100% + 4px);
+  z-index: var(--z-popover);
+  width: min(720px, calc(100vw - var(--sp-5) * 2));
+  max-height: min(60dvh, 520px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-2);
+  background: var(--surface-overlay);
+  backdrop-filter: var(--blur-pop);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-3);
+  box-shadow: var(--elev-pop), var(--sheen);
+}
+.nb-list[hidden] { display: none; }
+
+.nb-row {
+  display: grid;
+  grid-template-columns: 9em minmax(0, 1fr) 6.5em;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) { .nb-row:hover { background: var(--surface-hover); color: var(--text); } }
+.nb-row-src { color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Full headline in the list: this is the surface for reading, the bar is the
+   surface for glancing. */
+.nb-row-title { min-width: 0; }
+.nb-row-age { color: var(--text-faint); text-align: right; font-variant-numeric: tabular-nums; }
+.nb-row-bad { cursor: default; }
+.nb-row-bad .nb-row-title { color: var(--neg); }

@@ -1,0 +1,125 @@
+# ============================================================================
+# RUFF — WHAT THIS PROJECT HAS DECIDED ABOUT ITS OWN PYTHON
+# ============================================================================
+#
+# There was no config here, which meant `ruff check server tests` printed 305
+# findings across 28 rules and every one of them was anonymous: no way to tell
+# a rule this project had considered and rejected from one nobody had ever
+# looked at. A number like that is not a backlog, it is noise, and noise is
+# what gets a linter removed from a build.
+#
+# 305 -> 185, and the 185 are now exactly FIVE rules. That is the point of this
+# file: the output is no longer a list, it is a statement. Anything appearing
+# outside those five is NEW, and `verify.py --lint` fails on it.
+#
+# ----------------------------------------------------------------------------
+# WHAT WAS FIXED TO GET THERE (not suppressed -- fixed)
+#
+#   90  mechanical, by `ruff --fix`: import order, unused imports, unused noqa,
+#       f-strings with no placeholders, deprecated typing imports. Every backend
+#       module was then imported to prove no "unused" import was load-bearing:
+#       36 of 36 clean. Four genuine deletions, all with zero references.
+#    8  ISC004, implicit string concatenation inside list literals. Wrapped in
+#       parentheses via AST spans, with an AST-equality assertion refusing any
+#       write that changed the parse -- which caught one of the eight.
+#    7  datetime correctness, and one of them was a REAL BUG: TwelveData and
+#       AlphaVantage bars were parsed with `strptime(...).timestamp()`, which
+#       reads a naive datetime as LOCAL time. Every bar from both providers was
+#       displaced by the server's UTC offset -- two hours here, a different
+#       number elsewhere, a different number again after daylight saving. See
+#       `tests/test_data_proxy_time.py`, which fails 5 of 6 without the fix.
+#   ~14 small and safe: endswith over a tuple, max over sorted()[-1], a dict
+#       literal, generator over map(lambda), explicit `check=False` where the
+#       caller already inspects the result, `_`-prefixed unused unpack targets.
+#    1  ASYNC230: a 1.1 MB synchronous file read inside an async route, which
+#       blocked every other request -- including the SSE feeds the page it
+#       serves is about to open. Moved to `run_in_threadpool`.
+#
+# ----------------------------------------------------------------------------
+# WHAT WAS SUPPRESSED IN PLACE, AND WHY THAT IS NOT THE SAME AS IGNORING IT
+#
+# Six `# noqa` comments, each carrying its reason on the line:
+#
+#   PLR0124 x4  `x == x` and `f != f`. These are the NaN test -- the one
+#               self-comparison that is not a mistake. The suggested "fix"
+#               silently stops filtering NaN bars.
+#   B023    x2  A closure over a loop variable. Checked, not assumed: in both
+#               cases every call happens inside the same iteration that defines
+#               what is captured, so the late binding cannot occur. Suppressed
+#               narrowly rather than refactored, so the rule keeps watching for
+#               a closure that DOES escape.
+#   DTZ005  x1  `datetime.now()` naive, because MetaTrader5's own API takes
+#               naive datetimes and an aware one changes what it returns.
+#   TRY004  x1  `ValueError` where an `isinstance` check precedes it -- but the
+#               check is "Binance answered with an error object", which is a bad
+#               VALUE from a remote service, not a caller's type error.
+#
+# ============================================================================
+
+# py312, and this is MEASURED rather than chosen.
+#
+# `py311` was the first guess here and ruff rejected it with four syntax errors:
+# `mishel_service.py` puts backslash escapes inside f-strings -- e.g.
+# `f"{'✅' if ok else '⚠'} MISHEL alive"` -- which is 3.12 syntax and a
+# SyntaxError on 3.11. So the backend's real floor is 3.12, and nothing in the
+# repository said so before this line did. Worth knowing: it is the version any
+# machine building the binary needs, and a 3.11 CI runner would have failed at
+# import with an error that looks nothing like "your Python is too old".
+target-version = "py312"
+
+# The build directory holds a venv, a PyInstaller work tree and dist output --
+# tens of thousands of files that are not this project's source.
+extend-exclude = ["server/build", "**/__pycache__"]
+
+# 100, not 88. Measured against what is here: the backend's median line is well
+# under 80 and its comment blocks are written to a ~78 column measure, but the
+# SQL and the Flask route decorators run long, and reflowing them to 88 would
+# reformat working code for no reader's benefit.
+line-length = 100
+
+[lint]
+# Ruff 0.16's default set, unchanged. Deliberately NOT narrowed: the defaults
+# are what found the timezone bug, the blocking read in the event loop and the
+# implicit concatenations. A hand-picked `select` would have found none of them,
+# because nobody picks a rule they do not already know they need.
+#
+# NOTHING IS IGNORED HERE. That is a decision, and it has a cost -- the five
+# rules below still print 185 findings on every run. The alternative was worse:
+# putting BLE001 in an ignore list turns all fourteen existing `# noqa: BLE001`
+# comments into RUF100 "unused directive" violations, so suppressing the rule
+# would have required deleting the very annotations that record where somebody
+# already did this work. `verify.py --lint` draws the line instead, by rule
+# name, where it can be crossed deliberately and seen.
+
+[lint.per-file-ignores]
+# Test scripts assert against a module's internals and print their own results;
+# `T201` (print) and `S101` (assert) are what a test IS.
+"tests/*" = ["T201", "S101"]
+
+# ============================================================================
+# THE DEFERRED FIVE — 185 findings, with the reason each one is not being
+# fixed in the same pass that fixed the other 120.
+#
+#   BLE001  101  `except Exception:`. Not mechanical and not always wrong: a
+#                collector that must never take the service down with it has a
+#                good reason to catch broadly, and the ones that are hiding a
+#                bug look identical from here. 101 separate judgements, each
+#                needing the caller read. Fourteen already carry a `# noqa`,
+#                which is where somebody started.
+#   UP031    46  `"%s" % x` -> f-string. Genuinely mechanical, and ruff offers
+#                it only as an UNSAFE fix, because `%` formatting and f-strings
+#                differ on tuples and on `__str__` vs `__format__`. 46 silent
+#                string changes in a service that formats Telegram alerts and
+#                SQL is not a pass to run unattended.
+#   S110     14  `try/except/pass`.
+#   S112     14  `try/except/continue`. Same family as BLE001 and the same
+#                problem: the fix is "log it", and deciding WHAT to log at 29
+#                sites in a loop that runs every 30 seconds is a design
+#                question about log volume, not a lint fix.
+#   SIM115    9  `open()` without a context manager. Worth doing -- these are
+#                real handle leaks -- but each one needs the lifetime of the
+#                handle traced, and several are in the build script where the
+#                process exits immediately afterwards.
+#
+# To work on one: `python -m ruff check server tests --select BLE001`.
+# ============================================================================

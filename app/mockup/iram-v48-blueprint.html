@@ -1,0 +1,2188 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+<title>IRAM v48 Restructure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   PAGE TOKENS — lifted from app/src/styles/tokens.css so the document and the
+   product it describes are the same object. Light = the `daylight` theme,
+   dark = the `iram` theme. Nothing here is invented.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --ground:#F7F8FA; --sunk:#ECEEF2; --panel:#FFFFFF; --panel2:#F2F4F7;
+  --line:#DDE1E8; --line-hi:#C6CCD6;
+  --ink:#131720; --ink-mute:#5A6474; --ink-faint:#8A93A2;
+  --pos:#0F9D6E; --neg:#D64550; --accent:#2563EB; --attn:#B7791F; --alt:#6D5BD0;
+  --wash-accent:color-mix(in srgb,var(--accent) 10%,transparent);
+  --wash-pos:color-mix(in srgb,var(--pos) 12%,transparent);
+  --wash-attn:color-mix(in srgb,var(--attn) 13%,transparent);
+  --wash-neg:color-mix(in srgb,var(--neg) 11%,transparent);
+  --shadow:0 1px 2px rgb(15 23 42/.06),0 12px 32px -18px rgb(15 23 42/.22);
+  --ui:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;
+  --mono:"JetBrains Mono","Cascadia Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#0B0E14; --sunk:#080B10; --panel:#141922; --panel2:#0F141C;
+    --line:#232B38; --line-hi:#2E3846;
+    --ink:#D4DAE3; --ink-mute:#7A8494; --ink-faint:#566072;
+    --pos:#2DBE8E; --neg:#F0616D; --accent:#4C82FB; --attn:#E8A33D; --alt:#9B8CFF;
+    --shadow:0 1px 2px rgb(0 0 0/.3),0 12px 32px -18px rgb(0 0 0/.6);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#0B0E14; --sunk:#080B10; --panel:#141922; --panel2:#0F141C;
+  --line:#232B38; --line-hi:#2E3846;
+  --ink:#D4DAE3; --ink-mute:#7A8494; --ink-faint:#566072;
+  --pos:#2DBE8E; --neg:#F0616D; --accent:#4C82FB; --attn:#E8A33D; --alt:#9B8CFF;
+  --shadow:0 1px 2px rgb(0 0 0/.3),0 12px 32px -18px rgb(0 0 0/.6);
+}
+
+*{box-sizing:border-box}
+body{background:var(--ground);color:var(--ink);font-family:var(--ui);
+  font-size:16px;line-height:1.6;-webkit-font-smoothing:antialiased;margin:0;
+  /* `clip`, not `hidden`: hidden would make body a scroll container and kill
+     the sticky phase spine. clip contains the full-bleed mock frames without
+     ever giving the page a sideways scrollbar. */
+  overflow-x:clip}
+.wrap{max-width:1180px;margin:0 auto;padding:0 28px 120px}
+
+/* ── masthead ─────────────────────────────────────────────────────────── */
+.mast{padding:72px 0 40px;border-bottom:1px solid var(--line)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 0 20px}
+.mast h1{font-size:clamp(38px,5.4vw,60px);line-height:1.04;letter-spacing:-.028em;
+  font-weight:700;margin:0 0 22px;text-wrap:balance;max-width:19ch}
+.mast p{font-size:19px;line-height:1.62;color:var(--ink-mute);max-width:66ch;margin:0}
+.mast .facts{display:flex;flex-wrap:wrap;gap:10px 28px;margin-top:32px;
+  font-family:var(--mono);font-size:12.5px;color:var(--ink-faint)}
+.mast .facts b{color:var(--ink);font-weight:500}
+
+/* ── the phase spine ──────────────────────────────────────────────────── */
+section.phase{display:grid;grid-template-columns:88px minmax(0,1fr);gap:0 34px;
+  padding:64px 0;border-bottom:1px solid var(--line)}
+/* Prose sits in the right column; mock frames span the whole row so their
+   full-bleed centring is measured against the page, not against a column that
+   is offset by the spine. */
+section.phase > div:not(.spine):not(.shot){grid-column:2}
+.shot{grid-column:1 / -1}
+.spine{position:sticky;top:24px;align-self:start;height:max-content}
+.spine .num{font-family:var(--mono);font-size:34px;font-weight:700;line-height:1;
+  letter-spacing:-.04em;color:var(--accent)}
+.spine .tick{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-faint);margin-top:10px;display:block}
+h2{font-size:clamp(26px,3vw,34px);line-height:1.14;letter-spacing:-.022em;font-weight:650;
+  margin:0 0 16px;text-wrap:balance}
+h3{font-size:18px;font-weight:600;letter-spacing:-.008em;margin:38px 0 12px}
+p{margin:0 0 16px;max-width:68ch}
+.lede{font-size:17.5px;color:var(--ink-mute);max-width:68ch}
+code{font-family:var(--mono);font-size:.88em;background:var(--panel2);border:1px solid var(--line);
+  border-radius:4px;padding:1px 5px;color:var(--ink)}
+strong{font-weight:600}
+
+/* ── callouts ─────────────────────────────────────────────────────────── */
+.note{border-left:3px solid var(--attn);background:var(--wash-attn);
+  padding:16px 20px;border-radius:0 8px 8px 0;margin:22px 0;max-width:68ch}
+.note.good{border-color:var(--pos);background:var(--wash-pos)}
+.note .k{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-mute);display:block;margin-bottom:6px}
+.note p{margin:0;font-size:15px}
+.note p + p{margin-top:10px}
+
+/* ── tables ───────────────────────────────────────────────────────────── */
+.tbl-scroll{overflow-x:auto;margin:24px 0}
+table{border-collapse:collapse;width:100%;min-width:620px;font-size:14.5px}
+th{text-align:left;font-family:var(--mono);font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-faint);font-weight:500;
+  padding:0 16px 10px 0;border-bottom:1px solid var(--line)}
+td{padding:13px 16px 13px 0;border-bottom:1px solid var(--line);vertical-align:top;
+  color:var(--ink-mute)}
+td:first-child{color:var(--ink);font-weight:500;white-space:nowrap}
+td b{color:var(--ink);font-weight:600}
+.pill{display:inline-block;font-family:var(--mono);font-size:10.5px;letter-spacing:.05em;
+  padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill.new{background:var(--wash-accent);color:var(--accent)}
+.pill.fix{background:var(--wash-pos);color:var(--pos)}
+.pill.mv{background:var(--wash-attn);color:var(--attn)}
+.pill.keep{background:var(--panel2);color:var(--ink-faint);border:1px solid var(--line)}
+
+/* ── IA comparison ────────────────────────────────────────────────────── */
+.ia{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:18px;margin:28px 0}
+.ia-col{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.ia-col h4{margin:0;padding:13px 18px;font-size:12px;font-family:var(--mono);letter-spacing:.09em;
+  text-transform:uppercase;color:var(--ink-mute);background:var(--panel2);
+  border-bottom:1px solid var(--line);font-weight:500}
+.ia-col.after h4{color:var(--accent)}
+.ia-col ul{list-style:none;margin:0;padding:10px 0}
+.ia-col li{padding:6px 18px;font-size:14px;display:flex;gap:9px;align-items:baseline}
+.ia-col li .g{font-family:var(--mono);font-size:11px;color:var(--ink-faint);
+  min-width:74px;letter-spacing:.03em}
+.ia-col li.head{font-weight:600;color:var(--ink);padding-top:12px}
+.ia-col li em{font-style:normal;color:var(--ink-faint);font-size:12.5px}
+
+/* ══════════════════════════════════════════════════════════════════════
+   MOCKUP FRAMES — the terminal's own dark tokens, always. These are
+   pictures of a dark application; they do not follow the page theme.
+   ══════════════════════════════════════════════════════════════════════ */
+/* Full-bleed: a 1280px mock should be seen whole, not through a 1000px slot.
+   Breaks out of the prose column to the viewport, then re-centres at 1280. */
+/* 100vw counts the vertical scrollbar, so a bare 100vw bleed overflows by its
+   width and gives the page a sideways scrollbar. Reserve 18px for it; on a
+   viewport with no scrollbar this only leaves 18px of harmless slack. */
+.shot{margin:30px 0 10px;width:calc(100vw - 18px);margin-left:calc(50% - 50vw + 9px);
+  padding:0 24px}
+.shot-cap{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;
+  font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--ink-faint);margin:0 auto 11px;max-width:1282px}
+.shot-cap b{color:var(--accent);font-weight:600}
+.shot-scroll{overflow-x:auto;border-radius:10px;box-shadow:var(--shadow);
+  border:1px solid var(--line);max-width:1282px;margin:0 auto}
+
+.mk{--bg:#0B0E14;--sk:#080B10;--pn:#141922;--pn2:#0F141C;--ln:#232B38;--lnh:#2E3846;
+  --fg:#D4DAE3;--fgm:#7A8494;--fgf:#566072;
+  --up:#2DBE8E;--dn:#F0616D;--br:#4C82FB;--at:#E8A33D;--al:#9B8CFF;
+  --wbr:color-mix(in srgb,#4C82FB 15%,transparent);
+  --wup:color-mix(in srgb,#2DBE8E 14%,transparent);
+  --wat:color-mix(in srgb,#E8A33D 14%,transparent);
+  --wdn:color-mix(in srgb,#F0616D 13%,transparent);
+  --hair:color-mix(in srgb,#D4DAE3 8%,transparent);
+  width:1280px;background:var(--bg);color:var(--fg);
+  font-family:var(--ui);font-size:13px;line-height:1.5;position:relative;
+  display:block}
+.mk *{box-sizing:border-box}
+.mk .mono{font-family:var(--mono);font-variant-ligatures:none}
+.mk .micro{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--fgf);font-weight:500}
+
+/* app chrome inside mock */
+.mk .cmd{height:42px;display:flex;align-items:center;gap:14px;padding:0 14px;
+  background:var(--pn);border-bottom:1px solid var(--ln);
+  box-shadow:inset 0 1px 0 0 color-mix(in srgb,#D4DAE3 7%,transparent)}
+.mk .brand{display:flex;align-items:center;gap:7px;font-weight:700;font-size:13px;letter-spacing:-.01em}
+.mk .brand i{width:15px;height:15px;border-radius:3px;font-style:normal;
+  background:linear-gradient(145deg,var(--br),var(--al))}
+.mk .mn{display:flex;gap:1px;color:var(--fgm);font-size:12px}
+.mk .mn s{text-decoration:none;padding:5px 9px;border-radius:5px}
+.mk .dk{display:flex;gap:2px;margin-left:6px}
+.mk .dk s{text-decoration:none;display:flex;align-items:center;gap:6px;padding:6px 13px;
+  border-radius:5px;font-size:12px;color:var(--fgm);white-space:nowrap}
+.mk .dk s.on{background:var(--wbr);color:var(--fg);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,#4C82FB 40%,transparent)}
+.mk .dk s u{text-decoration:none;opacity:.45;font-size:9px}
+.mk .ut{margin-left:auto;display:flex;gap:3px;align-items:center}
+.mk .ut s{text-decoration:none;width:27px;height:27px;border-radius:5px;display:grid;
+  place-items:center;color:var(--fgm);font-size:13px}
+.mk .ut s.on{background:color-mix(in srgb,var(--pn) 78%,#D4DAE3 14%);color:var(--fg)}
+
+.mk .ctx{height:37px;display:flex;align-items:center;gap:14px;padding:0 14px;
+  background:var(--pn2);border-bottom:1px solid var(--ln);font-size:12px}
+.mk .sym{font-weight:700;font-size:15px;letter-spacing:-.01em}
+.mk .seg{display:flex;background:var(--sk);border:1px solid var(--ln);border-radius:5px;overflow:hidden}
+.mk .seg i{font-style:normal;padding:4px 9px;color:var(--fgm);font-size:11px}
+.mk .seg i.on{background:var(--br);color:#fff}
+.mk .status{height:29px;display:flex;align-items:center;gap:16px;padding:0 14px;
+  background:var(--pn);border-top:1px solid var(--ln);font-size:11px;color:var(--fgm)}
+.mk .led{width:6px;height:6px;border-radius:999px;background:var(--up);display:inline-block}
+.mk .led.w{background:var(--at)} .mk .led.d{background:var(--dn)}
+.mk .grid{background:var(--sk);position:relative}
+.mk .grid::after{content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(90deg,transparent 0 44px,color-mix(in srgb,#D4DAE3 3%,transparent) 44px 45px),
+             repeating-linear-gradient(0deg,transparent 0 52px,color-mix(in srgb,#D4DAE3 3%,transparent) 52px 53px)}
+.mk .dim{filter:saturate(.45) brightness(.6)}
+.mk .scrim{position:absolute;inset:0;background:color-mix(in srgb,#080B10 62%,transparent)}
+
+/* ── settings surface ─────────────────────────────────────────────────── */
+.mk .set{position:absolute;inset:44px 76px;background:var(--pn);border:1px solid var(--lnh);
+  border-radius:12px;box-shadow:0 8px 24px rgb(0 0 0/.4),0 40px 96px -32px rgb(0 0 0/.75);
+  display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}
+.mk .set-h{display:flex;align-items:center;gap:12px;padding:14px 22px;
+  border-bottom:1px solid var(--ln);background:color-mix(in srgb,var(--pn) 92%,#D4DAE3 3%)}
+.mk .set-h h1{margin:0;font-size:20px;font-weight:600;letter-spacing:-.015em}
+.mk .kbd{font-family:var(--mono);font-size:10px;padding:3px 7px;border-radius:3px;
+  background:var(--sk);border:1px solid var(--lnh);color:var(--fgm)}
+.mk .srch{margin-left:auto;display:flex;align-items:center;gap:8px;width:250px;
+  background:var(--sk);border:1px solid var(--ln);border-radius:5px;padding:6px 11px;
+  color:var(--fgf);font-size:12px}
+.mk .xb{width:27px;height:27px;border-radius:5px;display:grid;place-items:center;
+  color:var(--fgm);border:1px solid var(--ln);font-size:12px}
+.mk .set-b{display:grid;grid-template-columns:228px minmax(0,1fr);min-height:0}
+.mk .nav{border-right:1px solid var(--ln);background:var(--pn2);padding:8px;overflow:hidden}
+.mk .nav .g{padding:12px 12px 5px}
+.mk .nav a{text-decoration:none;display:flex;align-items:center;gap:10px;padding:7px 12px;
+  border-radius:5px;color:var(--fgm);font-size:13px;margin-bottom:1px}
+.mk .nav a.on{background:var(--wbr);color:var(--fg);font-weight:500;
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,#4C82FB 35%,transparent)}
+.mk .nav a em{margin-left:auto;font-style:normal;font-size:10px;color:var(--fgf);font-family:var(--mono)}
+.mk .nav a b{width:15px;text-align:center;font-weight:400;opacity:.75}
+.mk .main{overflow:hidden;padding:22px 28px}
+.mk h5{margin:0 0 6px;font-size:17px;font-weight:600;letter-spacing:-.012em}
+.mk .sub{color:var(--fgm);font-size:13px;line-height:1.55;max-width:78ch;margin:0 0 18px}
+
+.mk .card{border:1px solid var(--ln);border-radius:8px;background:var(--pn2);
+  margin-bottom:14px;overflow:hidden}
+.mk .ch{padding:9px 16px;border-bottom:1px solid var(--ln);display:flex;align-items:center;gap:10px;
+  background:color-mix(in srgb,var(--pn) 92%,#D4DAE3 3%)}
+.mk .r{display:grid;grid-template-columns:minmax(0,1fr) 232px;gap:20px;align-items:center;
+  padding:11px 16px;border-bottom:1px solid var(--hair)}
+.mk .r:last-child{border-bottom:0}
+.mk .r .l{font-size:13px;font-weight:500}
+.mk .r .h{font-size:11.5px;color:var(--fgm);margin-top:3px;line-height:1.45}
+.mk .inp{display:flex;align-items:center;gap:8px;background:var(--sk);border:1px solid var(--lnh);
+  border-radius:5px;padding:7px 11px;font-family:var(--mono);font-size:13px}
+.mk .inp u{text-decoration:none;color:var(--fgf);font-size:11px;margin-left:auto}
+.mk .inp.f{border-color:var(--br);box-shadow:0 0 0 3px var(--wbr)}
+.mk .sel{display:flex;align-items:center;background:var(--sk);border:1px solid var(--lnh);
+  border-radius:5px;padding:7px 11px;font-size:12.5px}
+.mk .sel u{text-decoration:none;margin-left:auto;color:var(--fgf);font-size:9px}
+.mk .sw{width:36px;height:20px;border-radius:999px;background:var(--sk);border:1px solid var(--lnh);
+  position:relative;justify-self:start}
+.mk .sw::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;
+  border-radius:999px;background:var(--fgf)}
+.mk .sw.on{background:var(--br);border-color:var(--br)}
+.mk .sw.on::after{left:auto;right:2px;background:#fff}
+.mk .uses{display:flex;flex-wrap:wrap;gap:6px;padding:11px 16px;background:var(--sk);
+  border-top:1px solid var(--hair)}
+.mk .chip{font-size:10.5px;padding:3px 9px;border-radius:999px;color:var(--fgm);
+  background:var(--pn);border:1px solid var(--ln);font-family:var(--mono)}
+.mk .chip b{color:var(--fg);font-weight:500}
+.mk .tg{font-size:10px;padding:2px 8px;border-radius:999px;font-family:var(--mono);letter-spacing:.04em}
+.mk .tg.n{background:var(--wbr);color:var(--br);box-shadow:inset 0 0 0 1px color-mix(in srgb,#4C82FB 35%,transparent)}
+.mk .tg.f{background:var(--wup);color:var(--up);box-shadow:inset 0 0 0 1px color-mix(in srgb,#2DBE8E 35%,transparent)}
+.mk .tg.a{background:var(--wat);color:var(--at);box-shadow:inset 0 0 0 1px color-mix(in srgb,#E8A33D 35%,transparent)}
+.mk .tg.d{background:var(--wdn);color:var(--dn);box-shadow:inset 0 0 0 1px color-mix(in srgb,#F0616D 35%,transparent)}
+.mk .callout{display:flex;gap:11px;padding:11px 15px;border-radius:8px;background:var(--wup);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,#2DBE8E 30%,transparent);margin-bottom:16px;
+  font-size:12px;line-height:1.5}
+.mk .callout b{color:var(--up)}
+.mk .set-f{display:flex;align-items:center;gap:12px;padding:11px 22px;border-top:1px solid var(--ln);
+  background:color-mix(in srgb,var(--pn) 92%,#D4DAE3 3%);font-size:11.5px;color:var(--fgm)}
+.mk .btn{padding:7px 15px;border-radius:5px;font-size:12.5px;border:1px solid var(--lnh);
+  color:var(--fg);background:var(--pn)}
+.mk .btn.p{background:var(--br);border-color:var(--br);color:#fff;font-weight:500}
+.mk .btn.g{color:var(--fgm)}
+
+/* ── source list ──────────────────────────────────────────────────────── */
+.mk .src{display:grid;grid-template-columns:22px 150px 92px 116px minmax(0,1fr) 92px;
+  gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--hair);font-size:12.5px}
+.mk .src:last-child{border-bottom:0}
+.mk .src .hand{color:var(--fgf);cursor:grab}
+.mk .src .nm{font-weight:500}
+.mk .src .nm em{display:block;font-style:normal;font-size:10.5px;color:var(--fgf);
+  font-family:var(--mono);margin-top:2px}
+.mk .src .st{font-family:var(--mono);font-size:11px}
+.mk .bar{height:5px;border-radius:999px;background:var(--sk);overflow:hidden}
+.mk .bar i{display:block;height:100%;border-radius:999px}
+
+/* ── keymap ───────────────────────────────────────────────────────────── */
+.mk .kr{display:grid;grid-template-columns:minmax(0,1fr) 168px 106px;gap:14px;align-items:center;
+  padding:9px 16px;border-bottom:1px solid var(--hair);font-size:12.5px}
+.mk .kr:last-child{border-bottom:0}
+.mk .kr .cmdn em{display:block;font-style:normal;font-size:10.5px;color:var(--fgf);
+  font-family:var(--mono);margin-top:2px}
+.mk .keys{display:flex;gap:4px;align-items:center}
+.mk .keys span{font-family:var(--mono);font-size:11px;padding:3px 7px;border-radius:4px;
+  background:var(--sk);border:1px solid var(--lnh);color:var(--fg)}
+.mk .keys.edit span{border-color:var(--br);box-shadow:0 0 0 2px var(--wbr)}
+.mk .kr.conflict{background:var(--wdn)}
+
+/* ── journal ──────────────────────────────────────────────────────────── */
+.mk .jhead{display:flex;align-items:flex-end;gap:26px;padding:18px 20px 16px}
+.mk .jhead h5{font-size:20px}
+.mk .stat{min-width:0}
+.mk .stat .k{font-family:var(--mono);font-size:10px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--fgf);display:block;margin-bottom:3px}
+.mk .stat .v{font-size:21px;font-weight:600;letter-spacing:-.02em;font-family:var(--mono)}
+.mk .stat .n{font-size:10.5px;color:var(--fgm);display:block;margin-top:1px}
+.mk .jtable{margin:0 20px;border:1px solid var(--ln);border-radius:8px;overflow:hidden;background:var(--pn2)}
+.mk .jr{display:grid;
+  grid-template-columns:98px 108px 62px 96px 96px 122px minmax(0,1fr) 88px;
+  gap:12px;align-items:center;padding:10px 15px;border-bottom:1px solid var(--hair);font-size:12px}
+.mk .jr.h{background:color-mix(in srgb,var(--pn) 92%,#D4DAE3 3%);border-bottom:1px solid var(--ln)}
+.mk .jr.h span{font-family:var(--mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--fgf)}
+.mk .jr:last-child{border-bottom:0}
+.mk .jr .s{font-weight:600}
+.mk .jr .num{font-family:var(--mono);text-align:right}
+.mk .up{color:var(--up)} .mk .dn{color:var(--dn)} .mk .mu{color:var(--fgm)}
+.mk .why{color:var(--fgm);font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mk .side{padding:3px 8px;border-radius:4px;font-size:10.5px;font-family:var(--mono);
+  display:inline-block;text-align:center;min-width:44px}
+.mk .side.l{background:var(--wup);color:var(--up)}
+.mk .side.s{background:var(--wdn);color:var(--dn)}
+
+/* ── first run ────────────────────────────────────────────────────────── */
+.mk .fr{position:absolute;inset:0;display:grid;place-items:center;background:var(--bg)}
+.mk .frc{width:660px;background:var(--pn);border:1px solid var(--lnh);border-radius:14px;
+  box-shadow:0 40px 96px -32px rgb(0 0 0/.8);overflow:hidden}
+.mk .frh{padding:26px 32px 20px;border-bottom:1px solid var(--ln)}
+.mk .frh h3{margin:0 0 8px;font-size:23px;font-weight:600;letter-spacing:-.018em}
+.mk .frh p{margin:0;color:var(--fgm);font-size:13px;line-height:1.55}
+.mk .steps{display:flex;gap:6px;padding:14px 32px;background:var(--pn2);border-bottom:1px solid var(--ln)}
+.mk .steps div{flex:1;height:3px;border-radius:999px;background:var(--ln)}
+.mk .steps div.on{background:var(--br)}
+.mk .frb{padding:22px 32px}
+.mk .opt{display:flex;gap:13px;align-items:flex-start;padding:13px 15px;border-radius:8px;
+  border:1px solid var(--ln);background:var(--pn2);margin-bottom:9px}
+.mk .opt.on{border-color:var(--br);background:var(--wbr)}
+.mk .opt .rd{width:15px;height:15px;border-radius:999px;border:1px solid var(--lnh);flex:none;margin-top:2px}
+.mk .opt.on .rd{border-color:var(--br);background:radial-gradient(circle,#fff 0 3px,var(--br) 3px)}
+.mk .opt .t{font-size:13.5px;font-weight:500}
+.mk .opt .d{font-size:11.5px;color:var(--fgm);margin-top:3px;line-height:1.45}
+.mk .frf{display:flex;align-items:center;gap:12px;padding:15px 32px;border-top:1px solid var(--ln);
+  background:color-mix(in srgb,var(--pn) 92%,#D4DAE3 3%);font-size:11.5px;color:var(--fgm)}
+
+/* ── files list ───────────────────────────────────────────────────────── */
+.files{font-family:var(--mono);font-size:13px;background:var(--panel);border:1px solid var(--line);
+  border-radius:10px;padding:20px 22px;margin:24px 0;overflow-x:auto;line-height:1.85}
+.files .n{color:var(--accent)}
+.files .m{color:var(--attn)}
+.files .c{color:var(--ink-faint)}
+.files .d{color:var(--ink-mute)}
+
+footer{padding:46px 0 0;color:var(--ink-faint);font-size:13.5px;max-width:68ch}
+footer b{color:var(--ink)}
+@media (max-width:760px){
+  section.phase{grid-template-columns:minmax(0,1fr);gap:18px}
+  /* The single-column layout has no column 2 — leaving the desktop placement on
+     would conjure an implicit one and push every paragraph off the page. */
+  section.phase > div:not(.spine):not(.shot),.shot{grid-column:1}
+  .spine{position:static;display:flex;align-items:baseline;gap:12px}
+  .spine .tick{margin:0}
+}
+
+/* ══ additions: command bar, live bar, setup card ══════════════════════ */
+
+/* mock 6 — chrome comparison */
+.mk .barwrap{padding:24px 26px}
+.mk .barlbl{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--fgf);margin-bottom:9px;display:flex;gap:11px;align-items:baseline}
+.mk .barlbl b{color:var(--dn);font-weight:600}
+.mk .barlbl b.g{color:var(--up)}
+.mk .cmd.demo{border:1px solid var(--ln);border-radius:8px;box-shadow:none}
+.mk .barnote{font-size:11.5px;color:var(--fgm);margin:9px 0 26px;line-height:1.55;max-width:96ch}
+.mk .barnote em{font-style:normal;color:var(--fgf)}
+.mk .palette{flex:1;max-width:440px;display:flex;align-items:center;gap:9px;background:var(--sk);
+  border:1px solid var(--lnh);border-radius:6px;padding:6px 12px;color:var(--fgf);font-size:12.5px}
+.mk .palette u{text-decoration:none;margin-left:auto;font-family:var(--mono);font-size:10px;
+  padding:2px 6px;border-radius:3px;background:var(--pn);border:1px solid var(--ln);color:var(--fgm)}
+.mk .acct{display:flex;align-items:center;gap:7px;padding:4px 10px;border-radius:6px;
+  background:var(--sk);border:1px solid var(--ln);font-family:var(--mono);font-size:11.5px}
+.mk .appmenu{display:flex;align-items:center;gap:7px;padding:5px 10px 5px 8px;border-radius:6px;
+  background:color-mix(in srgb,var(--pn) 78%,#D4DAE3 14%);font-weight:700;font-size:13px}
+.mk .appmenu u{text-decoration:none;opacity:.5;font-size:9px;font-weight:400}
+.mk .bellwrap{position:relative}
+.mk .bellwrap .cnt{position:absolute;top:-2px;right:-3px;min-width:14px;height:14px;padding:0 3px;
+  border-radius:999px;background:var(--dn);color:#fff;font-size:9px;font-family:var(--mono);
+  display:grid;place-items:center;line-height:1}
+
+/* mock 7 — the live bar */
+/* Zone captions are drawn FROM the zones themselves, so the label can never
+   drift out of line with the fields it names. */
+.mk .lb.ann{margin-top:20px}
+.mk .lb.ann .lbz,.mk .lb.ann .health{position:relative}
+.mk .lb.ann [data-z]::before{content:attr(data-z);position:absolute;top:-15px;left:11px;
+  font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--br);white-space:nowrap}
+.mk .lb.ann .health[data-z]::before{left:0}
+.mk .lb{height:34px;display:flex;align-items:stretch;background:var(--pn);
+  border-top:1px solid var(--ln);border-bottom:1px solid var(--ln);font-size:12px;padding:0 12px}
+.mk .lbz{display:flex;align-items:center;gap:11px;padding:0 10px}
+.mk .lbz + .lbz{border-left:1px solid var(--ln)}
+.mk .lbz.grow{margin-left:auto;border-left:1px solid var(--ln)}
+.mk .f{display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+.mk .f .k{color:var(--fgf);font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;
+  font-family:var(--mono)}
+.mk .f .v{font-family:var(--mono);font-size:12px;font-variant-numeric:tabular-nums}
+.mk .f .v.big{font-size:13.5px;font-weight:600}
+.mk .f .v.stale{color:var(--fgf)}
+.mk .health{display:flex;align-items:center;gap:7px;padding:0 12px 0 2px;
+  border-right:1px solid var(--ln);font-family:var(--mono);font-size:11px;color:var(--fgm)}
+.mk .health u{text-decoration:none;font-size:9px;opacity:.5;margin-left:2px}
+.mk .gap{font-family:var(--mono);font-size:11px;color:var(--fgf);
+  border:1px dashed var(--lnh);border-radius:4px;padding:2px 8px}
+
+/* mock 8 / 9 — the setup card */
+.mk .dockcol{width:376px;border-left:1px solid var(--ln);background:var(--pn2);padding:11px;
+  overflow:hidden;flex:none}
+.mk .setup{border:1px solid var(--lnh);border-radius:10px;background:var(--pn);overflow:hidden}
+.mk .setup.wide{width:404px}
+.mk .su-h{padding:10px 14px;border-bottom:1px solid var(--ln);display:flex;align-items:center;gap:9px;
+  background:color-mix(in srgb,var(--pn) 92%,#D4DAE3 3%)}
+.mk .su-h .t{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--fgf);font-weight:600}
+.mk .su-v{padding:13px 14px;border-bottom:1px solid var(--ln)}
+.mk .su-v .big{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.1}
+.mk .su-v .big.go{color:var(--up)} .mk .su-v .big.stop{color:var(--dn)}
+.mk .su-v .sub{font-size:11.5px;color:var(--fgm);margin-top:5px;line-height:1.5}
+.mk .su-sec{padding:11px 14px;border-bottom:1px solid var(--ln)}
+.mk .su-sec .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--fgf);margin-bottom:8px}
+.mk .plan{display:grid;grid-template-columns:1fr auto;gap:5px 12px;font-size:12px}
+.mk .plan .n{color:var(--fgm)}
+.mk .plan .x{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.mk .ck{display:flex;gap:9px;align-items:flex-start;font-size:11.5px;line-height:1.45;
+  padding:5px 0;border-bottom:1px solid var(--hair)}
+.mk .ck:last-child{border-bottom:0}
+.mk .ck .m{flex:none;width:13px;text-align:center;font-size:11px;line-height:1.5}
+.mk .ck.ok .m{color:var(--up)} .mk .ck.no .m{color:var(--dn)}
+.mk .ck.no{color:var(--fg)} .mk .ck.ok{color:var(--fgm)}
+.mk .ck .blk{color:var(--dn);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;
+  margin-left:auto;flex:none;align-self:center}
+.mk .trust{padding:11px 14px;background:var(--sk);font-size:11px;line-height:1.55;color:var(--fgm)}
+.mk .trust b{color:var(--at)}
+.mk .trust .rec{color:var(--fg);font-family:var(--mono);font-size:11px}
+.mk .su-f{display:flex;gap:7px;padding:10px 14px;border-top:1px solid var(--ln)}
+.mk .su-f .btn{flex:1;text-align:center;padding:7px 0;font-size:12px}
+.mk .pairs{display:flex;gap:26px;justify-content:center;align-items:flex-start;padding:26px 0}
+
+
+/* ══ part dividers ═════════════════════════════════════════════════════ */
+.part{padding:74px 0 0;border-bottom:0}
+.part .rule{display:flex;align-items:baseline;gap:18px;padding-bottom:14px;
+  border-bottom:2px solid var(--ink)}
+.part .pn{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--accent);
+  font-weight:600}
+.part h3.pt{font-size:clamp(21px,2.4vw,27px);letter-spacing:-.02em;font-weight:650;margin:0}
+.part p.pd{margin:16px 0 0;color:var(--ink-mute);font-size:16px;max-width:70ch}
+
+/* ══ context menu + contextual inspector (mock) ════════════════════════ */
+.mk .ctxm{position:absolute;width:250px;background:color-mix(in srgb,var(--pn) 96%,transparent);
+  border:1px solid var(--lnh);border-radius:9px;box-shadow:0 2px 6px rgb(0 0 0/.3),
+  0 12px 32px -12px rgb(0 0 0/.6);padding:5px;backdrop-filter:saturate(1.4) blur(14px);z-index:5}
+.mk .ctxm .hd{padding:7px 11px 6px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--fgf)}
+.mk .ctxm .it{display:flex;align-items:center;gap:10px;padding:6px 11px;border-radius:5px;
+  font-size:12.5px;color:var(--fg)}
+.mk .ctxm .it.on{background:var(--wbr)}
+.mk .ctxm .it .kk{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--fgf)}
+.mk .ctxm .it .ar{margin-left:auto;font-size:9px;color:var(--fgf)}
+.mk .ctxm .sep{height:1px;background:var(--ln);margin:5px 8px}
+.mk .ctxm .it.mute{color:var(--fgm)}
+.mk .crosshair{position:absolute;pointer-events:none}
+.mk .crosshair .hl{position:absolute;height:1px;background:color-mix(in srgb,#4C82FB 55%,transparent)}
+.mk .crosshair .vl{position:absolute;width:1px;background:color-mix(in srgb,#4C82FB 55%,transparent)}
+.mk .pxtag{position:absolute;font-family:var(--mono);font-size:10.5px;padding:2px 7px;
+  border-radius:4px;background:var(--br);color:#fff}
+.mk .obzone{position:absolute;border:1px solid color-mix(in srgb,#9B8CFF 60%,transparent);
+  background:color-mix(in srgb,#9B8CFF 14%,transparent);border-radius:2px}
+.mk .obzone .tagl{position:absolute;top:-9px;left:6px;font-family:var(--mono);font-size:9px;
+  padding:1px 6px;border-radius:3px;background:var(--al);color:#0B0E14}
+
+.mk .insp{padding:0}
+.mk .insp-h{padding:10px 13px;border-bottom:1px solid var(--ln);display:flex;align-items:center;gap:8px}
+.mk .insp-h .t{font-family:var(--mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--fgf);font-weight:600}
+.mk .isec{padding:11px 13px;border-bottom:1px solid var(--ln)}
+.mk .isec:last-child{border-bottom:0}
+.mk .isec .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--fgf);margin-bottom:7px}
+.mk .kv{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:11.5px}
+.mk .kv .n{color:var(--fgm)}
+.mk .kv .x{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.mk .prov{font-size:11px;color:var(--fgm);line-height:1.5}
+.mk .prov b{color:var(--fg);font-weight:500}
+
+/* ══ the table primitive (mock) ════════════════════════════════════════ */
+.mk .views{display:flex;gap:3px;padding:9px 16px 0;align-items:center}
+.mk .views s{text-decoration:none;padding:6px 13px;border-radius:6px 6px 0 0;font-size:12px;
+  color:var(--fgm);border:1px solid transparent}
+.mk .views s.on{background:var(--pn2);color:var(--fg);border-color:var(--ln);border-bottom-color:var(--pn2);
+  font-weight:500}
+.mk .views s.add{color:var(--fgf)}
+.mk .tblbox{margin:0 16px 14px;border:1px solid var(--ln);border-radius:0 8px 8px 8px;
+  background:var(--pn2);overflow:hidden}
+.mk .trow{display:grid;
+  grid-template-columns:34px 112px 74px 84px 88px 76px 80px 92px minmax(0,1fr) 96px;
+  gap:10px;align-items:center;padding:0 14px;font-size:12px;height:34px;
+  border-bottom:1px solid var(--hair)}
+.mk .trow.hd{height:32px;background:color-mix(in srgb,var(--pn) 92%,#D4DAE3 3%);
+  border-bottom:1px solid var(--ln)}
+.mk .trow.hd span{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--fgf);display:flex;align-items:center;gap:4px}
+.mk .trow.hd span.sorted{color:var(--br)}
+.mk .trow.hd span .ord{font-size:8px}
+.mk .trow.hd span .rank{font-family:var(--mono);font-size:8px;background:var(--wbr);color:var(--br);
+  border-radius:2px;padding:0 3px}
+.mk .trow.flt{height:31px;background:var(--sk);border-bottom:1px solid var(--ln)}
+.mk .trow.flt .fi{background:var(--pn);border:1px solid var(--ln);border-radius:4px;
+  padding:3px 7px;font-family:var(--mono);font-size:10.5px;color:var(--fgf)}
+.mk .trow.flt .fi.set{border-color:var(--br);color:var(--fg)}
+.mk .trow.sel{background:var(--wbr)}
+.mk .trow:last-child{border-bottom:0}
+.mk .cb{width:14px;height:14px;border-radius:3px;border:1px solid var(--lnh);background:var(--sk)}
+.mk .cb.on{background:var(--br);border-color:var(--br);position:relative}
+.mk .cb.on::after{content:"✓";position:absolute;inset:0;color:#fff;font-size:9px;line-height:13px;
+  text-align:center}
+.mk .cb.some{background:var(--br);border-color:var(--br);position:relative}
+.mk .cb.some::after{content:"";position:absolute;left:3px;right:3px;top:6px;height:2px;background:#fff}
+.mk .num2{font-family:var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.mk .meter{height:5px;border-radius:999px;background:var(--sk);overflow:hidden}
+.mk .meter i{display:block;height:100%;border-radius:999px;background:var(--br)}
+.mk .bulk{display:flex;align-items:center;gap:10px;margin:0 16px 12px;padding:9px 14px;
+  border-radius:8px;background:var(--wbr);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,#4C82FB 38%,transparent);font-size:12px}
+.mk .bulk .btn{padding:5px 11px;font-size:11.5px}
+.mk .cnt2{font-family:var(--mono);font-size:11px;color:var(--fgm)}
+
+/* ══ the omnibox (mock) ════════════════════════════════════════════════ */
+.mk .omni{position:absolute;top:74px;left:50%;transform:translateX(-50%);width:660px;
+  background:color-mix(in srgb,var(--pn) 97%,transparent);border:1px solid var(--lnh);
+  border-radius:12px;box-shadow:0 8px 24px rgb(0 0 0/.4),0 40px 96px -32px rgb(0 0 0/.75);
+  overflow:hidden;backdrop-filter:saturate(1.4) blur(14px)}
+.mk .omni-in{display:flex;align-items:center;gap:11px;padding:14px 17px;
+  border-bottom:1px solid var(--ln);font-size:15px}
+.mk .omni-in .q{color:var(--fg)}
+.mk .omni-in .car{width:1px;height:17px;background:var(--br)}
+.mk .omni-in .hint{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--fgf)}
+.mk .og{padding:7px 0 4px}
+.mk .og .gh{padding:5px 17px;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--fgf);display:flex;gap:8px;align-items:center}
+.mk .og .gh .px{background:var(--sk);border:1px solid var(--ln);border-radius:3px;padding:0 5px;
+  color:var(--fgm)}
+.mk .or{display:flex;align-items:center;gap:11px;padding:7px 17px;font-size:13px}
+.mk .or.on{background:var(--wbr)}
+.mk .or .ic{width:17px;text-align:center;color:var(--fgm);font-size:12px}
+.mk .or .ti{color:var(--fg)}
+.mk .or .ti em{font-style:normal;color:var(--br);font-weight:600}
+.mk .or .sb{color:var(--fgm);font-size:11.5px}
+.mk .or .rt{margin-left:auto;font-family:var(--mono);font-size:10px;color:var(--fgf)}
+.mk .omni-f{display:flex;gap:16px;padding:9px 17px;border-top:1px solid var(--ln);
+  background:var(--sk);font-family:var(--mono);font-size:10px;color:var(--fgf)}
+.mk .omni-f b{color:var(--fgm);font-weight:400}
+
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">Proposal · v48 · for review before any code is written</p>
+  <h1>Restructuring the terminal around one source of truth</h1>
+  <p>IRAM has sixteen desks, seven menus and no settings screen. Preferences are scattered
+    across six surfaces, and two of them disagree about how much money you have. The bottom bar
+    reports on the terminal rather than on the trade, and the card that once said <em>“here is
+    the setup, here is the size”</em> did not survive the rewrite. This is the plan to fix the
+    structure and put those three things back — without discarding the chrome work that v45–v47
+    already measured and paid for — and to make the whole thing quicker under the hand:
+    right-click that works, tables you can sort and select in, one field that finds anything,
+    and undo that covers more than drawings.</p>
+  <div class="facts">
+    <span>Reviewed <b>app/src</b> · 27 UI modules · 16,328 lines</span>
+    <span>Current shell <b>3,909 lines</b></span>
+    <span>Test suite <b>56 files</b></span>
+    <span><b>12 mockups</b> · built from the real tokens.css</span>
+  </div>
+</header>
+
+<section class="part">
+  <div class="rule"><span class="pn">Part I</span><h3 class="pt">What is wrong</h3></div>
+  <p class="pd">One measured defect and one structural problem. Everything after this is a response to these two.</p>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 01 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">01</span><span class="tick">The defect</span></div>
+  <div>
+    <h2>Your equity is stored twice, and the two copies drift</h2>
+    <p class="lede">Before any redesign argument, one measured fact. It is the reason this
+      proposal leads with settings rather than with visuals.</p>
+
+    <p>The Risk desk writes account configuration to the store slot <code>risk.config</code>.
+      The Calculator writes its own to <code>calculator.v1</code>. Both define
+      <code>equity</code> and <code>riskPct</code>. Both default to <code>10,000</code> and
+      <code>1%</code>. Neither reads the other.</p>
+
+    <div class="note">
+      <span class="k">What that means at the desk</span>
+      <p>Set your equity to £4,200 on the Risk desk. Open the Calculator. It sizes your next
+        position off £10,000 — and says nothing, because as far as it knows that is your
+        equity. The lot size it returns is <strong>2.4× too large</strong>, and it looks
+        exactly as authoritative as a correct one.</p>
+      <p>This is the same failure class as the v47 pip-value and margin findings: not a wrong
+        pixel, a confident wrong number.</p>
+    </div>
+
+    <p>A settings screen is normally a convenience feature. Here it is the structural fix —
+      the place where account state stops being a thing each desk keeps a private copy of.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 02 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">02</span><span class="tick">Structure</span></div>
+  <div>
+    <h2>Sixteen destinations, rearranged around the question each answers</h2>
+    <p class="lede">The grouping v46 introduced is sound and stays. Three things change: the
+      Calculator stops being its own desk, Settings stops being scattered, and the terminal
+      gains the one desk it is missing.</p>
+
+    <div class="ia">
+      <div class="ia-col">
+        <h4>Now — 16 desks, 5 groups</h4>
+        <ul>
+          <li class="head"><span class="g">—</span>Chart</li>
+          <li><span class="g">Analyse</span>Decision · Smart money · Flow</li>
+          <li><span class="g"></span>Sessions · Screener · Watchlist</li>
+          <li><span class="g">Trade</span>Risk · <em>Calculator</em> · Paper · Signals</li>
+          <li><span class="g">Research</span>Strategy · Playbook · Data · Analyst</li>
+          <li><span class="g">—</span>Workspace</li>
+          <li class="head" style="padding-top:16px"><span class="g">—</span><em>Settings: nowhere</em></li>
+          <li><span class="g"></span><em>Appearance popover, Data desk,</em></li>
+          <li><span class="g"></span><em>Analyst header, Tools ▸ Alerts,</em></li>
+          <li><span class="g"></span><em>Risk desk, Calculator desk</em></li>
+        </ul>
+      </div>
+      <div class="ia-col after">
+        <h4>v48 — 15 desks, 5 groups, settings lifted out</h4>
+        <ul>
+          <li class="head"><span class="g">—</span>Chart</li>
+          <li><span class="g">Analyse</span>Decision · Smart money · Flow</li>
+          <li><span class="g"></span>Sessions · Screener · Watchlist</li>
+          <li><span class="g">Trade</span>Risk <em>(Sizing│Calculator│Book│Portfolio)</em></li>
+          <li><span class="g"></span>Paper · Signals · <b>Journal</b></li>
+          <li><span class="g">Research</span>Strategy · Playbook · Data · Analyst</li>
+          <li><span class="g">—</span>Workspace</li>
+          <li class="head" style="padding-top:16px"><span class="g">—</span>Settings &nbsp;<span class="pill new">Ctrl ,</span></li>
+          <li><span class="g"></span><em>12 sections, one surface, searchable</em></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>Why the Calculator folds into Risk</h3>
+    <p>They are the same question asked twice. Risk answers <em>"how big, given my stop"</em>;
+      the Calculator answers <em>"what is this trade worth, given that size"</em>. They read
+      the same account, the same instrument spec and the same pip value — which is precisely
+      why they were able to disagree. As tabs of one desk they cannot.</p>
+
+    <h3>Why Settings is not a desk</h3>
+    <p>Every desk is a view of the market. Settings is a view of the terminal. Putting it on
+      the desk bar would say the opposite, and would cost a slot on a row that already
+      measured as full at 1200px.</p>
+  </div>
+</section>
+
+<section class="part">
+  <div class="rule"><span class="pn">Part II</span><h3 class="pt">How it feels to use</h3></div>
+  <p class="pd">The first part is about what is wrong and how the terminal is arranged. This part is
+    about the thing you actually asked for: making it powerful, organised and quick under the hand.
+    Six phases, and a rule that governs all of them.</p>
+  <div class="note" style="max-width:70ch">
+    <span class="k">What “smart” is allowed to mean here</span>
+    <p>Smart is the terminal doing the <b>fetching, the watching and the arithmetic</b>. It is not
+      the terminal doing the concluding. Everything below removes work — a desk switch, a retype, a
+      manual sort, a lost pane, a number you had to go and find. None of it adds a claim.</p>
+    <p>That line is not a style preference. With PBO at 89%, a terminal that got “smarter” by
+      asserting more would be getting worse. Power here means fewer keystrokes between you and a
+      fact, never more confidence in a guess.</p>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 03 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">03</span><span class="tick">Act in place</span></div>
+  <div>
+    <h2>Right-click does nothing, almost everywhere</h2>
+    <p class="lede">I counted. Across twenty-seven UI modules there is exactly
+      <strong>one</strong> <code>oncontextmenu</code> handler, on a workspace pane. Right-clicking
+      the chart, a watchlist row, a drawing, a detected zone or an alert does nothing at all.</p>
+
+    <p>That single fact explains most of why a fifteen-desk terminal feels like navigation rather
+      than work. Every action you can take on a thing currently lives somewhere that is not that
+      thing — a menu at the top of the window, or a desk you have to switch to and switch back
+      from. You go to the tool; the tool never comes to you.</p>
+
+    <h3>Two changes, and the second matters more</h3>
+    <p><strong>Right-click menus on every object</strong>, built from the command registry that
+      already exists, so each menu is generated rather than hand-listed and can never drift from
+      the commands it names. On the chart: alert at this price, measure from here, draw from here,
+      set a stop here, copy the level. On a row: open it, send it to a pane, compare, alert,
+      remove. On a drawing: edit, duplicate, lock, colour, delete. On a detection: explain it,
+      project it to a higher timeframe, alert me when it is retested.</p>
+
+    <p><strong>The dock becomes contextual.</strong> Today it is a fixed inspector. Make it follow
+      selection: with nothing selected it holds the Setup card and the read; select a drawing and
+      it becomes that drawing's properties; select a detected zone and it becomes that zone's
+      evidence and provenance — <em>without leaving the chart</em>. That is the mechanism that
+      turns fifteen desks from fifteen places you must go into fifteen things that can come to
+      you.</p>
+  </div>
+
+  <div class="shot">
+    <div class="shot-cap"><b>Mockup 1</b> <span>Right-click on the chart · the dock following the selection</span></div>
+    <div class="shot-scroll"><div class="mk" style="height:760px">
+      <div class="cmd">
+        <div class="appmenu"><i style="width:15px;height:15px;border-radius:3px;
+          background:linear-gradient(145deg,var(--br),var(--al))"></i>IRAM <u>▾</u></div>
+        <div class="dk"><s class="on">Chart</s><s>Analyse <u>▾</u></s><s>Trade <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+        <div class="palette">⌕ &nbsp;Search symbols, commands and settings<u>Ctrl K</u></div>
+        <div class="ut" style="gap:7px">
+          <span class="acct"><span class="led"></span>4,200 <span style="color:var(--fgf)">USD</span>
+            <span style="color:var(--up)">+184</span></span>
+          <span class="bellwrap"><s>◎</s><span class="cnt">3</span></span><s>⚙</s><s class="on">▤</s><s>⛶</s>
+        </div>
+      </div>
+      <div class="ctx">
+        <span class="sym">BTCUSDT</span>
+        <span class="seg"><i>1m</i><i class="on">5m</i><i>15m</i><i>1h</i><i>4h</i><i>1d</i></span>
+        <span class="seg"><i class="on">Candles</i><i>Bars</i><i>Line</i></span>
+        <span class="seg"><i class="on">EMA20</i><i class="on">EMA50</i><i>EMA200</i></span>
+      </div>
+
+      <div style="display:flex;height:647px">
+        <div class="grid" style="flex:1;position:relative">
+
+          <div class="obzone" style="left:250px;top:196px;width:300px;height:52px">
+            <span class="tagl">bullish order block · 4h</span>
+          </div>
+
+          <div class="crosshair" style="inset:0">
+            <span class="hl" style="left:0;right:0;top:222px"></span>
+            <span class="vl" style="top:0;bottom:0;left:470px"></span>
+          </div>
+          <span class="pxtag" style="left:806px;top:214px">77,884.20</span>
+
+          <div class="ctxm" style="left:478px;top:230px">
+            <div class="hd">At 77,884.20 · 09:45</div>
+            <div class="it on">Alert me here<span class="kk">A</span></div>
+            <div class="it">Measure from here<span class="kk">M</span></div>
+            <div class="it">Draw from here<span class="ar">▸</span></div>
+            <div class="sep"></div>
+            <div class="it">Use as the stop for this setup</div>
+            <div class="it">Use as target 1</div>
+            <div class="sep"></div>
+            <div class="hd">Bullish order block · 4h</div>
+            <div class="it">Explain this zone</div>
+            <div class="it">Alert when retested</div>
+            <div class="it">Project onto 1h<span class="ar">▸</span></div>
+            <div class="sep"></div>
+            <div class="it mute">Copy price<span class="kk">Ctrl C</span></div>
+          </div>
+        </div>
+
+        <div class="dockcol">
+          <div class="setup insp">
+            <div class="insp-h"><span class="t">Inspector</span>
+              <span style="color:var(--fgm);font-size:11.5px">Order block · 4h</span>
+              <span class="tg n" style="margin-left:auto">selected</span></div>
+
+            <div class="isec">
+              <div class="lbl">Where it came from</div>
+              <p class="prov">The last down-candle before the impulse that broke
+                <b>77,540</b> on the 4h. Detected by <b>detectOrderBlocks</b> on the 4h close of
+                <b>29 Aug 16:00</b>, and unmitigated since.</p>
+            </div>
+
+            <div class="isec">
+              <div class="lbl">The numbers</div>
+              <div class="kv">
+                <span class="n">Zone</span><span class="x">77,846 – 77,918</span>
+                <span class="n">Height</span><span class="x">72 pts · 0.17× ATR</span>
+                <span class="n">Distance from price</span><span class="x">+0.15× ATR</span>
+                <span class="n">Times retested</span><span class="x">0</span>
+                <span class="n">Age</span><span class="x">2d 19h · 812 bars</span>
+              </div>
+            </div>
+
+            <div class="isec">
+              <div class="lbl">What it is worth</div>
+              <p class="prov">This detector's zones on BTCUSDT 4h have held <b>19 of 34 times</b>
+                since March. That is a count of what happened, not a probability —
+                <b style="color:var(--at)">34 samples cannot separate an edge from luck</b>, and
+                nothing here weights the Setup card by it.</p>
+            </div>
+
+            <div class="isec">
+              <div class="lbl">Do something with it</div>
+              <div class="kv" style="gap:6px 10px">
+                <span class="n">Alert when retested</span><span class="x" style="color:var(--br)">Add</span>
+                <span class="n">Use the low as a stop</span><span class="x" style="color:var(--br)">Apply</span>
+                <span class="n">Project onto the 1h</span><span class="x" style="color:var(--br)">Show</span>
+              </div>
+            </div>
+
+            <div class="trust">Deselect and this returns to the Setup card. The dock never holds
+              something you did not ask it to hold.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lb" style="border-bottom:0">
+        <span class="health"><span class="led"></span>binance 138ms<u>▴</u></span>
+        <span class="lbz">
+          <span class="f"><span class="v big">77,946.60</span></span>
+          <span class="f"><span class="v dn">−1.42%</span></span>
+          <span class="f"><span class="k">next 5m</span><span class="v">2:14</span></span>
+        </span>
+        <span class="lbz">
+          <span class="f"><span class="v">trending · ADX 28</span></span>
+          <span class="f"><span class="k">atr</span><span class="v">412</span></span>
+        </span>
+        <span class="lbz grow">
+          <span class="f"><span class="k">open</span><span class="v up">+184</span></span>
+          <span class="f"><span class="k">heat</span><span class="v">2.1%</span></span>
+          <span class="f"><span class="k">guard</span><span class="v up">ok</span></span>
+        </span>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 04 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">04</span><span class="tick">Tables</span></div>
+  <div>
+    <h2>A screener you cannot sort is a list</h2>
+    <p class="lede">Measured across the whole of <code>src/ui</code>: <strong>zero</strong>
+      occurrences of any column-sort machinery — no <code>sortKey</code>, no <code>onSort</code>,
+      no sort direction state anywhere. And no selection set in the screener, the watchlist or the
+      alerts desk, which means <strong>no multi-select exists in the terminal at all</strong>.</p>
+
+    <p>The screener scans a universe and renders it in the order the scan happened to finish. You
+      cannot rank by score, filter to one class of instrument, select six rows and alert on all of
+      them, or keep the arrangement you made yesterday. Every table in the terminal has this same
+      shape, because every table was written separately.</p>
+
+    <h3>One table primitive, used by five desks</h3>
+    <p>Screener, watchlist, alerts, journal and the data archive all get the same component, so a
+      habit learned on one works on the rest.</p>
+    <div class="tbl-scroll"><table>
+      <thead><tr><th>Capability</th><th>What it changes</th></tr></thead>
+      <tbody>
+        <tr><td>Sort, multi-key</td><td>Click a header to sort; shift-click adds a second key, numbered so the order is visible rather than remembered.</td></tr>
+        <tr><td>Per-column filter</td><td>A filter row under the header, with the removed count always on screen — <b>“38 of 412 shown”</b> — so a filter can never hide rows silently.</td></tr>
+        <tr><td>Multi-select</td><td>Click, shift-click a range, ctrl-click to add. A bulk bar appears carrying only the actions that apply to the whole selection.</td></tr>
+        <tr><td>Saved views</td><td><span class="pill new">the workflow bit</span> A named sort + filter + column set. “Majors, score over 70” becomes a tab you click, not a thing you rebuild.</td></tr>
+        <tr><td>Column control</td><td>Resize, reorder, hide. Stored per view, not globally.</td></tr>
+        <tr><td>Copy as TSV</td><td>A selection pastes straight into a spreadsheet. Traders keep spreadsheets; refusing to interoperate does not stop that.</td></tr>
+        <tr><td>Sticky header, tabular numerals</td><td>Digits line up in columns so magnitudes are comparable down the page.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="shot">
+    <div class="shot-cap"><b>Mockup 2</b> <span>Screener — saved views, two-key sort, filters, multi-select</span></div>
+    <div class="shot-scroll"><div class="mk" style="height:600px">
+      <div class="cmd">
+        <div class="appmenu"><i style="width:15px;height:15px;border-radius:3px;
+          background:linear-gradient(145deg,var(--br),var(--al))"></i>IRAM <u>▾</u></div>
+        <div class="dk"><s>Chart</s><s class="on">Screener <u>▾</u></s><s>Trade <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+        <div class="palette">⌕ &nbsp;Search symbols, commands and settings<u>Ctrl K</u></div>
+        <div class="ut" style="gap:7px">
+          <span class="acct"><span class="led"></span>4,200 <span style="color:var(--fgf)">USD</span>
+            <span style="color:var(--up)">+184</span></span>
+          <span class="bellwrap"><s>◎</s><span class="cnt">3</span></span><s>⚙</s><s>▤</s><s>⛶</s>
+        </div>
+      </div>
+
+      <div class="views">
+        <s class="on">Majors · score &gt; 70</s><s>Everything</s><s>Crypto only</s>
+        <s>Retested zones</s><s class="add">+ Save this view</s>
+      </div>
+
+      <div class="tblbox">
+        <div class="trow hd">
+          <span><span class="cb some"></span></span>
+          <span>Symbol</span>
+          <span class="sorted">Score <span class="ord">▼</span><span class="rank">1</span></span>
+          <span>Coverage</span>
+          <span class="sorted">Change <span class="ord">▼</span><span class="rank">2</span></span>
+          <span>ATR</span>
+          <span>Spread</span>
+          <span>Regime</span>
+          <span>Leading signal</span>
+          <span>Last scanned</span>
+        </div>
+
+        <div class="trow flt">
+          <span></span>
+          <span class="fi set">majors</span>
+          <span class="fi set">&gt; 70</span>
+          <span class="fi set">&gt; 60%</span>
+          <span class="fi">any</span>
+          <span class="fi">any</span>
+          <span class="fi set">&lt; 2 bp</span>
+          <span class="fi">any</span>
+          <span class="fi">any</span>
+          <span class="fi">any</span>
+        </div>
+
+        <div class="trow sel"><span><span class="cb on"></span></span><span class="s">BTCUSDT</span>
+          <span class="num2">81</span><span class="num2">88%</span><span class="num2 dn">−1.42%</span>
+          <span class="num2">412</span><span class="num2">0.9 bp</span><span class="mu">trending</span>
+          <span class="why">Weekly open reclaimed, OI rising with price</span>
+          <span class="num2 mu">14 s</span></div>
+
+        <div class="trow sel"><span><span class="cb on"></span></span><span class="s">XAUUSD</span>
+          <span class="num2">78</span><span class="num2">91%</span><span class="num2 up">+0.610%</span>
+          <span class="num2">7.20</span><span class="num2">1.4 bp</span><span class="mu">trending</span>
+          <span class="why">Prior day low reclaimed on the London open</span>
+          <span class="num2 mu">14 s</span></div>
+
+        <div class="trow sel"><span><span class="cb on"></span></span><span class="s">EURUSD</span>
+          <span class="num2">74</span><span class="num2">83%</span><span class="num2 up">+0.180%</span>
+          <span class="num2">0.0021</span><span class="num2">0.4 bp</span><span class="mu">ranging</span>
+          <span class="why">4h demand holding, funding neutral</span>
+          <span class="num2 mu">15 s</span></div>
+
+        <div class="trow"><span><span class="cb"></span></span><span class="s">ETHUSDT</span>
+          <span class="num2">72</span><span class="num2">86%</span><span class="num2 dn">−0.940%</span>
+          <span class="num2">31.4</span><span class="num2">1.1 bp</span><span class="mu">trending</span>
+          <span class="why">Higher low against the 4h order block</span>
+          <span class="num2 mu">14 s</span></div>
+
+        <div class="trow"><span><span class="cb"></span></span><span class="s">USDJPY</span>
+          <span class="num2">71</span><span class="num2">79%</span><span class="num2 up">+0.240%</span>
+          <span class="num2">0.410</span><span class="num2">0.6 bp</span><span class="mu">ranging</span>
+          <span class="why">Range high swept, no acceptance above</span>
+          <span class="num2 mu">15 s</span></div>
+
+        <div class="trow"><span><span class="cb"></span></span><span class="s">GBPUSD</span>
+          <span class="num2">70</span><span class="num2">64%</span><span class="num2 dn">−0.110%</span>
+          <span class="num2">0.0029</span><span class="num2">0.8 bp</span><span class="mu">ranging</span>
+          <span class="why">Two sources did not answer — read is thin</span>
+          <span class="num2 mu">15 s</span></div>
+      </div>
+
+      <div class="bulk">
+        <span class="cb on"></span>
+        <span><b style="color:var(--fg)">3 selected</b></span>
+        <span class="btn">Add to watchlist</span>
+        <span class="btn">Alert on all three</span>
+        <span class="btn">Open in panes</span>
+        <span class="btn">Copy as TSV</span>
+        <span class="cnt2" style="margin-left:auto">38 of 412 shown · 4 filters ·
+          <span style="color:var(--br)">clear</span></span>
+      </div>
+
+      <div class="lb" style="border-bottom:0;position:absolute;bottom:0;left:0;right:0">
+        <span class="health"><span class="led"></span>binance 138ms<u>▴</u></span>
+        <span class="lbz"><span class="f"><span class="v">412 symbols scanned in 6.2 s</span></span>
+          <span class="f"><span class="k">weight used</span><span class="v">40 of 1200</span></span></span>
+        <span class="lbz grow">
+          <span class="f"><span class="k">open</span><span class="v up">+184</span></span>
+          <span class="f"><span class="k">heat</span><span class="v">2.1%</span></span>
+          <span class="f"><span class="k">guard</span><span class="v up">ok</span></span>
+        </span>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 05 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">05</span><span class="tick">Find · undo</span></div>
+  <div>
+    <h2>Find anything by typing it. Undo anything you did.</h2>
+    <p class="lede">Two changes that between them decide whether the terminal feels fast and safe,
+      and both are mostly already built.</p>
+
+    <h3>The palette becomes an omnibox</h3>
+    <p>The palette already has a prefix-source architecture — four sources are registered today:
+      commands under <code>&gt;</code>, symbols, raw symbols, and detected structures under
+      <code>@</code>. The hard part exists. What it cannot find is a setting, an alert, a saved
+      workspace, a journal entry, a help topic or a desk, which is why you still hunt through
+      menus for things you know the name of.</p>
+
+    <p>Add those as sources and one field answers <em>“where is that thing”</em> for the whole
+      application. Typing with no prefix searches everything and ranks by what you use.</p>
+
+    <h3>Undo covers two commands out of sixty-two</h3>
+    <p>Measured: <code>draw.undo</code> and <code>draw.redo</code> are the <strong>only</strong>
+      undo commands in the terminal. Close a pane, clear a watchlist, delete an alert, reset a
+      settings section — none of it comes back.</p>
+    <p>The workspace model already makes this nearly free. Its own header says a pure tree is
+      <em>“what makes undo one line”</em> — and then nothing calls it. So: one application-level
+      stack. Every destructive action pushes an entry carrying a sentence describing itself, the
+      toast that confirms it also offers to reverse it, and <code>Ctrl Z</code> walks back through
+      the lot.</p>
+    <div class="note good">
+      <span class="k">And the thing presets cannot do</span>
+      <p>Workspace <em>presets</em> exist; a workspace you built yourself cannot be named, saved or
+        recalled. Four panes arranged the way you like, on the symbols you were watching, is
+        currently something you rebuild by hand every morning. Named workspaces make it a keystroke
+        — and the model already serialises to JSON, so this is storage, not architecture.</p>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="shot-cap"><b>Mockup 3</b> <span>The omnibox — one field for symbols, commands, settings, alerts, journal and layouts</span></div>
+    <div class="shot-scroll"><div class="mk" style="height:640px">
+      <div class="dim">
+        <div class="cmd">
+          <div class="appmenu"><i style="width:15px;height:15px;border-radius:3px;
+            background:linear-gradient(145deg,var(--br),var(--al))"></i>IRAM <u>▾</u></div>
+          <div class="dk"><s class="on">Chart</s><s>Analyse <u>▾</u></s><s>Trade <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+          <div class="palette">⌕ &nbsp;Search symbols, commands and settings<u>Ctrl K</u></div>
+          <div class="ut" style="gap:7px">
+            <span class="acct"><span class="led"></span>4,200 <span style="color:var(--fgf)">USD</span>
+              <span style="color:var(--up)">+184</span></span>
+            <span class="bellwrap"><s>◎</s><span class="cnt">3</span></span><s>⚙</s><s>▤</s><s>⛶</s>
+          </div>
+        </div>
+        <div class="ctx"><span class="sym">BTCUSDT</span>
+          <span class="seg"><i>1m</i><i class="on">5m</i><i>15m</i><i>1h</i><i>4h</i><i>1d</i></span></div>
+        <div class="grid" style="height:532px"></div>
+      </div>
+      <div class="scrim"></div>
+
+      <div class="omni">
+        <div class="omni-in">⌕<span class="q">stop</span><span class="car"></span>
+          <span class="hint">↑↓ move · ⏎ open · Tab prefix</span></div>
+
+        <div class="og">
+          <div class="gh">Settings <span class="px">#</span></div>
+          <div class="or on"><span class="ic">◈</span>
+            <span class="ti">Account · <em>Stop</em>-out and margin warning</span>
+            <span class="sb">Guard rails</span><span class="rt">⏎</span></div>
+          <div class="or"><span class="ic">▤</span>
+            <span class="ti">Chart · default <em>stop</em> placement</span>
+            <span class="sb">1.2× ATR beyond the swing</span></div>
+        </div>
+
+        <div class="og">
+          <div class="gh">Commands <span class="px">&gt;</span></div>
+          <div class="or"><span class="ic">⌘</span>
+            <span class="ti">Use this level as the <em>stop</em> for the setup</span>
+            <span class="sb">Setup</span><span class="rt">S</span></div>
+          <div class="or"><span class="ic">⌘</span>
+            <span class="ti"><em>Stop</em> the live feed</span>
+            <span class="sb">Data</span></div>
+        </div>
+
+        <div class="og">
+          <div class="gh">Alerts <span class="px">!</span></div>
+          <div class="or"><span class="ic">◎</span>
+            <span class="ti">BTCUSDT below 77,535 — <em>stop</em> level</span>
+            <span class="sb">armed · created 31 Aug</span></div>
+        </div>
+
+        <div class="og">
+          <div class="gh">Journal <span class="px">~</span></div>
+          <div class="or"><span class="ic">▦</span>
+            <span class="ti">30 Aug · ETHUSDT short — “sized 1.8× the plan after two losses”</span>
+            <span class="sb">−1.0 R</span></div>
+        </div>
+
+        <div class="og">
+          <div class="gh">Layouts <span class="px">^</span></div>
+          <div class="or"><span class="ic">⊞</span>
+            <span class="ti">Four-timeframe BTC</span>
+            <span class="sb">saved 28 Aug · 4 panes · cyan link</span></div>
+        </div>
+
+        <div class="omni-f">
+          <span><b>&gt;</b> commands</span><span><b>@</b> structures</span><span><b>#</b> settings</span>
+          <span><b>!</b> alerts</span><span><b>~</b> journal</span><span><b>^</b> layouts</span>
+          <span><b>/</b> help</span>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 03 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">06</span><span class="tick">Command bar</span></div>
+  <div>
+    <h2>Seven menus become one, and the palette stops hiding behind an icon</h2>
+    <p class="lede">The top row carries a brand, seven text menus, five desk groups and five icon
+      buttons — seventeen targets on forty-two pixels. The deskbar module's own comment records
+      that this row measured as full at 1200px.</p>
+
+    <p>The menus are the least-earning thing on it. Every command inside them is already in the
+      palette — the source says so explicitly — and <code>View ▸ Desks</code> duplicates the desk
+      bar sitting two centimetres to its right. Meanwhile the palette itself, which is the fastest
+      route to all sixty-two commands, is a 27-pixel magnifier that gives no hint it exists.</p>
+
+    <p>Modern chrome is not fewer affordances. It is a <strong>ranked</strong> row: where you are,
+      then the thing you type into, then what is true right now.</p>
+  </div>
+
+  <div class="shot">
+    <div class="shot-cap"><b>Mockup 4</b> <span>The command bar — now, and proposed</span></div>
+    <div class="shot-scroll"><div class="mk" style="height:350px">
+      <div class="barwrap">
+
+        <div class="barlbl"><b>Now</b> <span>17 targets · 7 text menus · palette hidden in an icon</span></div>
+        <div class="cmd demo">
+          <div class="brand"><i></i>IRAM</div>
+          <div class="mn"><s>File</s><s>Edit</s><s>View</s><s>Chart</s><s>Draw</s><s>Tools</s><s>Help</s></div>
+          <div class="dk"><s class="on">Chart</s><s>Analyse <u>▾</u></s><s>Trade <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+          <div class="ut"><s>⌕</s><s>✦</s><s>◑</s><s>⚙</s><s>▤</s></div>
+        </div>
+        <p class="barnote">The seven menus cost roughly 250px. <em>View ▸ Desks</em> repeats the desk
+          bar; <em>Chart ▸ Timeframe</em> repeats the context bar below. Nothing tells you the
+          palette exists.</p>
+
+        <div class="barlbl"><b class="g">Proposed</b> <span>one app menu · palette in the open · right side is state, not navigation</span></div>
+        <div class="cmd demo">
+          <div class="appmenu"><i style="width:15px;height:15px;border-radius:3px;
+            background:linear-gradient(145deg,var(--br),var(--al))"></i>IRAM <u>▾</u></div>
+          <div class="dk"><s class="on">Chart</s><s>Analyse <u>▾</u></s><s>Trade <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+          <div class="palette">⌕ &nbsp;Search symbols, commands and settings<u>Ctrl K</u></div>
+          <div class="ut" style="gap:7px">
+            <span class="acct"><span class="led"></span>4,200 <span style="color:var(--fgf)">USD</span>
+              <span style="color:var(--up)">+184</span></span>
+            <span class="bellwrap"><s>◎</s><span class="cnt">3</span></span>
+            <s>⚙</s><s>▤</s><s>⛶</s>
+          </div>
+        </div>
+        <p class="barnote"><b style="color:var(--up)">Nothing becomes unreachable.</b> File, Chart,
+          Draw, Tools and Help become submenus of the <em>IRAM ▾</em> app menu, which also gains
+          Settings and About — so the menu bar keeps its discoverability for anyone who browses
+          rather than types, on one button instead of seven. The account chip is the only new
+          element: equity and open P&amp;L, from the single source in step&nbsp;01.</p>
+      </div>
+    </div></div>
+  </div>
+
+  <div>
+    <h3>What moves where</h3>
+    <div class="tbl-scroll"><table>
+      <thead><tr><th>Today</th><th>Proposed</th><th>Why</th></tr></thead>
+      <tbody>
+        <tr><td>File, Chart, Draw, Tools, Help</td><td>Submenus of <code>IRAM ▾</code></td>
+          <td>Same items, same order, one button. Recovers ~250px on a row already measured as full.</td></tr>
+        <tr><td>View ▸ Desks</td><td>Deleted</td>
+          <td>It lists the five buttons immediately to its right.</td></tr>
+        <tr><td>View ▸ Theme / Density</td><td>Settings ▸ Appearance</td>
+          <td>Set once, then left alone for months. Not toolbar-worthy.</td></tr>
+        <tr><td>Chart ▸ Timeframe</td><td>Deleted</td>
+          <td>The context bar below already carries the timeframe segments.</td></tr>
+        <tr><td>⌕ icon</td><td>A real field, centre of the bar</td>
+          <td><span class="pill new">the change</span> The palette is the fastest path to 62 commands and currently advertises nothing.</td></tr>
+        <tr><td>—</td><td>Account chip</td>
+          <td><span class="pill new">new</span> Equity and open P&amp;L, always visible, one source.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 04 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">07</span><span class="tick">Live bar</span></div>
+  <div>
+    <h2>One row that answers “where am I, and what am I in?”</h2>
+    <p class="lede">The status bar today is plumbing: feed source, latency, bar count, stream state,
+      a note and the clock. All useful, none of it about the market and none of it about your money.</p>
+
+    <p>The v39 build had a live ticker carrying prices, day range, candle countdown, news countdown,
+      regime and ADX, ATR, RSI, funding, open P&amp;L, today's P&amp;L, heat and the guard state.
+      <strong>None of it survived into the rewrite.</strong> What replaced it reports on the
+      terminal rather than on the trade.</p>
+
+    <p>Rather than add a fourth chrome row — v45 and v46 were spent removing rows — the status bar
+      <em>becomes</em> the live bar. The plumbing collapses into one health chip that expands when
+      clicked, and the space it frees carries the numbers.</p>
+
+    <div class="note">
+      <span class="k">Why it does not scroll</span>
+      <p>The v39 bar was a marquee cycling every field in turn. You cannot find a number that is
+        moving, and you certainly cannot compare two. Fixed zones in a fixed order mean your eye
+        learns one map and keeps it. Values update in place; the layout does not.</p>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="shot-cap"><b>Mockup 5</b> <span>The live bar — three zones, fixed order, values update in place</span></div>
+    <div class="shot-scroll"><div class="mk" style="height:640px">
+      <div style="padding:26px 0 0">
+        <div class="lb ann">
+          <span class="health" data-z="health"><span class="led"></span>binance 138ms<u>▴</u></span>
+
+          <span class="lbz" data-z="the instrument">
+            <span class="f"><span class="v big">77,946.60</span></span>
+            <span class="f"><span class="v dn">−1.42%</span></span>
+            <span class="f"><span class="k">day</span><span class="v">77,102 – 79,540</span></span>
+            <span class="f"><span class="k">next 5m</span><span class="v">2:14</span></span>
+            <span class="f"><span class="k">spread</span><span class="v">$1.20</span></span>
+          </span>
+
+          <span class="lbz" data-z="the market">
+            <span class="f"><span class="v">trending · ADX 28</span></span>
+            <span class="f"><span class="k">atr</span><span class="v">412</span></span>
+            <span class="f"><span class="k">funding</span><span class="v up">+0.011%</span></span>
+            <span class="gap">on-chain — none</span>
+          </span>
+
+          <span class="lbz grow" data-z="your money">
+            <span class="f"><span class="k">open</span><span class="v up">+184</span>
+              <span class="v" style="color:var(--fgf)">0.4R</span></span>
+            <span class="f"><span class="k">today</span><span class="v dn">−92</span></span>
+            <span class="f"><span class="k">heat</span><span class="v">2.1%</span></span>
+            <span class="f"><span class="k">guard</span><span class="v up">ok</span></span>
+          </span>
+        </div>
+
+        <div style="padding:22px 26px 0">
+          <div class="barlbl"><b class="g">The rule that governs every field</b></div>
+          <p class="barnote" style="margin-bottom:12px">A field with no source is <b style="color:var(--fg)">omitted</b>,
+            never zeroed and never carried forward. The dashed slot above is what “not covered”
+            looks like — on-chain data does not exist for this instrument, so the bar says so
+            rather than printing a hyphen that could be misread as zero. A value that <em>is</em>
+            covered but late renders dimmed with its age beside it. Those three states look
+            different because the response to them is different.</p>
+          <p class="barnote" style="margin-bottom:12px">Clicking the health chip expands today's
+            status bar in full — source, latency, bars, stream state, reconnects, the note.
+            Nothing was deleted; it stopped occupying the row by default.</p>
+          <p class="barnote"><b style="color:var(--at)">Measured while drawing this.</b> My first
+            field list came to <em>1,377px</em> of content in a 1,280px bar — RSI, the funding
+            countdown, the day-range percentage, the position count and the UTC clock all had to
+            go before it fitted, and RSI is already on the chart behind it. So the bar needs the
+            same discipline the desk switcher already has: it measures its own children against
+            its own width and <b style="color:var(--fg)">drops the lowest-ranked field first</b>,
+            rather than clipping, wrapping, or shrinking the type. The rank is fixed and visible in
+            Settings, so what you lose at 1,100px is a decision rather than an accident.</p>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 05 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">08</span><span class="tick">Setup</span></div>
+  <div>
+    <h2>The card that says whether there is a trade, and exactly what it is</h2>
+    <p class="lede">v39 had this and called it the Sniper Card. I searched the whole of
+      <code>app/src</code>: there is <strong>no match for it anywhere in the rewrite.</strong></p>
+
+    <p>The Decision desk that stands in its place shows a weighted read and its evidence, which
+      answers <em>what is happening</em>. It never answers <em>so what do I do, at what size, and
+      what would stop me</em>. That gap is the reason a fourteen-desk terminal can still leave you
+      doing arithmetic on paper at the moment of decision.</p>
+
+    <p>Everything it needs already exists — <code>sizePosition</code>, <code>stopFromAtr</code>,
+      <code>rewardToRisk</code>, <code>checkGuards</code> and <code>portfolioHeat</code> in
+      <code>risk/sizing.ts</code>, <code>detectStructure</code> for the swing that places the stop,
+      the live spread, the calendar and the decision read. <strong>This is composition, not new
+      analysis</strong>, which is why it is a small build rather than a large one.</p>
+
+    <div class="note">
+      <span class="k">Say this part out loud before building it</span>
+      <p><strong>A recommended setup is the most dangerous screen in this terminal.</strong> Your
+        standing note on this project is not to automate anything off the confluence score —
+        PBO 89%, meaning the best in-sample configuration lands below the median out of sample
+        roughly nine times in ten. A card that prints an entry, a stop and a lot size is precisely
+        the surface that invites someone to stop reading everything else.</p>
+      <p>So the guards are structural, not cosmetic: the PBO figure and this setup type's real
+        record sit <em>on</em> the card permanently, at the same weight as the numbers — never in a
+        tooltip. The verdict language is about your rules and never about the future. And
+        <b>STAND DOWN is not a view on direction</b> — the card says so in words, because a trader
+        who reads a blocked setup as “bearish” has been misled by the thing meant to protect them.</p>
+      <p>If you would rather this did not exist at all, say so and I will drop it. I would rather
+        build it with these guards than leave the question unanswered on paper.</p>
+    </div>
+
+    <h3>Fixed read order — the same six blocks, every time</h3>
+    <p>The order is the design. A card whose layout changes with the verdict teaches you to hunt
+      for the good news.</p>
+  </div>
+
+  <div class="shot">
+    <div class="shot-cap"><b>Mockup 6</b> <span>Chart desk — the Setup card at the top of the dock</span></div>
+    <div class="shot-scroll"><div class="mk" style="height:930px">
+      <div class="cmd">
+        <div class="appmenu"><i style="width:15px;height:15px;border-radius:3px;
+          background:linear-gradient(145deg,var(--br),var(--al))"></i>IRAM <u>▾</u></div>
+        <div class="dk"><s class="on">Chart</s><s>Analyse <u>▾</u></s><s>Trade <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+        <div class="palette">⌕ &nbsp;Search symbols, commands and settings<u>Ctrl K</u></div>
+        <div class="ut" style="gap:7px">
+          <span class="acct"><span class="led"></span>4,200 <span style="color:var(--fgf)">USD</span>
+            <span style="color:var(--up)">+184</span></span>
+          <span class="bellwrap"><s>◎</s><span class="cnt">3</span></span><s>⚙</s><s class="on">▤</s><s>⛶</s>
+        </div>
+      </div>
+      <div class="ctx">
+        <span class="sym">BTCUSDT</span>
+        <span class="seg"><i>1m</i><i class="on">5m</i><i>15m</i><i>1h</i><i>4h</i><i>1d</i></span>
+        <span class="seg"><i class="on">Candles</i><i>Bars</i><i>Line</i></span>
+        <span class="seg"><i class="on">EMA20</i><i class="on">EMA50</i><i>EMA200</i></span>
+      </div>
+
+      <div style="display:flex;height:817px">
+        <div class="grid" style="flex:1"></div>
+        <div class="dockcol">
+          <div class="setup">
+            <div class="su-h"><span class="t">Setup</span>
+              <span style="color:var(--fgm);font-size:11.5px">BTCUSDT · 5m</span>
+              <span class="tg n" style="margin-left:auto">6 of 6 gates</span></div>
+
+            <div class="su-v">
+              <div class="big go">LONG — your gates pass</div>
+              <div class="sub">Read is LONG, score 78, on 86% coverage. This is what your rules
+                allow, not a forecast.</div>
+            </div>
+
+            <div class="su-sec">
+              <div class="lbl">The plan · held still until price drifts 0.4 ATR</div>
+              <div class="plan">
+                <span class="n">Entry zone</span><span class="x">77,844 – 78,050</span>
+                <span class="n">Stop</span><span class="x dn">77,535</span>
+                <span class="n">Target 1 · 1R</span><span class="x up">78,359</span>
+                <span class="n">Target 2 · 2R</span><span class="x up">78,771</span>
+                <span class="n">Stop distance</span><span class="x">412 pts · 1.00× ATR</span>
+              </div>
+            </div>
+
+            <div class="su-sec">
+              <div class="lbl">The size · from Settings ▸ Account</div>
+              <div class="plan">
+                <span class="n">Quantity</span><span class="x">0.102 BTC</span>
+                <span class="n">Risk if stopped</span><span class="x">$42.00 · 1.0% of equity</span>
+                <span class="n">Notional</span><span class="x">$7,950</span>
+                <span class="n">Margin at 1:100</span><span class="x">$79.50</span>
+              </div>
+            </div>
+
+            <div class="su-sec">
+              <div class="lbl">The gates · any red stands you down</div>
+              <div class="ck ok"><span class="m">✓</span><span>No high-impact event within 30 min — next is CPI in 1d 4h</span></div>
+              <div class="ck ok"><span class="m">✓</span><span>Spread $1.20 is 0.9% of the stop — budget 15%</span></div>
+              <div class="ck ok"><span class="m">✓</span><span>Heat 2.1% + this trade 1.0% = 3.1% — limit 6.0%</span></div>
+              <div class="ck ok"><span class="m">✓</span><span>Daily guard clear — today −0.4R of −3.0R</span></div>
+              <div class="ck ok"><span class="m">✓</span><span>Coverage 86% of sources answered — floor 60%</span></div>
+              <div class="ck ok"><span class="m">✓</span><span>Stop 1.00× ATR — sane band 0.5–3.0×</span></div>
+            </div>
+
+            <div class="trust">
+              <div class="rec">This setup type, trending regime: 34 trades · 56% hit · +0.28R avg</div>
+              <div style="margin-top:5px"><b>PBO 89%</b> — the selection behind this score fails
+                out of sample about nine times in ten. Treat it as a prompt to look, never as a
+                reason to trade.</div>
+            </div>
+
+            <div class="su-f">
+              <span class="btn">Copy to Calculator</span>
+              <span class="btn">Log to Journal</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="lb" style="border-bottom:0">
+        <span class="health"><span class="led"></span>binance · 138 ms<u>▴</u></span>
+        <span class="lbz">
+          <span class="f"><span class="v big">77,946.60</span></span>
+          <span class="f"><span class="v dn">−1.42%</span></span>
+          <span class="f"><span class="k">next 5m</span><span class="v">2:14</span></span>
+          <span class="f"><span class="k">spread</span><span class="v">$1.20</span></span>
+        </span>
+        <span class="lbz">
+          <span class="f"><span class="k">regime</span><span class="v">trending · ADX 28</span></span>
+          <span class="f"><span class="k">atr</span><span class="v">412</span></span>
+          <span class="f"><span class="k">rsi</span><span class="v">41</span></span>
+        </span>
+        <span class="lbz grow">
+          <span class="f"><span class="k">open</span><span class="v up">+184</span></span>
+          <span class="f"><span class="k">today</span><span class="v dn">−92</span></span>
+          <span class="f"><span class="k">heat</span><span class="v">2.1%</span></span>
+          <span class="f"><span class="k">guard</span><span class="v up">ok</span></span>
+        </span>
+      </div>
+    </div></div>
+  </div>
+
+  <div>
+    <h3>The state that matters more than the good one</h3>
+    <p>A gate card is only worth having if being blocked is legible. Below, the same instrument two
+      minutes later: the read has not changed at all — still LONG, still 78 on 86% coverage — and
+      the card refuses anyway, naming both failures and what would clear them.</p>
+  </div>
+
+  <div class="shot">
+    <div class="shot-cap"><b>Mockup 7</b> <span>The same setup, blocked — and why that is not a bearish signal</span></div>
+    <div class="shot-scroll"><div class="mk" style="height:640px">
+      <div class="pairs">
+
+        <div class="setup wide">
+          <div class="su-h"><span class="t">Setup</span>
+            <span style="color:var(--fgm);font-size:11.5px">BTCUSDT · 5m</span>
+            <span class="tg d" style="margin-left:auto">2 gates failed</span></div>
+          <div class="su-v">
+            <div class="big stop">STAND DOWN</div>
+            <div class="sub"><b style="color:var(--fg)">This is not a view on direction.</b> The read
+              is unchanged — LONG, score 78, coverage 86%. Two of your own gates refuse the trade,
+              and both clear on their own.</div>
+          </div>
+          <div class="su-sec">
+            <div class="lbl">The gates</div>
+            <div class="ck no"><span class="m">✗</span><span>FOMC statement in 18 min — inside your
+              30-minute embargo</span><span class="blk">blocks</span></div>
+            <div class="ck no"><span class="m">✗</span><span>Heat 5.4% + this trade 1.0% = 6.4% —
+              over the 6.0% limit</span><span class="blk">blocks</span></div>
+            <div class="ck ok"><span class="m">✓</span><span>Spread $1.30 is 1.0% of the stop — budget 15%</span></div>
+            <div class="ck ok"><span class="m">✓</span><span>Daily guard clear — today −0.4R of −3.0R</span></div>
+            <div class="ck ok"><span class="m">✓</span><span>Coverage 86% of sources answered — floor 60%</span></div>
+            <div class="ck ok"><span class="m">✓</span><span>Stop 1.02× ATR — sane band 0.5–3.0×</span></div>
+          </div>
+          <div class="su-sec" style="border-bottom:0">
+            <div class="lbl">What would clear it</div>
+            <div class="plan">
+              <span class="n">Wait out the embargo</span><span class="x">18 min</span>
+              <span class="n">or close 0.4% of open heat</span><span class="x">≈ $17 of risk</span>
+            </div>
+          </div>
+          <div class="trust">
+            <div class="rec">This setup type, trending regime: 34 trades · 56% hit · +0.28R avg</div>
+            <div style="margin-top:5px"><b>PBO 89%</b> — a prompt to look, never a reason to trade.</div>
+          </div>
+        </div>
+
+        <div style="width:404px;padding-top:4px">
+          <div class="barlbl"><b class="g">Why the plan and the size disappear</b></div>
+          <p class="barnote" style="margin-bottom:20px">A blocked card shows no entry, no stop and no
+            lot size. Leaving them on screen greyed out is an invitation to retype them by hand,
+            which is the exact operational error the gate exists to prevent.</p>
+
+          <div class="barlbl"><b class="g">Why both failures are named</b></div>
+          <p class="barnote" style="margin-bottom:20px">Not “blocked” — <em>which</em> gate, by how
+            much, and what clears it. A gate you cannot argue with is a gate you learn to
+            disable.</p>
+
+          <div class="barlbl"><b class="g">Why the read is repeated here</b></div>
+          <p class="barnote" style="margin-bottom:20px">Score 78 and coverage 86% are printed on the
+            blocked card too. Without them, STAND DOWN reads as “the market is bearish” — the card
+            would be quietly manufacturing a directional opinion it does not hold.</p>
+
+          <div class="barlbl"><b class="g">Where it lives</b></div>
+          <p class="barnote">Top of the right dock on the Chart desk, so it never costs a desk
+            switch at the moment of decision, and in full on the Decision desk beside the evidence
+            that produced it.</p>
+        </div>
+
+      </div>
+    </div></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 03 ══ -->
+<section class="part">
+  <div class="rule"><span class="pn">Part III</span><h3 class="pt">What it is missing</h3></div>
+  <p class="pd">Screens a professional tool is expected to have and this one does not: a settings surface, feed provenance, an editable keymap, a trade journal and a first run that does not open on an empty form.</p>
+</section>
+
+<section class="phase">
+  <div class="spine"><span class="num">09</span><span class="tick">Settings</span></div>
+  <div>
+    <h2>One surface, twelve sections, everything currently homeless</h2>
+    <p class="lede">Opens over whatever you were doing, on <code>Ctrl ,</code>. Search finds any
+      setting by name or by what it does. Nothing here is new behaviour — most of it exists
+      today and simply has no address.</p>
+
+  </div>
+
+    <div class="shot">
+      <div class="shot-cap"><b>Mockup 8</b> <span>Settings ▸ Account &amp; risk — the single source</span></div>
+      <div class="shot-scroll"><div class="mk" style="height:1075px">
+
+        <div class="dim">
+          <div class="cmd">
+            <div class="brand"><i></i>IRAM</div>
+            <div class="mn"><s>File</s><s>Edit</s><s>View</s><s>Chart</s><s>Draw</s><s>Tools</s><s>Help</s></div>
+            <div class="dk"><s class="on">Chart</s><s>Analyse <u>▾</u></s><s>Trade <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+            <div class="ut"><s>⌕</s><s>✦</s><s>◑</s><s class="on">⚙</s><s>▤</s></div>
+          </div>
+          <div class="ctx">
+            <span class="sym">BTCUSDT</span>
+            <span class="seg"><i>1m</i><i class="on">5m</i><i>15m</i><i>1h</i><i>4h</i><i>1d</i></span>
+            <span class="seg"><i class="on">Candles</i><i>Bars</i><i>Line</i></span>
+            <span class="seg"><i class="on">EMA20</i><i class="on">EMA50</i><i>EMA200</i></span>
+          </div>
+          <div class="grid" style="height:967px"></div>
+          <div class="status"><span><span class="led"></span> binance · LIVE</span><span>BTCUSDT · 5m</span><span>800 bars</span></div>
+        </div>
+        <div class="scrim"></div>
+
+        <div class="set">
+          <div class="set-h">
+            <h1>Settings</h1><span class="kbd">Ctrl ,</span>
+            <span class="srch">⌕ &nbsp;Search settings…</span><span class="xb">✕</span>
+          </div>
+          <div class="set-b">
+            <nav class="nav">
+              <div class="g micro">Trading</div>
+              <a class="on"><b>◈</b>Account &amp; risk</a>
+              <a><b>▤</b>Chart defaults</a>
+              <a><b>◎</b>Alerts &amp; notifications</a>
+              <div class="g micro">Data</div>
+              <a><b>≋</b>Sources &amp; feeds</a>
+              <a><b>⛁</b>Archive &amp; retention</a>
+              <a><b>⇅</b>Sync &amp; backup</a>
+              <div class="g micro">Terminal</div>
+              <a><b>◑</b>Appearance</a>
+              <a><b>⌨</b>Keyboard<em>62</em></a>
+              <a><b>✦</b>Analyst (AI)</a>
+              <a><b>⚑</b>Workspace</a>
+              <div class="g micro">System</div>
+              <a><b>⚿</b>Privacy &amp; safety</a>
+              <a><b>◐</b>About &amp; diagnostics</a>
+            </nav>
+            <main class="main">
+              <h5>Account &amp; risk</h5>
+              <p class="sub">The numbers every position-size calculation starts from. Set here once;
+                the Risk desk, the Calculator, the pre-flight checklist and the Journal all read
+                these same values. Nothing here leaves the machine, and nothing here places an order.</p>
+
+              <div class="callout">
+                <span style="color:var(--up);line-height:1.2">✓</span>
+                <span><b>Closes a live defect.</b> Today <span class="mono">equity</span> and
+                <span class="mono">riskPct</span> are stored twice — <span class="mono">risk.config</span>
+                and <span class="mono">calculator.v1</span> — each with its own default. Changing one
+                leaves the other sizing off a stale number, silently.</span>
+              </div>
+
+              <div class="card">
+                <div class="ch"><span class="micro">The account</span>
+                  <span class="tg f" style="margin-left:auto">single source</span></div>
+                <div class="r">
+                  <div><div class="l">Account currency</div>
+                    <div class="h">Every money figure is shown in this. Conversions are labelled where
+                      the instrument quotes in something else.</div></div>
+                  <div class="sel">USD — US Dollar<u>▾</u></div>
+                </div>
+                <div class="r">
+                  <div><div class="l">Balance</div>
+                    <div class="h">Closed equity. Drives the daily-loss guard.</div></div>
+                  <div class="inp">10,000.00<u>USD</u></div>
+                </div>
+                <div class="r">
+                  <div><div class="l">Equity</div>
+                    <div class="h">Balance plus open P&amp;L. Drives free margin, margin level and every
+                      lot size in the terminal.</div></div>
+                  <div class="inp f">4,200.00<u>USD</u></div>
+                </div>
+                <div class="r">
+                  <div><div class="l">Leverage</div>
+                    <div class="h">As your broker states it. Margin is computed per-instrument from the
+                      contract spec, never a flat multiplier.</div></div>
+                  <div class="inp">1 : 100</div>
+                </div>
+                <div class="r">
+                  <div><div class="l">Risk per trade</div>
+                    <div class="h">Yours to choose. Nothing here suggests a number, and nothing enforces one.</div></div>
+                  <div class="inp">1.00<u>% of equity</u></div>
+                </div>
+                <div class="uses">
+                  <span class="chip">read by <b>Risk</b></span>
+                  <span class="chip">read by <b>Calculator</b></span>
+                  <span class="chip">read by <b>Pre-flight</b></span>
+                  <span class="chip">read by <b>Paper</b></span>
+                  <span class="chip">read by <b>Journal</b></span>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="ch"><span class="micro">Guard rails</span>
+                  <span class="tg a" style="margin-left:auto">advisory — never blocks you</span></div>
+                <div class="r">
+                  <div><div class="l">Daily loss limit</div>
+                    <div class="h">When the day's realised loss passes this, the terminal says so. It
+                      cannot lock anything — it has no way to place or stop a trade.</div></div>
+                  <div class="inp">3.00<u>% of balance</u></div>
+                </div>
+                <div class="r">
+                  <div><div class="l">Warn when size exceeds free margin</div>
+                    <div class="h">Margin computed in the instrument's quote currency, then converted.</div></div>
+                  <div class="sw on"></div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="set-f">
+            <span>Stored locally in the versioned settings store · changed 2 minutes ago</span>
+            <span style="margin-left:auto;display:flex;gap:8px">
+              <span class="btn g">Reset section</span><span class="btn">Export vault…</span>
+              <span class="btn p">Done</span></span>
+          </div>
+        </div>
+      </div></div>
+    </div>
+  <div>
+
+    <h3>The twelve sections, and where each one lives today</h3>
+    <div class="tbl-scroll"><table>
+      <thead><tr><th>Section</th><th>Today</th><th>What changes</th></tr></thead>
+      <tbody>
+        <tr><td>Account &amp; risk</td><td>Split across Risk desk and Calculator desk</td>
+          <td><span class="pill fix">merged</span> One store slot. The drift defect becomes unrepresentable.</td></tr>
+        <tr><td>Chart defaults</td><td>Nowhere — every session starts on the same hard-coded 5m candles</td>
+          <td><span class="pill new">new</span> Default symbol, timeframe, style, MAs, detectors, HTF.</td></tr>
+        <tr><td>Alerts &amp; notifications</td><td><code>Tools ▸ Alerts</code>, two toggles</td>
+          <td><span class="pill mv">moved</span> Adds quiet hours, per-severity routing, the log.</td></tr>
+        <tr><td>Sources &amp; feeds</td><td>Implicit — a fixed priority list in code</td>
+          <td><span class="pill new">new</span> Reorderable priority, live health, proxy address.</td></tr>
+        <tr><td>Archive &amp; retention</td><td>Data desk</td>
+          <td><span class="pill mv">moved</span> Policy here; the desk keeps the browsing.</td></tr>
+        <tr><td>Sync &amp; backup</td><td>Data desk</td>
+          <td><span class="pill mv">moved</span> Adds scheduled local backup.</td></tr>
+        <tr><td>Appearance</td><td>Gear popover + <code>View ▸ Theme</code></td>
+          <td><span class="pill mv">moved</span> Adds chart colours and reduced-motion.</td></tr>
+        <tr><td>Keyboard</td><td>Read-only cheat sheet</td>
+          <td><span class="pill new">editable</span> Rebind, conflict detection, reset.</td></tr>
+        <tr><td>Analyst (AI)</td><td>Provider picker in the Analyst header</td>
+          <td><span class="pill mv">moved</span> Adds model, budget, and what the agent may read.</td></tr>
+        <tr><td>Workspace</td><td>Workspace desk</td>
+          <td><span class="pill keep">shared</span> Defaults here, layouts stay on the desk.</td></tr>
+        <tr><td>Privacy &amp; safety</td><td>Comments in the source</td>
+          <td><span class="pill new">new</span> The honesty contract, on screen and auditable.</td></tr>
+        <tr><td>About &amp; diagnostics</td><td>Nowhere</td>
+          <td><span class="pill new">new</span> Version, storage, feed health, error log, self-test.</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 04 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">10</span><span class="tick">Sources</span></div>
+  <div>
+    <h2>Feed priority becomes something you can see and set</h2>
+    <p class="lede">Today the source order is a literal array inside the shell:
+      <code>binance, proxy, mt5, coinbase, bybit, okx</code>. You cannot see it, reorder it, or
+      tell which one answered. For a terminal whose entire claim is that it never states
+      something it did not fetch, that is the wrong thing to keep hidden.</p>
+
+  </div>
+
+    <div class="shot">
+      <div class="shot-cap"><b>Mockup 9</b> <span>Settings ▸ Sources &amp; feeds — provenance, ranked</span></div>
+      <div class="shot-scroll"><div class="mk" style="height:905px">
+        <div class="set" style="position:static;inset:auto;height:905px;border-radius:0;border:0">
+          <div class="set-h">
+            <h1>Settings</h1><span class="kbd">Ctrl ,</span>
+            <span class="srch">⌕ &nbsp;Search settings…</span><span class="xb">✕</span>
+          </div>
+          <div class="set-b">
+            <nav class="nav">
+              <div class="g micro">Trading</div>
+              <a><b>◈</b>Account &amp; risk</a><a><b>▤</b>Chart defaults</a><a><b>◎</b>Alerts &amp; notifications</a>
+              <div class="g micro">Data</div>
+              <a class="on"><b>≋</b>Sources &amp; feeds</a><a><b>⛁</b>Archive &amp; retention</a><a><b>⇅</b>Sync &amp; backup</a>
+              <div class="g micro">Terminal</div>
+              <a><b>◑</b>Appearance</a><a><b>⌨</b>Keyboard<em>62</em></a><a><b>✦</b>Analyst (AI)</a><a><b>⚑</b>Workspace</a>
+              <div class="g micro">System</div>
+              <a><b>⚿</b>Privacy &amp; safety</a><a><b>◐</b>About &amp; diagnostics</a>
+            </nav>
+            <main class="main">
+              <h5>Sources &amp; feeds</h5>
+              <p class="sub">Ranked highest first. The terminal asks each in turn and uses the first that
+                answers with real bars — it never merges two sources into one series, and it never fills
+                a gap with a guess. A source that is degraded is labelled degraded, not quietly demoted.</p>
+
+              <div class="card">
+                <div class="ch"><span class="micro">Priority — drag to reorder</span>
+                  <span style="margin-left:auto;font-size:11px;color:var(--fgm)">measured over the last 30 min</span></div>
+
+                <div class="src">
+                  <span class="hand">⠿</span>
+                  <span class="nm">Binance<em>api.binance.com</em></span>
+                  <span class="st up">● live</span>
+                  <span class="mono" style="font-size:11px;color:var(--fgm)">138 ms</span>
+                  <span class="bar"><i style="width:99%;background:var(--up)"></i></span>
+                  <span class="sw on"></span>
+                </div>
+                <div class="src">
+                  <span class="hand">⠿</span>
+                  <span class="nm">Local proxy<em>127.0.0.1:8787</em></span>
+                  <span class="st up">● live</span>
+                  <span class="mono" style="font-size:11px;color:var(--fgm)">6 ms</span>
+                  <span class="bar"><i style="width:100%;background:var(--up)"></i></span>
+                  <span class="sw on"></span>
+                </div>
+                <div class="src">
+                  <span class="hand">⠿</span>
+                  <span class="nm">MetaTrader 5<em>bridge · python</em></span>
+                  <span class="st" style="color:var(--at)">● degraded</span>
+                  <span class="mono" style="font-size:11px;color:var(--fgm)">2.4 s</span>
+                  <span class="bar"><i style="width:61%;background:var(--at)"></i></span>
+                  <span class="sw on"></span>
+                </div>
+                <div class="src">
+                  <span class="hand">⠿</span>
+                  <span class="nm">Coinbase<em>api.exchange.coinbase.com</em></span>
+                  <span class="st mu">○ standby</span>
+                  <span class="mono" style="font-size:11px;color:var(--fgf)">—</span>
+                  <span class="bar"><i style="width:0%"></i></span>
+                  <span class="sw on"></span>
+                </div>
+                <div class="src">
+                  <span class="hand">⠿</span>
+                  <span class="nm">Bybit<em>api.bybit.com</em></span>
+                  <span class="st mu">○ standby</span>
+                  <span class="mono" style="font-size:11px;color:var(--fgf)">—</span>
+                  <span class="bar"><i style="width:0%"></i></span>
+                  <span class="sw on"></span>
+                </div>
+                <div class="src">
+                  <span class="hand">⠿</span>
+                  <span class="nm" style="color:var(--fgf)">OKX<em>api.okx.com</em></span>
+                  <span class="st" style="color:var(--dn)">● blocked · CORS</span>
+                  <span class="mono" style="font-size:11px;color:var(--fgf)">—</span>
+                  <span class="bar"><i style="width:0%"></i></span>
+                  <span class="sw"></span>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="ch"><span class="micro">Behaviour</span></div>
+                <div class="r">
+                  <div><div class="l">When every source fails</div>
+                    <div class="h">There is no third option here on purpose. Synthesising bars would
+                      violate the one rule this terminal is built on.</div></div>
+                  <div class="sel">Show the gap and say why<u>▾</u></div>
+                </div>
+                <div class="r">
+                  <div><div class="l">Request governor</div>
+                    <div class="h">Caps outbound calls per source per minute. A 429 parks that source
+                      only — never the shared transport.</div></div>
+                  <div class="inp">60<u>req / min</u></div>
+                </div>
+                <div class="r">
+                  <div><div class="l">Mark a feed stale after</div>
+                    <div class="h">The status dot turns amber, then red. It never silently keeps
+                      showing the last price as current.</div></div>
+                  <div class="inp">15<u>seconds</u></div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="set-f"><span>6 sources · 2 live · 1 degraded · 1 blocked</span>
+            <span style="margin-left:auto;display:flex;gap:8px">
+              <span class="btn g">Restore defaults</span><span class="btn">Test all</span>
+              <span class="btn p">Done</span></span></div>
+        </div>
+      </div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 05 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">11</span><span class="tick">Keyboard</span></div>
+  <div>
+    <h2>The cheat sheet becomes a keymap you can change</h2>
+    <p class="lede">The current sheet is generated from the keymap, which is the right design —
+      it can never go stale. It is also read-only, so a trader whose muscle memory comes from
+      another terminal has to relearn sixty-two bindings rather than move four.</p>
+
+  </div>
+
+    <div class="shot">
+      <div class="shot-cap"><b>Mockup 10</b> <span>Settings ▸ Keyboard — rebinding with live conflict detection</span></div>
+      <div class="shot-scroll"><div class="mk" style="height:790px">
+        <div class="set" style="position:static;inset:auto;height:790px;border-radius:0;border:0">
+          <div class="set-h">
+            <h1>Settings</h1><span class="kbd">Ctrl ,</span>
+            <span class="srch">⌕ &nbsp;replay</span><span class="xb">✕</span>
+          </div>
+          <div class="set-b">
+            <nav class="nav">
+              <div class="g micro">Trading</div>
+              <a><b>◈</b>Account &amp; risk</a><a><b>▤</b>Chart defaults</a><a><b>◎</b>Alerts &amp; notifications</a>
+              <div class="g micro">Data</div>
+              <a><b>≋</b>Sources &amp; feeds</a><a><b>⛁</b>Archive &amp; retention</a><a><b>⇅</b>Sync &amp; backup</a>
+              <div class="g micro">Terminal</div>
+              <a><b>◑</b>Appearance</a><a class="on"><b>⌨</b>Keyboard<em>62</em></a><a><b>✦</b>Analyst (AI)</a><a><b>⚑</b>Workspace</a>
+              <div class="g micro">System</div>
+              <a><b>⚿</b>Privacy &amp; safety</a><a><b>◐</b>About &amp; diagnostics</a>
+            </nav>
+            <main class="main">
+              <h5>Keyboard</h5>
+              <p class="sub">Sixty-two commands, every one rebindable. Click a binding and press the keys
+                you want. A collision is shown before you commit it, with the command you would be
+                taking the keys from — never after, and never silently.</p>
+
+              <div class="card">
+                <div class="ch"><span class="micro">Chart &amp; replay</span>
+                  <span style="margin-left:auto;font-size:11px;color:var(--fgm)">3 changed from default</span></div>
+
+                <div class="kr">
+                  <span class="cmdn">Replay mode<em>replay.toggle</em></span>
+                  <span class="keys"><span>R</span></span>
+                  <span class="mono" style="font-size:10.5px;color:var(--fgf)">default</span>
+                </div>
+                <div class="kr">
+                  <span class="cmdn">Replay: forward one bar<em>replay.forward</em></span>
+                  <span class="keys edit"><span>→</span></span>
+                  <span class="mono" style="font-size:10.5px;color:var(--br)">listening…</span>
+                </div>
+                <div class="kr conflict">
+                  <span class="cmdn">Replay: back one bar<em>replay.back</em>
+                    <em style="color:var(--dn);margin-top:4px">← is bound to “Pan chart left”. Reassigning takes it.</em></span>
+                  <span class="keys"><span style="border-color:var(--dn);box-shadow:0 0 0 2px var(--wdn)">←</span></span>
+                  <span><span class="tg d">conflict</span></span>
+                </div>
+                <div class="kr">
+                  <span class="cmdn">Jump to the live edge<em>chart.goLive</em></span>
+                  <span class="keys"><span>Ctrl</span><span>→</span></span>
+                  <span class="mono" style="font-size:10.5px;color:var(--fgf)">default</span>
+                </div>
+                <div class="kr">
+                  <span class="cmdn">Export the chart as an image<em>chart.exportPng</em></span>
+                  <span class="keys"><span>Ctrl</span><span>Shift</span><span>E</span></span>
+                  <span class="mono" style="font-size:10.5px;color:var(--at)">changed</span>
+                </div>
+                <div class="kr">
+                  <span class="cmdn">Reload history<em>chart.reload</em></span>
+                  <span class="keys"><span style="color:var(--fgf);border-style:dashed">unbound</span></span>
+                  <span class="mono" style="font-size:10.5px;color:var(--fgf)">—</span>
+                </div>
+              </div>
+
+              <div class="card">
+                <div class="ch"><span class="micro">Presets</span></div>
+                <div class="r">
+                  <div><div class="l">Start from another terminal's layout</div>
+                    <div class="h">Applies a whole set at once. Anything you have already changed by hand
+                      is listed before it is overwritten.</div></div>
+                  <div class="sel">IRAM default<u>▾</u></div>
+                </div>
+              </div>
+            </main>
+          </div>
+          <div class="set-f"><span>62 commands · 58 bound · 3 changed · 1 conflict to resolve</span>
+            <span style="margin-left:auto;display:flex;gap:8px">
+              <span class="btn g">Reset all</span><span class="btn">Print sheet</span>
+              <span class="btn p">Done</span></span></div>
+        </div>
+      </div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 06 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">12</span><span class="tick">Journal</span></div>
+  <div>
+    <h2>The desk that closes the loop</h2>
+    <p class="lede">The terminal produces a confluence score, a decision verdict, a size and a
+      checklist — and then never finds out whether any of it was right. Every other desk points
+      forward. Nothing points back.</p>
+
+    <p>The Journal records a decision at the moment it is made, together with the evidence that
+      was on screen at the time: the verdict, the score and its coverage, which sources were live,
+      the spread you actually paid. When the trade closes, the outcome is attached. Over a hundred
+      entries that becomes the only honest answer to <em>"does this terminal help me?"</em> — measured
+      on your trades rather than asserted in a backtest.</p>
+
+    <div class="note">
+      <span class="k">Why this belongs here and not in a spreadsheet</span>
+      <p>A spreadsheet records what you remember about a trade. The Journal records what the
+        terminal was showing when you took it — including that two of six sources were down, or
+        that the score was 71 with only 40% coverage. That is the part you cannot reconstruct
+        afterwards, and it is the part that explains the result.</p>
+    </div>
+
+  </div>
+
+    <div class="shot">
+      <div class="shot-cap"><b>Mockup 11</b> <span>Trade ▸ Journal — decisions with the evidence attached</span></div>
+      <div class="shot-scroll"><div class="mk" style="height:640px">
+        <div class="cmd">
+          <div class="brand"><i></i>IRAM</div>
+          <div class="mn"><s>File</s><s>Edit</s><s>View</s><s>Chart</s><s>Draw</s><s>Tools</s><s>Help</s></div>
+          <div class="dk"><s>Chart</s><s>Analyse <u>▾</u></s><s class="on">Journal <u>▾</u></s><s>Research <u>▾</u></s><s>Workspace</s></div>
+          <div class="ut"><s>⌕</s><s>✦</s><s>◑</s><s>⚙</s><s>▤</s></div>
+        </div>
+
+        <div class="jhead">
+          <div style="margin-right:auto">
+            <h5 style="margin:0 0 4px">Journal</h5>
+            <div style="color:var(--fgm);font-size:12px">142 decisions · 118 closed · since 4 Mar 2026</div>
+          </div>
+          <div class="stat"><span class="k">Closed P&amp;L</span><span class="v up">+2,417</span><span class="n">USD, after costs</span></div>
+          <div class="stat"><span class="k">Hit rate</span><span class="v">54.2%</span><span class="n">64 of 118</span></div>
+          <div class="stat"><span class="k">Avg R</span><span class="v up">+0.31</span><span class="n">per decision</span></div>
+          <div class="stat"><span class="k">Followed the plan</span><span class="v" style="color:var(--at)">71%</span><span class="n">84 of 118</span></div>
+          <div class="stat"><span class="k">Score ≥ 70 subset</span><span class="v up">+1.9 R</span><span class="n">31 decisions · thin</span></div>
+        </div>
+
+        <div style="margin:0 20px 12px;padding:9px 14px;border-radius:7px;background:var(--wat);
+          box-shadow:inset 0 0 0 1px color-mix(in srgb,#E8A33D 30%,transparent);font-size:11.5px;line-height:1.5">
+          <b style="color:var(--at)">Read this as thin evidence.</b> Thirty-one decisions is not enough to
+          separate a real edge from luck. The panel shows the number because hiding it would be worse —
+          not because it is yet a finding.
+        </div>
+
+        <div class="jtable">
+          <div class="jr h">
+            <span>Opened</span><span>Instrument</span><span>Side</span><span>Score / cov</span>
+            <span>Planned R</span><span>Result</span><span>What I saw</span><span>Plan</span>
+          </div>
+          <div class="jr">
+            <span class="mono mu">31 Aug 14:02</span><span class="s">BTCUSDT</span>
+            <span><span class="side l">long</span></span>
+            <span class="num">78 <span class="mu">/ 86%</span></span>
+            <span class="num">2.4 R</span>
+            <span class="num up">+2.4 R &nbsp;<span style="font-size:10px">+984</span></span>
+            <span class="why">4h demand + funding flipped negative</span>
+            <span><span class="tg f">followed</span></span>
+          </div>
+          <div class="jr">
+            <span class="mono mu">31 Aug 09:41</span><span class="s">EURUSD</span>
+            <span><span class="side s">short</span></span>
+            <span class="num">71 <span class="mu">/ 40%</span></span>
+            <span class="num">1.8 R</span>
+            <span class="num dn">−1.0 R &nbsp;<span style="font-size:10px">−420</span></span>
+            <span class="why">MT5 + calendar both stale — took it anyway</span>
+            <span><span class="tg d">overrode</span></span>
+          </div>
+          <div class="jr">
+            <span class="mono mu">30 Aug 22:15</span><span class="s">XAUUSD</span>
+            <span><span class="side l">long</span></span>
+            <span class="num">64 <span class="mu">/ 91%</span></span>
+            <span class="num">1.5 R</span>
+            <span class="num up">+1.5 R &nbsp;<span style="font-size:10px">+630</span></span>
+            <span class="why">London open sweep, prior day low reclaimed</span>
+            <span><span class="tg f">followed</span></span>
+          </div>
+          <div class="jr">
+            <span class="mono mu">30 Aug 16:30</span><span class="s">ETHUSDT</span>
+            <span><span class="side s">short</span></span>
+            <span class="num">55 <span class="mu">/ 78%</span></span>
+            <span class="num">2.0 R</span>
+            <span class="num dn">−1.0 R &nbsp;<span style="font-size:10px">−410</span></span>
+            <span class="why">Sized 1.8× the plan after two losses</span>
+            <span><span class="tg d">overrode</span></span>
+          </div>
+          <div class="jr">
+            <span class="mono mu">29 Aug 11:08</span><span class="s">USDJPY</span>
+            <span><span class="side l">long</span></span>
+            <span class="num">69 <span class="mu">/ 82%</span></span>
+            <span class="num">1.6 R</span>
+            <span class="num mu">flat &nbsp;<span style="font-size:10px">−12</span></span>
+            <span class="why">Closed at the news embargo, as planned</span>
+            <span><span class="tg f">followed</span></span>
+          </div>
+          <div class="jr">
+            <span class="mono mu">29 Aug 08:55</span><span class="s">BTCUSDT</span>
+            <span><span class="side l">long</span></span>
+            <span class="num">81 <span class="mu">/ 88%</span></span>
+            <span class="num">2.2 R</span>
+            <span class="num" style="color:var(--at)">open &nbsp;<span style="font-size:10px">+0.7 R</span></span>
+            <span class="why">Weekly open reclaim, OI rising with price</span>
+            <span><span class="tg n">live</span></span>
+          </div>
+        </div>
+
+        <div class="status" style="position:absolute;bottom:0;left:0;right:0">
+          <span><span class="led"></span> binance · LIVE</span>
+          <span>Journal · 142 entries · 1.4 MB</span>
+          <span style="margin-left:auto">Every entry keeps the evidence snapshot taken at decision time</span>
+        </div>
+      </div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 07 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">13</span><span class="tick">First run</span></div>
+  <div>
+    <h2>The terminal currently opens on an empty form</h2>
+    <p class="lede">Launched fresh, IRAM lands on the Calculator desk showing
+      <strong>“NO NUMBERS — Enter a price for the entry.”</strong> That is a correct message and a
+      poor first impression: the first thing a new install says is that it cannot do anything yet.</p>
+
+    <p>Four questions, skippable, each with a real default. It ends on the chart with a symbol
+      loaded — which is what the application is for.</p>
+
+  </div>
+
+    <div class="shot">
+      <div class="shot-cap"><b>Mockup 12</b> <span>First run — step 2 of 4</span></div>
+      <div class="shot-scroll"><div class="mk" style="height:560px">
+        <div class="fr">
+          <div class="frc">
+            <div class="frh">
+              <h3>Where should prices come from?</h3>
+              <p>You can change this later in Settings, and add the others at any time. The terminal
+                works with one source; more only means fewer gaps.</p>
+            </div>
+            <div class="steps"><div class="on"></div><div class="on"></div><div></div><div></div></div>
+            <div class="frb">
+              <div class="opt on">
+                <span class="rd"></span>
+                <span><span class="t">Crypto only — Binance</span>
+                  <span class="d">Public, no key, no install. Spot and perpetuals, plus funding and open
+                    interest. Ready the moment you press Continue.</span></span>
+              </div>
+              <div class="opt">
+                <span class="rd"></span>
+                <span><span class="t">Crypto and FX — Binance plus the local proxy</span>
+                  <span class="d">Runs <span class="mono">server/ddt_data_server.py</span> on 127.0.0.1.
+                    Adds FX, indices and metals. We will check it is reachable before continuing.</span></span>
+              </div>
+              <div class="opt">
+                <span class="rd"></span>
+                <span><span class="t">My broker — MetaTrader 5 bridge</span>
+                  <span class="d">Reads bars and specs from a terminal you are already logged into.
+                    IRAM never sees your credentials and cannot place an order.</span></span>
+              </div>
+            </div>
+            <div class="frf">
+              <span>Step 2 of 4 · Account · <b style="color:var(--fg)">Sources</b> · Watchlist · Appearance</span>
+              <span style="margin-left:auto;display:flex;gap:8px">
+                <span class="btn g">Skip setup</span><span class="btn">Back</span>
+                <span class="btn p">Continue</span></span>
+            </div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 08 ══ -->
+<section class="part">
+  <div class="rule"><span class="pn">Part IV</span><h3 class="pt">How it gets built</h3></div>
+  <p class="pd">What the restructure does to the source tree, the migration that has to be right, and the order the work lands in.</p>
+</section>
+
+<section class="phase">
+  <div class="spine"><span class="num">14</span><span class="tick">Code</span></div>
+  <div>
+    <h2>What the restructure does to the source tree</h2>
+    <p class="lede"><code>shell.ts</code> is 3,909 lines and holds the layout, the preference store,
+      the agent wiring, the desk mounting and the context bar. It is the file every feature has to
+      touch, which is why every feature is slow to add.</p>
+
+    <div class="files">
+      <span class="c">app/src/</span><br>
+      <span class="m">├─ shell.ts</span> <span class="d">3,909 lines &nbsp;→ &nbsp;split into:</span><br>
+      <span class="n">│  ├─ shell/chrome.ts</span> <span class="d">command bar, context bar, status bar</span><br>
+      <span class="n">│  ├─ shell/desks.ts</span> <span class="d">the desk registry and mounting</span><br>
+      <span class="n">│  ├─ shell/prefs.ts</span> <span class="d">preference load / migrate / persist</span><br>
+      <span class="n">│  └─ shell/index.ts</span> <span class="d">assembly only — the file you can read in one sitting</span><br>
+      <br>
+      <span class="n">├─ core/account.ts</span> <span class="d">NEW · the single account model. One slot, one signal.</span><br>
+      <span class="n">├─ settings/</span> <span class="d">NEW</span><br>
+      <span class="n">│  ├─ schema.ts</span> <span class="d">every setting: type, default, validator, section</span><br>
+      <span class="n">│  ├─ registry.ts</span> <span class="d">sections and search index</span><br>
+      <span class="n">│  └─ ui.ts</span> <span class="d">the surface in mockups 8–10</span><br>
+      <span class="n">├─ ui/table.ts</span> <span class="d">NEW · sort, filter, multi-select, saved views — mockup 2</span><br>
+      <span class="n">├─ core/history.ts</span> <span class="d">NEW · one undo stack for the whole application</span><br>
+      <span class="n">├─ setup/</span> <span class="d">NEW · mockups 6–7</span><br>
+      <span class="n">│  ├─ plan.ts</span> <span class="d">entry / stop / targets from structure + ATR, held still</span><br>
+      <span class="n">│  ├─ gates.ts</span> <span class="d">the six checks; each names its threshold and its source</span><br>
+      <span class="n">│  └─ ui.ts</span> <span class="d">the card, in the dock and on the Decision desk</span><br>
+      <span class="n">├─ journal/</span> <span class="d">NEW</span><br>
+      <span class="n">│  ├─ entry.ts</span> <span class="d">a decision plus the evidence snapshot</span><br>
+      <span class="n">│  ├─ store.ts</span> <span class="d">append-only, versioned, exportable</span><br>
+      <span class="n">│  └─ stats.ts</span> <span class="d">hit rate, R, plan adherence — with sample-size guards</span><br>
+      <span class="n">└─ onboard/tour.ts</span> <span class="d">NEW · mockup 12</span><br>
+      <br>
+      <span class="m">   ui/risk.ts</span> <span class="d">absorbs ui/calculator.ts as a tab; account fields deleted</span><br>
+      <span class="m">   ui/calculator.ts</span> <span class="d">becomes a panel, stops owning account state</span><br>
+      <span class="m">   ui/shortcuts.ts</span> <span class="d">read-only sheet → the editor in mockup 10</span><br>
+      <span class="m">   shell/status.ts</span> <span class="d">diagnostics row → the live bar in mockup 5</span><br>
+      <span class="m">   ui/commandset.ts</span> <span class="d">seven menu entries → one app menu, mockup 4</span><br>
+      <span class="m">   ui/palette.ts</span> <span class="d">4 sources → 10; becomes the omnibox in mockup 3</span><br>
+      <span class="m">   ui/menu.ts</span> <span class="d">gains right-click menus generated from the registry</span><br>
+      <span class="m">   ui/screener·watchlist·alerts</span> <span class="d">adopt ui/table.ts</span><br>
+    </div>
+
+    <h3>The migration that has to be right</h3>
+    <p>Two existing slots collapse into one. If a user has set equity on the Risk desk and never
+      touched the Calculator, or the reverse, one of the two values is real and the other is a
+      default. Silently picking either is a coin flip on the number every position size depends on.</p>
+    <div class="note">
+      <p><strong>Rule:</strong> if the two disagree and neither is the default, migration keeps
+        neither. It writes the <code>risk.config</code> value, marks the setting unconfirmed, and the
+        first thing Settings shows is both numbers and the question of which is yours. One dialog,
+        once — that is cheaper than a wrong lot size.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════════════════ 09 ══ -->
+<section class="phase">
+  <div class="spine"><span class="num">15</span><span class="tick">Sequence</span></div>
+  <div>
+    <h2>Build order, and what lands at the end of each step</h2>
+    <p class="lede">Ordered so the defect closes first and the shell split — the risky,
+      no-visible-benefit change — happens last, against a suite that has grown.</p>
+
+    <div class="tbl-scroll"><table>
+      <thead><tr><th>Step</th><th>Lands</th><th>Touches</th><th>Risk</th></tr></thead>
+      <tbody>
+        <tr><td>1 &middot; Account</td>
+          <td><code>core/account.ts</code>, migration, Risk and Calculator both reading it. <b>The drift defect is gone.</b></td>
+          <td>risk.ts, calculator.ts, kv slots</td><td>Migration correctness</td></tr>
+        <tr><td>2 &middot; Command bar<br>+ omnibox</td>
+          <td>Seven menus collapse to one; the palette becomes a field and gains settings, alerts, journal, layout and help sources. Same row, same surface &mdash; done together.</td>
+          <td>commandset.ts, palette.ts, chrome</td><td>Low &mdash; the prefix-source architecture already exists</td></tr>
+        <tr><td>3 &middot; Live bar</td>
+          <td>The status bar becomes the live bar, with the measured drop-lowest-field-first rule.</td>
+          <td>shell status, feed, risk</td><td>Low &mdash; every field already has a source</td></tr>
+        <tr><td>4 &middot; Act in place</td>
+          <td>Right-click menus generated from the command registry; the dock follows selection.</td>
+          <td>menu.ts, every desk, dock</td><td>Low each, wide &mdash; 27 modules gain one handler</td></tr>
+        <tr><td>5 &middot; Table primitive</td>
+          <td>Sort, filter, multi-select, saved views, TSV copy. Screener, watchlist and alerts adopt it.</td>
+          <td>new ui/table.ts, 3 desks</td><td>Medium &mdash; it becomes the shape of five desks</td></tr>
+        <tr><td>6 &middot; Undo + layouts</td>
+          <td>One application undo stack; named workspaces you can save and recall.</td>
+          <td>new core/history.ts, workspace</td><td>Low &mdash; the workspace model is already pure</td></tr>
+        <tr><td>7 &middot; Settings frame</td>
+          <td>The surface, schema, search, nav. Account &amp; Appearance sections live.</td>
+          <td>new settings/, chrome</td><td>Low &mdash; additive</td></tr>
+        <tr><td>8 &middot; Settings sections</td>
+          <td>The remaining ten. Scattered controls become links into Settings, not deletions.</td>
+          <td>data.ts, alerts.ts, agent.ts</td><td>Low &mdash; nothing is removed until its new home works</td></tr>
+        <tr><td>9 &middot; Setup card</td>
+          <td>Verdict, plan, size, gates, trust line. <b>Must follow step 8</b> &mdash; every gate reads a threshold step 8 defines.</td>
+          <td>new setup/, decision, sizing, dock</td><td><b>Highest judgement</b> &mdash; the guards are the feature</td></tr>
+        <tr><td>10 &middot; Keyboard</td>
+          <td>Rebinding, conflicts, presets, persisted keymap.</td>
+          <td>core/keys.ts, shortcuts.ts</td><td>Medium &mdash; key handling breaks quietly</td></tr>
+        <tr><td>11 &middot; Journal</td>
+          <td>Capture, store, the desk on the step-5 table, stats with sample-size guards.</td>
+          <td>new journal/, decision, paper</td><td>Medium &mdash; the stats must not overclaim</td></tr>
+        <tr><td>12 &middot; Risk merge</td>
+          <td>Calculator becomes a tab. One desk fewer.</td>
+          <td>risk.ts, calculator.ts, deskbar</td><td>Low by then &mdash; they already share state</td></tr>
+        <tr><td>13 &middot; First run + About</td>
+          <td>Onboarding, diagnostics, self-test, notification centre.</td>
+          <td>new onboard/, settings/</td><td>Low</td></tr>
+        <tr><td>14 &middot; Shell split</td>
+          <td>3,909 lines into four files. No behaviour change, no new tests needed to pass.</td>
+          <td>shell.ts</td><td>Highest mechanical &mdash; pure refactor, do it last</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>What I am deliberately not proposing</h3>
+    <p>A new visual language. The token layer, the five themes, the three densities and the
+      merged command bar are the product of measurements written down in the source — the 77%
+      of type on two size steps, the eleven desks that fell into a “More” menu at 1200px, the
+      font stack that resolved to plain Segoe UI on this machine. Replacing that with a fresh
+      look would throw away findings and buy nothing. <strong>Everything above reuses the existing
+      tokens exactly</strong> — all nine mockups are built from <code>tokens.css</code>, not from a
+      new palette.</p>
+    <p>Steps 2 to 6 are where I <em>am</em> proposing to change how the terminal is operated, and
+      none of it is a restyle. Two of those changes are subtractive — seven menus become one, and
+      a row of plumbing becomes a row of numbers. The other three add capability the terminal
+      simply does not have: a right-click handler where there is currently one in twenty-seven
+      modules, column sorting where there is currently none, and an undo stack that reaches past
+      the two drawing commands. No new colour, no new type size, no row grows taller, and nothing
+      reachable today stops being reachable.</p>
+  </div>
+</section>
+
+<footer>
+  <p><b>Nothing has been built.</b> This is a proposal against the current tree at
+    <code>C:\Users\syedm\Downloads\Projects</code>. The one measured claim in it — the duplicated
+    equity slot — is verifiable at <code>app/src/ui/risk.ts:68</code> and
+    <code>app/src/ui/calculator.ts:78</code>.</p>
+  <p>Fifteen phases is a lot to approve at once, so treat <b>Part II</b> as the answer to
+    “make it feel professional” and <b>Part III</b> as the answer to “it is missing things”.
+    They are independent — you can take either first.</p>
+  <p>Two things I want your call on before I start. <b>The Setup card</b> — I have built it in
+    this plan with the PBO figure and the record fixed to its face, and STAND DOWN written so it
+    cannot be read as a direction. Tell me if that is enough, or if you would rather it did not
+    exist. And <b>the order</b> — steps 2 and 3 are the ones you would see tomorrow; step 1 is the
+    one that is currently wrong. I would still do step 1 first, but say the word and the chrome
+    goes first instead.</p>
+</footer>
+
+</div>
+</body></html>

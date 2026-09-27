@@ -1,0 +1,88 @@
+/* The "Price alerts" inspector card (ui/cards/alertscard.ts).
+   Every class is prefixed `alc-`. The Add button is a `.ghost-btn`, so its
+   press feedback and transition come from components.css / press.css and are
+   NOT restated here — `transition` is a shorthand, and a partial one in a
+   late-loading file would subtract from theirs. Spacing is on each element as
+   a margin, never `+`/`~`: `.dock-body` reorders its children with `order`. */
+
+.alc { display: flex; flex-direction: column; gap: var(--sp-3); min-width: 0; }
+
+.alc-add {
+  display: grid;
+  grid-template-columns: max-content max-content minmax(0, 1fr) max-content max-content;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.alc-sym { font-size: var(--fs-2); font-weight: var(--fw-med); color: var(--text); }
+
+.alc-input,
+.alc-op {
+  height: var(--h-ctl-sm);
+  min-width: 0;
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  color: var(--text);
+  font-size: var(--fs-2);
+}
+.alc-input { width: 100%; font-variant-numeric: tabular-nums; }
+.alc-input::placeholder { color: var(--text-faint); }
+.alc-input:focus-visible,
+.alc-op:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.alc-dist { font-size: var(--fs-1); color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 6ch; text-align: right; }
+
+/* The inline refusal. Empty text collapses it. */
+.alc-msg { margin: 0; font-size: var(--fs-1); color: var(--attn); }
+.alc-msg:empty { display: none; }
+
+.alc-groups { display: flex; flex-direction: column; gap: var(--sp-4); }
+.alc-rows { display: flex; flex-direction: column; }
+
+.alc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  min-height: var(--h-ctl-xs);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.alc-row[data-current="true"] { color: var(--text); }
+.alc-row-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.alc-row-sym { font-weight: var(--fw-med); }
+.alc-row-tail { color: var(--text-faint); }
+
+/* Fired: history, not a to-do — quieter than anything still waiting. */
+.alc-fired-head {
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.alc-fired .alc-row,
+.alc-fired .alc-row[data-current="true"] { color: var(--text-faint); }
+
+.alc-x {
+  flex: none;
+  width: var(--h-ctl-xs);
+  height: var(--h-ctl-xs);
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--fs-3);
+  line-height: 1;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .alc-x:hover { color: var(--text); background: var(--surface-hover); } }
+.alc-x:focus-visible { outline: none; box-shadow: var(--ring); }
+.alc-x:active { transform: translateY(0.5px) scale(0.985); }
+.alc-x:disabled { opacity: 0.4; cursor: default; }
+
+.alc-note { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }

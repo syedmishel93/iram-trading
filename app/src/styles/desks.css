@@ -1,0 +1,2656 @@
+/* ===========================================================================
+   DESK PRIMITIVES
+   ---------------------------------------------------------------------------
+   Every desk that is not the chart shares one skeleton: a header, then a grid
+   of cards. Written once here so a new desk is a list of cards rather than a
+   new layout, and so the desks cannot drift apart visually the way v39's did.
+
+   The grid is `auto-fill` on a min width rather than a breakpoint ladder. One
+   rule covers the dock being dragged wider, the window being resized and the
+   focus modes collapsing tracks — all of which change the available width
+   without any media query firing.
+   ========================================================================= */
+
+.view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--sp-6);
+}
+
+.view-head { flex: none; }
+
+.view-title {
+  margin: 0;
+  font-size: var(--fs-6);
+  font-weight: var(--fw-med);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.view-sub {
+  margin: var(--sp-2) 0 0;
+  max-width: 68ch;
+  font-size: var(--fs-3);
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.view-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: var(--sp-5);
+  align-items: start;
+}
+
+/* A card that spans the full width whatever the column count. */
+.view-grid > .span-all { grid-column: 1 / -1; }
+
+/* --- panel head/body -------------------------------------------------- */
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.panel-title {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  letter-spacing: var(--track-micro);
+  color: var(--text-muted);
+}
+
+/* Pushes trailing controls to the right without a spacer element. */
+.panel-head > :first-child { margin-right: auto; }
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.muted { color: var(--text-muted); }
+.small { font-size: var(--fs-2); line-height: 1.5; }
+.muted.small { margin: 0; }
+
+/* --- form fields ------------------------------------------------------- */
+
+.field { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+
+.field-label {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+
+.field-input {
+  height: 28px;
+  min-width: 0;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-3);
+}
+.field-input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.field-input.num { font-variant-numeric: tabular-nums; }
+
+.field-hint { font-size: var(--fs-1); color: var(--text-faint); }
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-3);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.check input { accent-color: var(--accent); }
+
+.form-error {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--neg);
+}
+.form-error[data-show="false"] { display: none; }
+/* Generic: any element that reports its own visibility. */
+.small[data-show="false"] { display: none; }
+
+.primary-btn {
+  height: var(--h-ctl);
+  padding: 0 var(--sp-6);
+  border-radius: var(--r-2);
+  border: 1px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent);
+  font-size: var(--fs-3);
+  font-weight: var(--fw-med);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .primary-btn:hover { background: color-mix(in srgb, var(--accent) 30%, transparent); } }
+
+.ghost-btn.tiny { height: var(--h-ctl-xs); padding: 0 var(--sp-3); font-size: var(--fs-1); }
+
+[data-hidden="true"] { display: none; }
+
+/* ===========================================================================
+   SIGNALS DESK
+   ========================================================================= */
+
+.alert-form-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--sp-5);
+  align-items: end;
+}
+.alert-form-row .field-input { width: 72px; }
+
+.alert-form-actions { display: flex; justify-content: flex-end; }
+
+.alert-delivery { gap: var(--sp-3); }
+
+.alert-list, .alert-log { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.alert-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+
+/* An orphaned alert is the one state that must catch the eye: it looks armed
+   in every other respect and is silently doing nothing.                     */
+.alert-row[data-status="orphaned"] { border-color: color-mix(in srgb, var(--attn) 50%, var(--border)); }
+.alert-row[data-status="off"] { opacity: 0.55; }
+
+.alert-row-main { flex: 1; min-width: 0; }
+.alert-row-title { font-size: var(--fs-3); color: var(--text); }
+.alert-row-sub {
+  margin-top: 1px;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+.alert-pill {
+  flex: none;
+  padding: 1px var(--sp-3);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  font-size: var(--fs-1);
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.alert-pill[data-status="armed"]    { color: var(--pos);   border-color: color-mix(in srgb, var(--pos) 45%, transparent); }
+.alert-pill[data-status="orphaned"] { color: var(--attn); border-color: color-mix(in srgb, var(--attn) 45%, transparent); }
+.alert-pill[data-status="done"]     { color: var(--alt);  border-color: color-mix(in srgb, var(--alt) 45%, transparent); }
+
+.alert-log-row {
+  display: grid;
+  grid-template-columns: 74px 1fr;
+  gap: var(--sp-4);
+  font-size: var(--fs-2);
+  line-height: 1.5;
+}
+.alert-log-time { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.alert-log-reason { color: var(--text-muted); overflow-wrap: anywhere; }
+
+/* The one-click path from a detected structure to an alert on it. */
+.det-item-alert {
+  margin-top: var(--sp-2);
+  height: 18px;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-1);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+  cursor: pointer;
+}
+@media (hover: hover) { .det-item-alert:hover { color: var(--accent); border-color: var(--accent); } }
+.det-item-alert[data-done="true"] { color: var(--pos); border-color: color-mix(in srgb, var(--pos) 45%, transparent); }
+
+/* ===========================================================================
+   STRATEGY DESK
+   ---------------------------------------------------------------------------
+   The verdict card is styled to outrank the equity curve. That is a deliberate
+   inversion of every other strategy tester: a fitted result gets traded when
+   the curve is the headline and the caveat is a footnote.
+   ========================================================================= */
+
+.cost-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: var(--sp-4);
+}
+
+.verdict-card { border-left: 3px solid var(--border); }
+.verdict-card[data-standing="survived"] { border-left-color: var(--pos); }
+.verdict-card[data-standing="fragile"]  { border-left-color: var(--attn); }
+.verdict-card[data-standing="unproven"] { border-left-color: var(--attn); }
+.verdict-card[data-standing="no-edge"]  { border-left-color: var(--neg); }
+.verdict-card[data-standing="refused"]  { border-left-color: var(--text-faint); }
+
+.verdict-line {
+  margin: 0;
+  font-size: var(--fs-6);
+  font-weight: var(--fw-med);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+.verdict-card[data-standing="survived"] .verdict-line { color: var(--pos); }
+.verdict-card[data-standing="no-edge"]  .verdict-line { color: var(--neg); }
+.verdict-card[data-standing="fragile"]  .verdict-line,
+.verdict-card[data-standing="unproven"] .verdict-line { color: var(--attn); }
+
+.verdict-why {
+  margin: var(--sp-3) 0 0;
+  max-width: 84ch;
+  font-size: var(--fs-3);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.equity-canvas {
+  display: block;
+  width: 100%;
+  height: 96px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--sp-2) var(--sp-5);
+}
+.metric { display: flex; justify-content: space-between; gap: var(--sp-4); font-size: var(--fs-2); }
+.metric-label { color: var(--text-muted); }
+.metric-value { color: var(--text); font-variant-numeric: tabular-nums; }
+
+.fold-table, .sweep-table { display: flex; flex-direction: column; gap: 1px; }
+
+.fold-row {
+  display: grid;
+  grid-template-columns: 32px 1fr 56px 56px 56px;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-2);
+  border-radius: var(--r-1);
+  color: var(--text-muted);
+}
+.fold-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.fold-head { color: var(--text-faint); font-size: var(--fs-1);letter-spacing: var(--track-micro); }
+.fold-row[data-held="true"]  { background: var(--pos-wash); }
+.fold-row[data-held="false"] { background: var(--neg-wash); }
+.fold-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.sweep-row {
+  display: grid;
+  grid-template-columns: minmax(140px, 2fr) 64px 72px 64px 72px;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-2);
+  border-radius: var(--r-1);
+  color: var(--text-muted);
+}
+.sweep-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.sweep-head { color: var(--text-faint); font-size: var(--fs-1);letter-spacing: var(--track-micro); }
+.sweep-row[data-best="true"] { background: var(--accent-wash); color: var(--text); }
+.sweep-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.pbo-bar {
+  position: relative;
+  height: 10px;
+  border-radius: var(--r-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.pbo-fill { height: 100%; width: 0; background: var(--pos); transition: width var(--dur-2, 160ms) var(--ease); }
+.pbo-fill[data-level="warn"] { background: var(--attn); }
+.pbo-fill[data-level="bad"]  { background: var(--neg); }
+/* The 0.5 line: past it, selection is a coin flip and the study proved nothing. */
+.pbo-mark { position: absolute; top: 0; bottom: 0; left: 50%; width: 1px; background: var(--text-faint); }
+
+.warn-list { display: flex; flex-direction: column; gap: var(--sp-2); }
+.warn-item {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-4);
+  border-left: 2px solid var(--attn);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+
+/* An uncomputed PBO bar must not read as a confident empty (good) bar. */
+.pbo-bar[data-computed="false"] {
+  background: repeating-linear-gradient(
+    135deg,
+    var(--surface) 0 4px,
+    var(--surface-inset) 4px 8px
+  );
+}
+
+/* Higher-timeframe toggles read as a distinct row from the detector toggles:
+   same question, different axis. */
+.htf-toggles { margin-top: var(--sp-2); }
+.htf-toggles .det-toggle { letter-spacing: 0.04em; }
+
+/* ===========================================================================
+   FLOW DESK — liquidation shelves
+   ========================================================================= */
+
+.liq-clusters { display: flex; flex-direction: column; gap: 1px; }
+
+.liq-cluster {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 64px 88px 36px;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-2);
+  border-radius: var(--r-1);
+  color: var(--text-muted);
+  isolation: isolate;
+}
+
+/* The bar IS the magnitude — a table of numbers hides which shelf dominates. */
+.liq-cluster-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  border-radius: var(--r-1);
+  opacity: 0.22;
+  background: var(--text-faint);
+}
+.liq-cluster[data-side="long"]  .liq-cluster-bar { background: var(--neg); }
+.liq-cluster[data-side="short"] .liq-cluster-bar { background: var(--pos); }
+
+.liq-cluster-px { color: var(--text); font-variant-numeric: tabular-nums; }
+.liq-cluster-side, .liq-cluster-val, .liq-cluster-n { text-align: right; font-variant-numeric: tabular-nums; }
+.liq-cluster[data-side="long"]  .liq-cluster-side { color: var(--neg); }
+.liq-cluster[data-side="short"] .liq-cluster-side { color: var(--pos); }
+
+/* ===========================================================================
+   REGIME & MODEL PANEL
+   ========================================================================= */
+
+.intel-block { display: flex; flex-direction: column; gap: var(--sp-2); }
+.intel-block + .intel-block { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--border); }
+
+.intel-head { display: flex; align-items: baseline; gap: var(--sp-3); }
+.intel-state { font-size: var(--fs-4); color: var(--text); }
+.intel-conf { margin-left: auto; font-size: var(--fs-2); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+/* An unusable forecast must not read like a confident one. */
+.intel-head[data-usable="false"] .intel-state { color: var(--text-faint); text-decoration: line-through; }
+.intel-head[data-usable="true"]  .intel-state { color: var(--accent); }
+
+.intel-bar-row {
+  display: grid;
+  grid-template-columns: 96px 1fr 24px;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.intel-bar-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.intel-bar { height: 4px; border-radius: var(--r-full); background: var(--border); position: relative; }
+.intel-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w, 0%);
+  border-radius: inherit;
+  background: var(--accent);
+}
+.intel-bar-n { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* ===========================================================================
+   REPLAY BAR
+   ---------------------------------------------------------------------------
+   Visible only in replay, and unmistakable while it is. A mode you can forget
+   you are in is one that eventually has you reading a two-week-old alert as
+   though it were live.
+   ========================================================================= */
+
+.replay-bar {
+  position: absolute;
+  left: var(--sp-5);
+  right: var(--sp-5);
+  bottom: var(--sp-5);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--attn);
+  border-radius: var(--r-3);
+  background: var(--surface-overlay, var(--surface));
+  backdrop-filter: blur(8px);
+}
+.replay-bar[data-on="false"] { display: none; }
+
+.replay-tag {
+  flex: none;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-med);
+  letter-spacing: 0.12em;
+  color: var(--attn);
+}
+
+.replay-scrub { flex: 1; min-width: 60px; accent-color: var(--attn); }
+
+.replay-pos {
+  flex: none;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Replay owns the bottom strip while it is on. */
+.chart-wrap[data-replay="true"] .chart-actions { display: none; }
+/* Clear of the time axis, so the dates you are stepping through stay readable. */
+.replay-bar { bottom: 34px; }
+
+/* A command you are meant to type: monospace, selectable, no chrome. */
+.code-line {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font-size: var(--fs-2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+/* ===========================================================================
+   CONTEXT PANEL — seasonality and the calendar
+   ========================================================================= */
+
+.season-grid { display: flex; flex-direction: column; gap: 1px; }
+
+.season-row {
+  display: grid;
+  grid-template-columns: 40px 1fr 58px;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+/* A bucket with too few samples is shown but never drawn as a finding. */
+.season-row[data-thin="true"] { opacity: 0.45; }
+.season-row[data-thin="true"] .season-bar::after { background: var(--text-faint); }
+
+.season-label { font-variant-numeric: tabular-nums; }
+.season-bar { position: relative; height: 4px; border-radius: var(--r-full); background: var(--border); }
+.season-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w, 0%);
+  border-radius: inherit;
+}
+.season-row[data-dir="up"]   .season-bar::after { background: var(--pos); }
+.season-row[data-dir="down"] .season-bar::after { background: var(--neg); }
+.season-val { text-align: right; font-variant-numeric: tabular-nums; }
+
+.cal-block { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* time | currency | title | forecast-vs-previous | trust.
+   The title takes the slack; every other column is fixed so the numbers line
+   up down the list and can be scanned without reading. */
+.cal-row {
+  display: grid;
+  grid-template-columns: 82px 34px 1fr auto 10px;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+  padding: 2px 0;
+}
+.cal-when { color: var(--attn); font-variant-numeric: tabular-nums; }
+.cal-ccy {
+  font-size: var(--fs-0);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.cal-what { color: var(--text); overflow-wrap: anywhere; }
+.cal-fig { color: var(--text-muted); font-variant-numeric: tabular-nums; font-size: var(--fs-0); }
+
+/* Impact colours the CURRENCY chip, not the row. A full-row tint on a list of
+   fifteen high-impact events is a wall of red that stops meaning anything. */
+.cal-row[data-impact="high"] .cal-ccy { color: var(--neg); }
+.cal-row[data-impact="medium"] .cal-ccy { color: var(--attn); }
+
+/* How well cross-checked this row is. A dot, because it qualifies the row
+   rather than being one of its facts — the tooltip carries the sentence. */
+.trust-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-hi);
+  justify-self: end;
+}
+.trust-dot[data-trust="confirmed"] { background: var(--pos); }
+.trust-dot[data-trust="consistent"] { background: var(--accent); }
+.trust-dot[data-trust="single"] { background: var(--text-muted); }
+.trust-dot[data-trust="disputed"] {
+  background: var(--attn);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--attn) 25%, transparent);
+}
+.trust-dot[data-trust="stale"] { background: transparent; border: 1px solid var(--border-hi); }
+
+/* The imminent-release banner. Leads the panel because it is the one fact that
+   changes what the rest of the desk is worth. */
+.cal-lede:empty { display: none; }
+.cal-alarm {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  overflow: hidden;
+  margin-bottom: var(--sp-2);
+}
+/* The bar is the DISCOUNT, drawn behind the text: how much of the confidence
+   in any structural read this release is currently eating. */
+.cal-alarm-bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: color-mix(in oklab, var(--attn) 18%, transparent);
+  pointer-events: none;
+}
+.cal-alarm[data-impact="high"] .cal-alarm-bar {
+  background: color-mix(in oklab, var(--neg) 18%, transparent);
+}
+.cal-alarm-text { position: relative; font-size: var(--fs-1); color: var(--text); }
+
+/* -------------------------------------------------------------- news --- */
+.news-wrap { display: flex; flex-direction: column; gap: var(--sp-2); }
+.news-block { display: flex; flex-direction: column; gap: var(--sp-2); }
+.news-row {
+  display: grid;
+  grid-template-columns: 82px 1fr auto;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+}
+.news-when { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.news-what { color: var(--text); overflow-wrap: anywhere; }
+.news-src { font-size: var(--fs-0); color: var(--text-muted); white-space: nowrap; }
+/* Corroborated across venues: rare, and the whole reason the panel clusters. */
+.news-row[data-trust="confirmed"] .news-src { color: var(--pos); font-weight: 600; }
+.news-row[data-trust="stale"] { opacity: 0.55; }
+
+/* ---------------------------------------------------------------------------
+   Correlation list on the screener.
+
+   FOUR CHANNELS, FOUR FACTS, NEVER CROSSED - the same split `viz/render.ts`
+   `edgeStyle` draws the cross-asset web with. LENGTH is magnitude, COLOUR is
+   direction, DASH and ALPHA are confidence, and the spread column carries the
+   confidence figure itself. A pair that reversed inside the window comes back
+   with an `r` near zero, so it draws a SHORT bar reading "these two are
+   unrelated" - the most misleading row on the block is the one with the least
+   ink on it, and the dash is what stops it passing for a settled measurement.
+
+   The fourth track was added with the spread column: a grid does not complain
+   about an extra child, it wraps it onto a new line and the result looks like
+   a design.
+   --------------------------------------------------------------------------- */
+.corr-list { display: flex; flex-direction: column; gap: 1px; }
+.corr-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 1fr 44px 48px;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.corr-head { color: var(--text-faint); font-size: var(--fs-0); }
+.corr-pair { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.corr-bar { position: relative; height: 4px; border-radius: var(--r-full); background: var(--border); }
+.corr-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--w, 0%);
+  border-radius: inherit;
+  background: var(--corr-ink, var(--border));
+}
+/* COLOUR IS DIRECTION. Set as a variable on the row so the confidence rules
+   below can stripe the same ink rather than choosing a second colour. */
+.corr-row[data-sign="pos"] { --corr-ink: var(--accent); }
+.corr-row[data-sign="neg"] { --corr-ink: var(--alt); }
+/* DASH AND ALPHA ARE CONFIDENCE, and never width: a strong pair that reversed
+   is still a strong pair. Measured, not settled - a wide dash. */
+.corr-row[data-settled="no"] .corr-bar::after {
+  background: repeating-linear-gradient(90deg, var(--corr-ink) 0 4px, transparent 4px 7px);
+  opacity: 0.6;
+}
+/* Never asked - the overlap was too short to slice. A different fact from a
+   measured reversal, so a different mark: a fine dot rule, dimmer still. */
+.corr-row[data-settled="unknown"] .corr-bar::after {
+  background: repeating-linear-gradient(90deg, var(--corr-ink) 0 1.5px, transparent 1.5px 4px);
+  opacity: 0.42;
+}
+.corr-val { text-align: right; font-variant-numeric: tabular-nums; }
+.corr-spread {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+}
+/* The spread is the whole point on an unsettled row, so it stops deferring. */
+.corr-row[data-settled="no"] .corr-spread { color: var(--text); }
+
+/* ===========================================================================
+   DATA DESK — storage, request budget, cache, sync, backup.
+   ---------------------------------------------------------------------------
+   One column of panels rather than the shared card grid: every section here is
+   a table or a form, and both need width. Squeezing a per-series inventory into
+   a 320px card would make the one number that matters — the size — the first
+   thing to be truncated.
+   ========================================================================= */
+
+.dd {
+  /* `.view-slot` is `display: grid; place-items: center`, which sizes its item
+     to MAX-CONTENT and centres it — right for the small centred placeholder it
+     was written for, wrong for a full-width desk, and the reason this desk was
+     606px wide inside a 511px slot. Stretching to the grid area is the fix;
+     `min-width: 0` then stops the item's min-content floor re-inflating it.  */
+  justify-self: stretch;
+  align-self: stretch;
+  width: 100%;
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow-y: auto;
+  /* The desk itself never scrolls sideways. Wide content scrolls INSIDE its
+     own container (below) — a page that pans horizontally loses the left-hand
+     column, which here is the symbol: the one thing every row is identified by. */
+  overflow-x: hidden;
+  padding: var(--sp-6);
+}
+
+/* v61.5: the pane material. The 1px border is gone — see `.pane` in
+   components.css for why an outline on every element is what made these
+   desks read as a wireframe. */
+.dd-panel {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: var(--sp-4);
+  padding: var(--sp-6);
+  background: var(--pane-bg);
+  border-radius: var(--r-card);
+  box-shadow: var(--pane-shadow);
+}
+
+/*
+  THE SECTION SWITCHER.
+
+  Seven panels down one column put "what do I hold" and "is Binance
+  rate-limiting me" on the same scroll. Three sections, `.seg-btn` because that
+  is what every other in-desk switcher in this terminal is, so it needs no
+  learning.
+*/
+.dd-sections {
+  display: flex;
+  gap: var(--sp-1);
+  align-self: flex-start;
+  padding: var(--sp-1);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-2);
+}
+.dd-sections .seg-btn { height: var(--h-ctl-sm); padding: 0 var(--sp-4); }
+.dd-group { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.dd-group[hidden] { display: none; }
+
+/*
+  ONE SHORT LINE PER PANEL, at full ink, with the reasoning behind a `pkWhy`.
+
+  Every panel on this desk opened with a four-line `.dd-sub` paragraph at
+  `--text-muted`, which is the house rule stated in CLAUDE.md being broken six
+  times in one file. The lede is a sentence somebody reads once; it is not
+  quieter than the data below it, it is SHORTER.
+*/
+.dd-lede { margin: 0; max-width: 72ch; color: var(--text); font-size: var(--fs-2); }
+.dd-panel > .panel-title + .dd-lede { margin-top: calc(var(--sp-1) * -1); }
+.dd-sub { margin: 0; max-width: 88ch; color: var(--text-muted); font-size: var(--fs-2); }
+.dd-note {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  /* A project URL or a host name is one unbreakable token; without this it
+     sets the minimum width of the whole desk. */
+  overflow-wrap: anywhere;
+}
+.dd-host-name, .dd-sym, .dd-range { overflow-wrap: anywhere; }
+.dd-empty { margin: 0; padding: var(--sp-4) 0; color: var(--text-faint); font-size: var(--fs-2); }
+
+.dd-message {
+  margin: 0;
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-2);
+  background: var(--accent-wash);
+  border: 1px solid transparent;
+  color: var(--text);
+  font-size: var(--fs-2);
+}
+
+/* --- headline numbers */
+/*
+  `auto-fit` WITH `1fr` SPENDS EVERY AVAILABLE PIXEL, whether or not there is
+  anything to put in it. MEASURED on a 1825px desk: four cells of 420px each,
+  one of them holding the character "3". The cap is the same measure the
+  library's rows use, so the panel reads as one column of blocks instead of a
+  strip that stretches and a table that does not.
+*/
+.dd-stats {
+  min-width: 0;
+  max-width: 1000px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-4);
+}
+.dd-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+}
+.dd-stat-v { font-size: var(--fs-5); font-weight: var(--fw-semi); color: var(--text); }
+
+.dd-actions { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+
+/* --- the per-series inventory.
+       The table has a real minimum width — a size column squeezed to three
+       characters is not a smaller table, it is an unreadable one — so it gets
+       its own scroller rather than widening the desk.                         */
+.dd-table {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  /* Without this the flex default `min-width: auto` resolves to the row's
+     620px min-content, so the scroller refuses to shrink and pushes the whole
+     desk wide instead of scrolling inside itself. `overflow-x: auto` alone does
+     nothing on a flex item; this is the half everybody forgets.              */
+  min-width: 0;
+}
+.dd-row {
+  display: grid;
+  grid-template-columns: minmax(170px, 2fr) 70px 160px 76px minmax(110px, 1fr);
+  min-width: 620px;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.dd-head {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  border-bottom-color: var(--border);
+}
+/* A pinned series is not a decoration: it is the one the sweep cannot touch. */
+.dd-row[data-pinned="true"] { background: var(--accent-wash); }
+.dd-sym { display: flex; align-items: center; gap: var(--sp-3); min-width: 0; }
+.dd-sym strong { color: var(--text); font-weight: var(--fw-semi); }
+.dd-tf { color: var(--accent); font-size: var(--fs-1); }
+.dd-src { color: var(--text-faint); font-size: var(--fs-1); }
+.dd-range { font-size: var(--fs-1); color: var(--text-faint); }
+.dd-policy { font-size: var(--fs-1); }
+
+/* --- the retention policy table */
+.dd-policy-grid { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+.dd-policy-row {
+  display: grid;
+  grid-template-columns: 48px 84px minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: baseline;
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.dd-keep { color: var(--text); font-weight: var(--fw-semi); }
+.dd-why { font-size: var(--fs-1); color: var(--text-faint); }
+
+/* --- the deletion preview. Deliberately loud: this is the destructive one. */
+.dd-plan { display: flex; flex-direction: column; gap: var(--sp-3); }
+.dd-plan:empty { display: none; }
+.dd-plan-summary {
+  margin: 0;
+  padding: var(--sp-4);
+  border-left: 3px solid var(--attn);
+  background: var(--attn-wash);
+  font-size: var(--fs-3);
+  color: var(--text);
+}
+.dd-plan-list { display: flex; flex-direction: column; overflow-x: auto; min-width: 0; }
+.dd-plan-row {
+  display: grid;
+  grid-template-columns: 56px minmax(110px, 1fr) 170px 2fr;
+  min-width: 580px;
+  gap: var(--sp-4);
+  align-items: baseline;
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-2);
+}
+.dd-plan-kind {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
+}
+.dd-plan-row[data-kind="drop"] .dd-plan-kind { color: var(--neg); }
+.dd-plan-row[data-kind="trim"] .dd-plan-kind { color: var(--attn); }
+.dd-plan-sym { color: var(--text); font-weight: var(--fw-semi); }
+.dd-plan-why { font-size: var(--fs-1); color: var(--text-faint); }
+
+/* --- request budget */
+/*
+  A HOST IS A ROW, NOT A CARD.
+
+  Three lines and a 1700px progress bar, five times over, for a budget that is
+  full in every normal state: that is a debug console, and this desk's own rule
+  says a status strip is not one. The bar survives at 72px beside the numbers,
+  because "how much of my budget is left" is genuinely a proportion and a bar
+  is the cheapest way to read one.
+*/
+.dd-hosts { display: flex; flex-direction: column; min-width: 0; max-width: 1000px; }
+.dd-host {
+  display: grid;
+  grid-template-columns: minmax(150px, 1.4fr) minmax(90px, 1fr) 72px 52px 64px 36px;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 560px;
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-1);
+}
+.dd-host[data-parked="true"] { background: var(--neg-wash); }
+.dd-host-name { font-size: var(--fs-2); color: var(--text); }
+.dd-host-label { color: var(--text-faint); }
+.dd-host-bar {
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--border);
+  overflow: hidden;
+}
+.dd-host-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--dur-2) var(--ease);
+}
+.dd-host-rate { color: var(--text-muted); text-align: right; }
+/* The only state short of a ban that means something went wrong. Colour follows
+   the STANDING, not the number — a rate is not high or low, it is reduced. */
+.dd-host-rate[data-reduced="true"] { color: var(--attn); }
+.dd-host-req { color: var(--text-faint); text-align: right; }
+.dd-host-ok { color: var(--pos); text-align: right; }
+.dd-host-why { margin: 0 0 var(--sp-3); padding: 0 var(--sp-2); font-size: var(--fs-1); color: var(--neg); }
+.dd-host-foot { margin: var(--sp-3) 0 0; padding: 0 var(--sp-2); font-size: var(--fs-1); color: var(--text-faint); }
+
+/* --- sync */
+.dd-fields { display: flex; flex-direction: column; gap: var(--sp-4); }
+.dd-fields:empty { display: none; }
+.dd-field { display: flex; flex-direction: column; gap: var(--sp-2); flex: 1; }
+.dd-field-row { display: flex; gap: var(--sp-3); align-items: flex-end; }
+.dd-input {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  color: var(--text);
+  width: 100%;
+}
+.dd-input:focus-visible { border-color: var(--accent); }
+.dd-select {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.dd-warn {
+  margin: 0;
+  padding: var(--sp-4);
+  background: var(--attn-wash);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.dd-problem { margin: 0; font-size: var(--fs-2); color: var(--neg); }
+.dd-ok { margin: 0; font-size: var(--fs-2); color: var(--pos); }
+.dd-sync-result { display: flex; flex-direction: column; gap: var(--sp-3); }
+.dd-conflict {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--attn-wash);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+}
+
+/* --- backup */
+.dd-import { display: flex; flex-direction: column; gap: var(--sp-3); }
+.dd-import:empty { display: none; }
+.dd-file { display: inline-flex; align-items: center; }
+
+/* --- buttons. The desk reuses the app's existing `primary-btn` / `ghost-btn`
+       vocabulary rather than inventing a third; the one addition is the danger
+       variant, which is the only red button in the terminal and is used for
+       exactly one control: deleting stored history.                          */
+.dd .primary-btn,
+.dd .ghost-btn { height: var(--h-ctl); padding: 0 var(--sp-5); }
+
+/* Five `!important` declarations lived here, in a sheet whose own header says
+   it never uses them. They were doing the job of specificity: the button also
+   carries `primary-btn`, whose rule is `.primary-btn` at (0,1,0), so a bare
+   `.dd-danger` at (0,1,0) lost on source order alone. Chaining the two
+   selectors wins at (0,2,0) and needs no override at all — and unlike
+   `!important` it can itself be overridden later by anything more specific,
+   which is the property that keeps a stylesheet editable. */
+.primary-btn.dd-danger {
+  background: var(--neg-wash);
+  border: 1px solid var(--neg);
+  color: var(--neg);
+  font-weight: var(--fw-semi);
+}
+@media (hover: hover) { .primary-btn.dd-danger:hover { background: var(--neg); color: var(--text-on-accent); } }
+
+/* --- SORTABLE HEADER + FILTER ROW ------------------------------------------
+   The screener's own grid is kept; only the header cells become buttons and a
+   filter row is inserted beneath them. See ui/table.ts.                      */
+.scr-hcell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: var(--text-faint);
+  cursor: pointer;
+  min-width: 0;
+}
+.scr-hcell[data-align="right"] { justify-content: flex-end; }
+@media (hover: hover) { .scr-hcell:hover { color: var(--text); } }
+.scr-hcell[data-sorted="asc"], .scr-hcell[data-sorted="desc"] { color: var(--accent); }
+.tbl-arrow { font-size: 8px; }
+.tbl-rank {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  padding: 0 3px;
+  border-radius: var(--r-1);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+
+.scr-filters { background: var(--surface-sunk); }
+.tbl-finput {
+  min-width: 0;
+  width: 100%;
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+}
+.tbl-finput::placeholder { color: var(--text-faint); }
+.tbl-finput[data-set="true"] { border-color: var(--accent); color: var(--text); }
+.tbl-finput:focus-visible { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+
+/* --- SAVED VIEWS + SELECTION + BULK BAR ------------------------------------ */
+.scr-views {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: var(--sp-4) 0 var(--sp-3);
+}
+.scr-view {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+.scr-view[data-on="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+.scr-view-name {
+  background: none;
+  border: 0;
+  padding: 5px var(--sp-4);
+  font: inherit;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.scr-view[data-on="true"] .scr-view-name { color: var(--text); font-weight: var(--fw-med); }
+.scr-view-x {
+  background: none;
+  border: 0;
+  padding: 5px var(--sp-3) 5px 0;
+  color: var(--text-faint);
+  font-size: 10px;
+  cursor: pointer;
+}
+@media (hover: hover) { .scr-view-x:hover { color: var(--neg); } }
+.scr-view-add {
+  background: none;
+  border: 1px dashed var(--border-hi);
+  border-radius: var(--r-2);
+  padding: 5px var(--sp-4);
+  font-size: var(--fs-2);
+  color: var(--text-faint);
+  cursor: pointer;
+}
+@media (hover: hover) { .scr-view-add:hover:not(:disabled) { color: var(--accent); border-color: var(--accent); } }
+.scr-view-add:disabled { opacity: 0.45; cursor: default; }
+
+/* Selection reads as a band across the whole row, not a tint on one cell. */
+.scr-row[data-selected="true"] {
+  background: var(--accent-wash);
+  box-shadow: inset 2px 0 0 0 var(--accent);
+}
+
+.scr-bulk {
+  display: none;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-3);
+  background: var(--accent-wash);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 38%, transparent);
+  font-size: var(--fs-2);
+}
+.scr-bulk[data-on="true"] { display: flex; }
+.scr-bulk-count { font-weight: var(--fw-semi); color: var(--text); }
+.scr-bulk-hint { margin-left: auto; color: var(--text-muted); font-size: var(--fs-1); }
+.scr-bulk .ghost-btn[data-show="false"] { display: none; }
+
+/* --- backend status, on the Data desk.
+       Three states, three weights. `mute` is the one that matters: running with
+       no Python at all is a supported way to use this terminal, so the normal
+       absence of a backend must not be painted like a fault — an indicator that
+       is always red is an indicator nobody reads on the day it turns amber. */
+.dd-badge {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+.dd-badge-good { background: var(--pos-wash); color: var(--pos); }
+.dd-badge-warn { background: var(--attn-wash); color: var(--attn); }
+.dd-badge-mute { background: var(--surface-inset); color: var(--text-faint); }
+
+.dd-svc-ok   { font-size: var(--fs-1); color: var(--text-muted); line-height: 1.4; }
+.dd-svc-down { font-size: var(--fs-1); color: var(--attn); line-height: 1.4; }
+
+/* --- condition survey ------------------------------------------------------
+
+   The cross-market survey (`ui/survey.ts`). The one rule the styling has to
+   enforce: COLOUR FOLLOWS THE STANDING, NEVER THE NUMBER. A survey is a sorted
+   table of seventy-eight cells, and sorting produces a big number at the top on
+   data with no edge in it whatsoever — so a large pooled R in a cell that did
+   not earn a standing stays grey, and only `data-standing="holds"` is allowed to
+   read as good. Painting the return would make every run look like a discovery.
+   ------------------------------------------------------------------------- */
+
+/* Belt and braces. `.panel` sets no `display`, so the UA `[hidden]` rule works
+   today — but the dock learned the hard way that any author `display` silently
+   beats it, and these cards are hidden until a survey has run. */
+.view-survey .panel[hidden] { display: none; }
+
+.survey-picker {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--sp-2) var(--sp-4);
+  margin: var(--sp-4) 0;
+}
+
+.survey-pick {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  font-size: var(--fs-2);
+  color: var(--text);
+  cursor: pointer;
+}
+.survey-pick-name { flex: 1; }
+.survey-pick-bloc {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  letter-spacing: var(--track-micro);
+}
+
+/* The panel caveat sits ABOVE the run button, not under the results, because it
+   is about the selection and can be acted on before spending a minute fetching. */
+.survey-caveat {
+  margin: 0 0 var(--sp-4);
+  color: var(--attn);
+  max-width: 84ch;
+  line-height: 1.55;
+}
+.survey-caveat:empty { display: none; }
+
+/* --- what loaded --- */
+
+.survey-loads { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.survey-load {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 5.5em 2fr;
+  gap: var(--sp-3);
+  align-items: baseline;
+  font-size: var(--fs-2);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.survey-load:last-child { border-bottom: 0; }
+.survey-load-name { color: var(--text); }
+.survey-load-bars { color: var(--text-muted); }
+.survey-load-note { color: var(--text-faint); font-size: var(--fs-1); }
+
+.survey-load[data-state="ok"]      .survey-load-name { border-left: 2px solid var(--pos); padding-left: var(--sp-3); }
+.survey-load[data-state="short"]   .survey-load-name { border-left: 2px solid var(--attn); padding-left: var(--sp-3); }
+.survey-load[data-state="failed"]  .survey-load-name { border-left: 2px solid var(--neg); padding-left: var(--sp-3); }
+.survey-load[data-state="loading"] .survey-load-name,
+.survey-load[data-state="waiting"] .survey-load-name { border-left: 2px solid var(--border); padding-left: var(--sp-3); }
+/* Downloaded, then refused by the survey — coverage, demo data, a mismatched
+   timeframe. Distinct from "failed": the bars arrived and were not used, and the
+   report must not show it as a contributor when the headline does not count it. */
+.survey-load[data-state="refused"] .survey-load-name { border-left: 2px solid var(--attn); padding-left: var(--sp-3); }
+.survey-load[data-state="refused"] .survey-load-bars { text-decoration: line-through; opacity: 0.6; }
+.survey-load[data-state="refused"] .survey-load-note { color: var(--attn); }
+
+.survey-load[data-state="failed"]  .survey-load-note { color: var(--neg); }
+
+/* --- tabs (condition, and style/rule) --- */
+
+.survey-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.survey-tab {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: var(--r-1);
+  padding: var(--sp-2) var(--sp-4);
+  font: inherit;
+  font-size: var(--fs-2);
+  cursor: pointer;
+}
+@media (hover: hover) { .survey-tab:hover { color: var(--text); border-color: var(--border-hi); } }
+.survey-tab[data-on="true"] {
+  background: var(--accent-wash);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+/* --- the cell table --- */
+
+.survey-table { display: flex; flex-direction: column; gap: 1px; }
+
+.survey-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 2fr) 6.5em 4.5em 5em 5em 4em 4em;
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: var(--sp-2) var(--sp-3);
+  font-size: var(--fs-2);
+  border-radius: var(--r-1);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.survey-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+.survey-cell-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.survey-head {
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  cursor: default;
+}
+.survey-head .num { text-align: right; }
+
+.survey-standing { font-size: var(--fs-1); text-transform: uppercase; letter-spacing: 0.04em; }
+
+/* THE COLOUR RULE. Standing only. */
+.survey-row[data-standing="holds"] {
+  background: color-mix(in srgb, var(--pos) 10%, transparent);
+  color: var(--text);
+}
+.survey-row[data-standing="holds"] .survey-standing,
+.survey-row[data-standing="holds"] .survey-r { color: var(--pos); }
+
+.survey-row[data-standing="mixed"] .survey-standing,
+.survey-row[data-standing="one-market"] .survey-standing { color: var(--attn); }
+
+.survey-row[data-standing="no-edge"] .survey-standing { color: var(--text-faint); }
+
+/* "Not measured" is not "measured and flat", and it must not look like it. */
+.survey-row[data-standing="thin"] { color: var(--text-faint); }
+.survey-row[data-standing="thin"] .survey-standing { color: var(--text-faint); font-style: italic; }
+
+/* --- per-market breakdown --- */
+
+.survey-legs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-4);
+}
+.survey-legs:empty { display: none; }
+
+.survey-legs-why {
+  margin: 0 0 var(--sp-3);
+  max-width: 84ch;
+  font-size: var(--fs-2);
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.survey-leg {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) 7em 4.5em 5em 1.2fr;
+  gap: var(--sp-3);
+  align-items: baseline;
+  font-size: var(--fs-1);
+  padding: var(--sp-1) var(--sp-3);
+  border-bottom: 1px solid var(--border-hair);
+}
+.survey-leg:last-child { border-bottom: 0; }
+.survey-leg .num { text-align: right; font-variant-numeric: tabular-nums; }
+.survey-leg-name { color: var(--text); }
+.survey-leg-bloc { color: var(--text-faint);font-size: var(--fs-1); }
+
+/* A market whose sample is too small does not vote, and is dimmed to say so. */
+.survey-leg[data-qualifies="false"] { opacity: 0.55; }
+
+/* --- probability lattice ---------------------------------------------------
+   A bean machine whose balls are real trades. The layout puts the running
+   counters in a narrow rail beside the board, because the numbers are what a
+   reader checks and the animation is what makes them land.
+   ------------------------------------------------------------------------- */
+
+.lat-lede { margin: 0 0 var(--sp-4); max-width: 84ch; }
+
+.lat-grid {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: stretch;
+}
+
+.lat-rail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-right: var(--sp-4);
+  border-right: 1px solid var(--border-hair);
+}
+
+.lat-stat { display: flex; flex-direction: column; gap: 1px; }
+.lat-stat-k {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+.lat-stat-v {
+  font-size: var(--fs-4);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.lat-stat[data-tone="pos"] .lat-stat-v { color: var(--pos); }
+.lat-stat[data-tone="neg"] .lat-stat-v { color: var(--neg); }
+
+/* A fixed height: the board's proportions are part of what it says, and a card
+   that grew with the window would make the pegs drift apart from the bars. */
+.lat-canvas {
+  width: 100%;
+  height: 260px;
+  display: block;
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+}
+
+/* The caveat, attached to the picture rather than placed near it. */
+.lat-note {
+  margin: var(--sp-4) 0 0;
+  max-width: 84ch;
+  font-size: var(--fs-2);
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+  .lat-grid { grid-template-columns: minmax(0, 1fr); }
+  .lat-rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--sp-4);
+    padding: 0 0 var(--sp-3);
+    border-right: 0;
+    border-bottom: 1px solid var(--border-hair);
+  }
+}
+
+/* ===========================================================================
+   THE TWO INFRASTRUCTURE CARDS - `ui/data/archive.ts`, `ui/data/system.ts`
+   ---------------------------------------------------------------------------
+   Each answers ONE question, and leads with the answer:
+
+     Stored history       how much history can I backtest on?
+     Background services  is this machine working while I am away?
+
+   THEY ARE DELIBERATELY NOT THE SAME SHAPE. The first is an inventory - nouns
+   and quantities - so it leads with a figure and lists its evidence beneath.
+   The second is a liveness readout - verbs and time - so it reads as jobs
+   against a group spine, with no quantities to rank. The first version of both
+   was one `.dd-panel` with a heading and a flat table, which is the card kit
+   every dashboard ships and told the reader nothing about which was which.
+
+   THE HEADLINE USES THE TERMINAL'S OWN VOICE. `--font-serif` is already what
+   this product uses for what it says on its own account (`.td-title`,
+   `.bf-verdict-line`, `.av-empty`), and how much history you hold is that kind
+   of statement. Everything qualifying it drops to `--text-faint`, so HIERARCHY
+   IS CONTRAST rather than a second colour.
+
+   NO STATUS DOTS. A coloured dot beside a service name is what every dashboard
+   reaches for. `.bf-event` already set this file's idiom - a 2px left edge
+   carries the standing, because tinted bodies turn a card into a colour chart
+   - and reusing it makes these cards look like they belong here.
+   ========================================================================= */
+
+.ar-card, .svc-card { gap: var(--sp-5); }
+
+.ar-head-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.ar-title {
+  margin: 0;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text);
+}
+
+/* --- the answer ---------------------------------------------------------- */
+
+.ar-answer { display: flex; align-items: baseline; gap: var(--sp-4); flex-wrap: wrap; }
+.ar-figure {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-7);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ar-of { font-size: var(--fs-2); color: var(--text-faint); }
+
+/* --- the evidence -------------------------------------------------------- */
+
+/*
+  MEASURED at 1800px: the row was 1638px wide, with **844px holding
+  "BTCUSDT 1h"** and 603px holding "2026-08-13 to 2026-09-24". Two `fr` tracks
+  splitting 1,470px between four short strings.
+
+  v60.8 shipped this card and its own entry says it was NOT VERIFIED VISUALLY —
+  the preview pane was 379px tall for that whole pass, so the design was checked
+  by computed style and geometry and never by looking at it. This is that debt.
+
+  The cap is arithmetic: 84 + 72 fixed, three `--sp-5` gaps, and the two
+  flexible tracks need about 270 and 190 for a symbol and a date range. 680.
+*/
+.ar-rows {
+  display: flex;
+  flex-direction: column;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  min-width: 0;
+  max-width: 680px;
+}
+.ar-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1.4fr) 84px minmax(150px, 1fr) 72px;
+  align-items: baseline;
+  gap: var(--sp-5);
+  min-width: 460px;
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hair);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+/* The subject of the row, and the only thing at full ink. */
+.ar-sym { font-family: var(--font-ui); font-weight: var(--fw-semi); color: var(--text); }
+.ar-span, .ar-dim { color: var(--text-faint); }
+.ar-row:last-child { border-bottom: 0; }
+
+/* --- notes, and the one state worth colouring ---------------------------- */
+
+.ar-note { margin: 0; font-size: var(--fs-1); color: var(--text-faint); max-width: 74ch; }
+.ar-note.ar-bad { color: var(--attn); }
+.ar-note[data-ok="true"] { color: var(--pos); }
+
+/* The bulk half. A rule rather than a second card: one question at two scales,
+   and two cards invite reading them as unrelated stores. */
+.ar-bulk {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--border);
+}
+.ar-bulk-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4); }
+.ar-sub-title { margin: 0; font-size: var(--fs-2); font-weight: var(--fw-semi); color: var(--text-muted); }
+.ar-path {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+/* --- the download control ------------------------------------------------ */
+
+.ar-dl { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+.ar-dl-sym { width: 132px; font-family: var(--font-mono); }
+.ar-dl-months { width: 124px; }
+.ar-actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); align-items: center; }
+
+/* A download in flight earns a bar; nothing else here animates. Width is the
+   only thing that moves, and a `--dur-*` token means reduced motion can stop
+   it - a literal duration never sees that switch. */
+.ar-bar {
+  height: 3px;
+  border-radius: var(--r-full);
+  background: var(--border);
+  overflow: hidden;
+}
+.ar-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--ai);
+  transition: width var(--dur-2) var(--ease-out);
+}
+
+/* ===========================================================================
+   BACKGROUND SERVICES
+   ---------------------------------------------------------------------------
+   Jobs against a group spine. The rail on each row carries the standing.
+
+   IT SAYS "woke 13s ago", NEVER "healthy". `bars_loop` reported a perfectly
+   fresh tick age for a whole release while doing nothing, because the config
+   key it read had no writer. The rail means STARTED; it does not mean working,
+   and the row's title says so.
+   ========================================================================= */
+
+/* --- the System desk's services list.
+   PREFIXED `svc-`, NOT `sy-`. The Study desk owns 157 `.sy-` classes in
+   study.css, which imports after this sheet, and four of them collided by
+   name — so `.sy-row` resolved to the Study desk's SIX-track grid on a row
+   with two children, and `.sy-name` picked up a chip border it never declares.
+   Nothing failed and nothing was red; the desk simply rendered in another
+   desk's clothes for two releases. A prefix is only a namespace if it is
+   actually unique. */
+.svc-groups { display: flex; flex-direction: column; gap: var(--sp-6); }
+
+.svc-group {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+.svc-group-title {
+  margin: 0;
+  padding-top: var(--sp-3);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semi);
+  color: var(--text-faint);
+}
+.svc-jobs { display: flex; flex-direction: column; min-width: 0; }
+
+.svc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  align-items: baseline;
+  gap: var(--sp-5);
+  padding: var(--sp-3) 0 var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--border);
+  border-bottom: 1px solid var(--border-hair);
+}
+.svc-row:last-child { border-bottom: 0; }
+.svc-row[data-state="on"] { border-left-color: var(--pos); }
+.svc-row[data-state="error"] { border-left-color: var(--attn); }
+.svc-row[data-state="off"],
+.svc-row[data-state="absent"] { border-left-color: var(--border); }
+
+.svc-what { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.svc-name { font-size: var(--fs-2); color: var(--text); }
+.svc-desc { font-size: var(--fs-1); color: var(--text-faint); }
+.svc-age {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.svc-row[data-state="off"] .svc-age,
+.svc-row[data-state="absent"] .svc-age { color: var(--text-faint); }
+.svc-row[data-state="error"] .svc-age { color: var(--attn); }
+
+/* Two columns of groups once there is room; one below, because a 96px spine
+   plus a job list does not survive being halved. */
+@media (min-width: 1500px) {
+  .svc-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--sp-6) var(--sp-8);
+  }
+}
+
+/* The System desk's own header. It is a page about the machine, so it opens
+   with a statement rather than a title — the same voice the Today and Research
+   desks open with, so a new desk does not read as a settings panel that
+   wandered in. */
+.sys-desk { gap: var(--sp-6); }
+.sys-head { display: flex; flex-direction: column; gap: var(--sp-3); }
+.sys-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-6);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-display);
+  color: var(--text);
+  max-width: 34ch;
+}
+.sys-lede { margin: 0; font-size: var(--fs-2); color: var(--text-muted); max-width: 78ch; }
+
+/* ======================================================= SIMULATION DESK ===
+   The money leads, because the question this desk answers is about money.
+   Everything else on it is qualification, so everything else is quieter:
+   hierarchy is CONTRAST, and reaching for a second colour to make something
+   important is how a palette stops meaning anything.
+
+   The `sim-` prefix is claimed by this sheet alone — checked with
+   `scratchpad/classcollide.py`, which exists because `.sy-` was claimed by two
+   sheets and the System desk rendered in the Study desk's clothes for two
+   releases.
+   =========================================================================== */
+
+.sim-desk .dd-panel[data-on="false"] { display: none; }
+
+.sim-state {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+/* A refusal is a thing the operator can fix, so it is marked — but as ATTENTION
+   rather than as an error: nothing has gone wrong. */
+.sim-state[data-ready="false"] { color: var(--attn); }
+
+.sim-actions { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+
+.sim-note {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+}
+
+.sim-sub {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  max-width: 72ch;
+}
+
+/* ------------------------------------------------------------- markets --- */
+.sim-markets { display: flex; flex-direction: column; gap: 2px; }
+
+.sim-market {
+  display: grid;
+  /* Fixed tracks and ONE flexible column. `auto-fit` with `1fr` spends every
+     pixel whether or not there is anything to put in it, which this file
+     already records costing 878px of grid on the briefing. */
+  grid-template-columns: minmax(0, 1fr) 34px 72px 62px;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease-out);
+}
+.sim-market[data-on="true"] { background: var(--surface-active); color: var(--text); }
+@media (hover: hover) {
+  .sim-market:hover { background: var(--surface-hover); }
+}
+.sim-market:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.sim-market:active { transform: translateY(0.5px) scale(0.985); }
+
+.sim-market-sym { font-weight: var(--fw-med); color: var(--text); }
+.sim-market-tf { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.sim-market-end { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.sim-market-end[data-up="true"] { color: var(--pos); }
+.sim-market-end[data-up="false"] { color: var(--neg); }
+
+.sim-market-skill { font-size: var(--fs-0); text-align: right; color: var(--text-faint); }
+/* COLOUR FOLLOWS THE STANDING, NEVER THE NUMBER. "Learned" is the only state
+   that earns a colour, because it is the only one that licenses an action. */
+.sim-market-skill[data-skill="yes"] { color: var(--pos); }
+
+/* ------------------------------------------------------------ the money --- */
+.sim-hero { display: flex; flex-direction: column; gap: 2px; margin-bottom: var(--sp-4); }
+.sim-hero-n {
+  font-family: var(--font-serif);
+  font-size: var(--fs-7);
+  line-height: var(--lh-tight);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.sim-hero-sub { font-size: var(--fs-1); color: var(--text-faint); }
+
+.sim-curve {
+  display: block;
+  width: 100%;
+  height: 84px;
+  margin-bottom: var(--sp-4);
+  overflow: visible;
+}
+.sim-curve-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1;
+  stroke-linejoin: round;
+  /* The path is in a 100x30 viewBox stretched to the panel, so a plain width
+     would be scaled unevenly by the two axes and read as a wedge. */
+  vector-effect: non-scaling-stroke;
+}
+
+.sim-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 220px));
+  gap: var(--sp-3) var(--sp-5);
+}
+.sim-fact { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.sim-fact-k { font-size: var(--fs-0); color: var(--text-faint); }
+.sim-fact-v {
+  font-size: var(--fs-2);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sim-ruin {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--attn);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+
+/* -------------------------------------------------------------- rules ---- */
+/*
+  EIGHT COLUMNS, AND THE GRID HAS TO KNOW IT.
+  Two were added — the losing streak and the time under water — and the
+  template was left at six, so both wrapped onto a second line under every row
+  and the header read as two headers. A grid does not complain about extra
+  children; it places them on a new line, which looks like a design.
+
+  WHAT YIELDS, IN WHAT ORDER: the rule name takes the slack and everything
+  else is fixed, so the numbers stay aligned as a column. Below the width the
+  fixed tracks need, the table SCROLLS rather than reflowing — a number that
+  has moved to another line is a number in the wrong column.
+*/
+.sim-table { display: flex; flex-direction: column; gap: 1px; overflow-x: auto; }
+.sim-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) 56px 56px 72px 84px 74px 56px 78px;
+  min-width: 660px;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-2);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  border-radius: var(--r-1);
+}
+.sim-row .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.sim-head {
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding-bottom: var(--sp-2);
+}
+.sim-rule { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sim-row [data-up="true"] { color: var(--pos); }
+.sim-row [data-up="false"] { color: var(--neg); }
+/* A rule that killed the account is not a row like the others, whatever its
+   expectancy says. */
+.sim-row[data-dead="true"] .sim-rule::after {
+  content: " · account died";
+  color: var(--neg);
+  font-size: var(--fs-0);
+}
+
+.sim-verdict {
+  margin: var(--sp-4) 0 var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--border);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.sim-verdict[data-skill="yes"] { border-left-color: var(--pos); color: var(--text); }
+.sim-verdict[data-skill="no"] { border-left-color: var(--attn); }
+
+/* ============================================ THE RELIABILITY CURVE, SHARED
+   Two desks draw it — the Playbook for a rule you asked about, the Simulation
+   desk for one the loop studied by itself. `ui/cards/calibration.ts` is the one
+   owner of the markup, and this is the one owner of its look.
+   =========================================================================== */
+/* `clb-`, the calibration card. Renamed from `cal-` because `.cal-row` was
+   declared twice in this sheet — here and by the economic calendar 1,280
+   lines above — and the later rule laid the CALENDAR out on this grid. */
+.clb { display: none; }
+.clb[data-on="true"] { display: block; margin-top: var(--sp-4); }
+
+.cal-h {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-normal);
+  color: var(--text-faint);
+}
+
+/* CAPPED. The fixed tracks and gaps come to about 230 and the bar deserves
+   roughly 220, so the block stops at 460 rather than pooling the rest of a
+   900px column into a row holding four short numbers. */
+.clb-rows { display: flex; flex-direction: column; gap: 2px; max-width: 460px; }
+
+.clb-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 48px 56px;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-1);
+}
+.clb-said { color: var(--text-faint); text-align: right; }
+.clb-was { color: var(--text); text-align: right; }
+.clb-n { color: var(--text-faint); text-align: right; }
+
+.clb-bar {
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+.clb-fill { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+
+.clb-note {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  max-width: 72ch;
+}
+
+/* ------------------------------------------------ THE FIELD OF CURVES ---
+   Twenty-five lines on one set of axes. The winner is drawn last and in the
+   accent; everything else is a hairline, because the picture is about the
+   SHAPE of the cloud and twenty-five equally weighted lines are a scribble.
+
+   The losers get the negative tone rather than a neutral one: "most of these
+   lost money" is the finding, not the background.
+   ------------------------------------------------------------------------ */
+.sim-field { display: block; width: 100%; height: 150px; margin-bottom: var(--sp-3); overflow: visible; }
+.sim-field path { fill: none; vector-effect: non-scaling-stroke; }
+.sim-field-up { stroke: color-mix(in srgb, var(--pos) 40%, transparent); stroke-width: 0.75; }
+.sim-field-down { stroke: color-mix(in srgb, var(--neg) 28%, transparent); stroke-width: 0.75; }
+.sim-field-best { stroke: var(--accent); stroke-width: 1.5; stroke-linejoin: round; }
+.sim-field-zero {
+  stroke: var(--border-hi);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ------------------------------------------------------- UNDER WATER --- */
+.sim-uw { display: block; width: 100%; height: 90px; margin-bottom: var(--sp-4); overflow: visible; }
+.sim-uw-area {
+  /* FILLED, because the area IS the depth. A bare line along the bottom of an
+     empty box reads as a floor rather than as a fall from the surface. */
+  fill: color-mix(in srgb, var(--neg) 22%, transparent);
+  stroke: var(--neg);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+/* ---------------------------------------------------------- SCATTER --- */
+.sim-scatter { display: block; width: 100%; height: 170px; overflow: visible; }
+.sim-scatter circle { vector-effect: non-scaling-stroke; }
+.sim-dot-up { fill: color-mix(in srgb, var(--pos) 55%, transparent); }
+.sim-dot-down { fill: color-mix(in srgb, var(--neg) 45%, transparent); }
+.sim-dot-best { fill: var(--accent); }
+.sim-scatter-zero {
+  stroke: var(--border-hi);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.sim-axes {
+  display: flex;
+  justify-content: space-between;
+  margin-top: var(--sp-2);
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+}
+.sim-axes-mid { font-style: italic; font-family: var(--font-serif); }
+
+/* --------------------------------------------- CROSS-MARKET STRIP --- */
+.sim-strip { display: flex; flex-direction: column; gap: 3px; margin-top: var(--sp-2); }
+.sim-strip-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 56px;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-0);
+}
+.sim-strip-k { color: var(--text-muted); }
+.sim-strip-track {
+  position: relative;
+  display: block;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--surface-inset);
+}
+/* The centre line is zero, so a loss and a gain of the same size are the same
+   length in opposite directions. */
+.sim-strip-track::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -1px;
+  bottom: -1px;
+  width: 1px;
+  background: var(--border-hi);
+}
+.sim-strip-bar { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.sim-strip-bar[data-up="true"] { background: var(--pos); }
+.sim-strip-bar[data-up="false"] { background: var(--neg); }
+.sim-strip-v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.sim-strip-v[data-up="true"] { color: var(--pos); }
+.sim-strip-v[data-up="false"] { color: var(--neg); }
+
+/* ------------------------------------------------------ FOLD SPANS --- */
+.sim-folds { display: flex; flex-direction: column; gap: var(--sp-3); }
+.sim-fold-row {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) minmax(0, 1fr) 96px;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-1) 0;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+.sim-fold-row .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+
+/* ============================================== NOTIFICATIONS ===
+   The one path every background job has to your attention.
+   ================================================================ */
+.ntf-lede {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+
+.ntf-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 320px));
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+.ntf-field { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+/* The input declares its own width inside a column, which is the one place
+   `width: 100%` is right — it is the only child and the column is the row. */
+.ntf-field .field-input { width: 100%; box-sizing: border-box; }
+
+.ntf-actions { display: flex; gap: var(--sp-3); flex-wrap: wrap; }
+
+.ntf-note {
+  margin: var(--sp-4) 0 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--border);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.ntf-note[data-level="ok"] { border-left-color: var(--pos); }
+.ntf-note[data-level="bad"] { border-left-color: var(--attn); }
+
+
+/* ================================== THE DURABLE TRACK RECORD ===
+   A rate and the interval around it, always together. The table is
+   capped: `auto-fit` with `1fr` spends every pixel whether or not
+   there is anything to put in it, which this file records costing
+   878px of empty grid on the briefing.
+   =============================================================== */
+.trk-state {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+
+.trk-gates {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--border);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+/* A NEGATIVE LIFT IS A FINDING, not an error — the checks cost more than they
+   saved on this sample, and that is the thing this card exists to surface. */
+.trk-gates[data-lift="up"] { border-left-color: var(--pos); color: var(--text); }
+.trk-gates[data-lift="down"] { border-left-color: var(--attn); color: var(--text); }
+
+.trk-table { display: none; }
+.trk-table[data-on="true"] { display: block; margin-top: var(--sp-4); }
+
+.trk-rows { display: flex; flex-direction: column; gap: 1px; max-width: 620px; }
+.trk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 72px 72px 104px 82px;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.trk-head { font-size: var(--fs-0); color: var(--text-faint); border-bottom: 1px solid var(--border); }
+.trk-all { margin-bottom: var(--sp-3); }
+.trk-all .trk-label { color: var(--text); font-weight: var(--fw-med); }
+.trk-label { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trk-row .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+/* The interval is quieter than the rate it qualifies, and never absent. */
+.trk-ci { color: var(--text-faint); font-size: var(--fs-0); }
+.trk-exp[data-up="true"] { color: var(--pos); }
+.trk-exp[data-up="false"] { color: var(--neg); }
+
+/* A ROW WITH NOTHING DECIDED YET IS QUIET, NOT ABSENT.
+   It keeps its place in the list — a market that vanishes on its first
+   recorded claim and returns when one settles is a list that changes shape
+   for a reason nobody can see. `--text-faint` is the DIMMEST role here and it
+   is the right one: this row is deferring to every graded row above it, which
+   is the check CLAUDE.md records getting backwards once already. */
+.trk-row[data-graded="false"] .trk-label { color: var(--text-faint); }
+.trk-row[data-graded="false"] .num { color: var(--text-faint); }
+.trk-row[data-graded="false"] .trk-exp { color: var(--text-faint); }
+
+/* The two populations the lift is a difference of. Separated from the
+   breakdown tables by their own top rule, because they answer a different
+   question — not "which market", but "did the checks earn their place". */
+.trk-gaterows {
+  margin: var(--sp-3) 0 var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border);
+}
+.trk-gaterows .trk-label { color: var(--text-muted); }
+
+.trk-pending {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-0);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  max-width: 72ch;
+}
+
+.trk-caveat {
+  margin: var(--sp-4) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  max-width: 72ch;
+  font-style: italic;
+  font-family: var(--font-serif);
+}
+.trk-sub { margin: 0; font-size: var(--fs-1); line-height: var(--lh-relaxed); color: var(--text-muted); max-width: 72ch; }
+
+/* ======================================================= ACTIVITY ===
+   WHAT HAS BEEN FAILING WHILE YOU WERE NOT LOOKING.
+
+   The verdict leads, in the serif this terminal uses for what it says on
+   its own account, because the question people open this to ask is "is
+   anything broken" and a card that answers a question should lead with
+   the answer. Everything qualifying it drops to `--text-faint`:
+   hierarchy is CONTRAST, and reaching for a second colour to make
+   something important is how a palette stops meaning anything.
+
+   The 2px left rail is `.bf-event`'s idiom, reused deliberately — status
+   dots are what every dashboard reaches for, and this file has already
+   established the rail, so a new card built from it looks like it
+   belongs rather than like it arrived.
+   ==================================================================== */
+.act-verdict {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-4);
+  border-left: 2px solid var(--border);
+  max-width: 72ch;
+}
+.act-verdict[data-level="bad"] { border-left-color: var(--neg); }
+/* NOT green. "Could not ask" and "nothing recorded" are closer to a warning
+   than to a pass — the `/svc/health` strip that painted "0 of 0 running"
+   green is the mistake this line exists to avoid. */
+.act-verdict[data-level="unknown"] { border-left-color: var(--attn); }
+.act-verdict[data-level="ok"] { border-left-color: var(--pos); }
+
+.act-verdict-n {
+  font-family: var(--font-serif);
+  font-size: var(--fs-7);
+  line-height: 1.1;
+  color: var(--text);
+}
+.act-verdict-note {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+}
+
+.act-group { display: none; }
+.act-group[data-on="true"] { display: block; margin-bottom: var(--sp-4); }
+.act-h {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-normal);
+  color: var(--text-muted);
+}
+
+.act-jobs { display: none; }
+.act-jobs[data-on="true"] { display: flex; flex-direction: column; gap: var(--sp-2); max-width: 78ch; }
+
+.act-job {
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+}
+.act-job[data-state="bad"] { border-left-color: var(--neg); }
+.act-job[data-state="you"] { border-left-color: var(--attn); }
+
+.act-job-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+}
+.act-job-name { color: var(--text); font-size: var(--fs-2); }
+.act-job-count {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+.act-job[data-state="bad"] .act-job-count { color: var(--neg); }
+.act-job-when { font-size: var(--fs-0); color: var(--text-faint); margin-left: auto; }
+
+.act-job-msg {
+  margin: 2px 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+
+/* The raw log. Evidence behind a disclosure, not the answer. */
+.act-tail { display: flex; flex-direction: column; gap: 1px; max-width: 100%; }
+.act-line {
+  display: grid;
+  grid-template-columns: 96px 180px minmax(0, 1fr);
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: 2px 0;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+.act-line-when { font-family: var(--font-mono); color: var(--text-faint); }
+.act-line-kind { color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.act-line-msg { font-family: var(--font-mono); color: var(--text-faint); overflow-wrap: anywhere; }
+
+@media (max-width: 720px) {
+  /* The three columns stop being readable long before the card does. */
+  .act-line { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+
+/* ============================ BROKER COSTS vs THE ASSUMPTION ===
+   A cost model is a HURDLE, so the headline is the multiple and the
+   table is its working. Colour follows the STANDING: charging more
+   than the broker only discards edges (attention), charging LESS
+   manufactures them (negative), and that asymmetry is the whole
+   reason the two are not the same tone.
+   ============================================================= */
+.bc-head {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-4);
+  border-left: 2px solid var(--border);
+  max-width: 72ch;
+}
+.bc-head[data-level="attn"] { border-left-color: var(--attn); }
+.bc-head[data-level="bad"] { border-left-color: var(--neg); }
+.bc-head[data-level="ok"] { border-left-color: var(--pos); }
+/* Not green: "could not ask" is nearer a warning than a pass. */
+.bc-head[data-level="unknown"] { border-left-color: var(--attn); }
+
+.bc-headline {
+  font-family: var(--font-serif);
+  font-size: var(--fs-6);
+  line-height: 1.15;
+  color: var(--text);
+}
+.bc-sub {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+}
+
+.bc-rows { display: flex; flex-direction: column; gap: 1px; max-width: 640px; }
+.bc-head-row { display: none; }
+.bc-head-row[data-on="true"] { display: flex; }
+
+.bc-row {
+  display: grid;
+  /* Capped tracks, not `1fr` each: a 1fr on every column spends every pixel
+     whether or not there is anything to put in it. */
+  grid-template-columns: 96px 78px 78px 52px minmax(0, 1fr);
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: var(--fs-1);
+}
+.bc-th {
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--sp-1);
+}
+
+.bc-sym { color: var(--text); }
+.bc-row .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+/* The assumption is the thing being questioned, so it defers to the
+   measurement beside it. */
+.bc-assumed { color: var(--text-faint); }
+.bc-ratio { color: var(--text-muted); }
+.bc-row[data-verdict="over"] .bc-ratio { color: var(--attn); }
+.bc-row[data-verdict="under"] .bc-ratio { color: var(--neg); }
+.bc-row[data-verdict="unknown"] .bc-sym { color: var(--text-faint); }
+
+.bc-why {
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+  line-height: var(--lh-relaxed);
+}
+
+/* ================================================ CONNECTIONS ===
+   One row per service: a name, what it last answered, and the
+   sentence that qualifies it. The 2px rail is this file's own idiom
+   for state, reused so a new card looks like it belongs.
+
+   `data-level="none"` is DELIBERATELY UNCOLOURED. Zero open streams
+   is the normal state of a terminal nobody has a live feed on, and
+   colouring it would make the ordinary case read as a fault — the
+   opposite of the "0 of 0 running" painted green.
+   ================================================================ */
+.cx-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+  margin-bottom: var(--sp-2);
+  max-width: 76ch;
+}
+.cx-row[data-level="ok"] { border-left-color: var(--pos); }
+.cx-row[data-level="attn"] { border-left-color: var(--attn); }
+.cx-row[data-level="bad"] { border-left-color: var(--neg); }
+
+.cx-name { font-size: var(--fs-2); color: var(--text); }
+.cx-state {
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  text-align: right;
+}
+.cx-row[data-level="bad"] .cx-state { color: var(--neg); }
+.cx-row[data-level="attn"] .cx-state { color: var(--attn); }
+
+.cx-detail {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-0);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+}
+
+.cx-rank { display: flex; flex-direction: column; gap: 2px; }
+.cx-rank-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: var(--sp-3);
+  font-size: var(--fs-0);
+}
+.cx-rank-cls { color: var(--text-muted); }
+.cx-rank-order { font-family: var(--font-mono); color: var(--text-faint); }
+.cx-rank-note {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-0);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  max-width: 72ch;
+}
+
+/* ================================================================
+   THE MCP CARD — other platforms this terminal has been connected to.
+
+   `.mcp-` because `scratchpad/classcollide.py` says `.cx-` is the
+   connections card's and this sheet already owns it. That script has
+   refused a prefix of mine before; the `.sy-` collision it exists for
+   had one desk rendering in another desk's clothes for two releases.
+
+   THE 2px LEFT RAIL is reused from `.cx-row` deliberately. A new card
+   built from the same idiom looks like it belongs, which is this
+   file's own rule about an inventory and a liveness readout not
+   being the same shape.
+
+   `data-state="needs-sign-in"` IS `--attn`, NOT `--neg`. A server
+   waiting to be signed in is not broken, and colouring it with the
+   failures buries the ones that are — the same distinction the job
+   list draws for "waiting for a key only you can supply".
+   ================================================================ */
+.mcp-row {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+  margin-bottom: var(--sp-3);
+  max-width: 76ch;
+}
+.mcp-row[data-state="connected"] { border-left-color: var(--pos); }
+.mcp-row[data-state="needs-sign-in"] { border-left-color: var(--attn); }
+.mcp-row[data-state="refused"] { border-left-color: var(--neg); }
+
+.mcp-name { font-size: var(--fs-2); color: var(--text); }
+.mcp-state {
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  text-align: right;
+}
+.mcp-row[data-state="refused"] .mcp-state { color: var(--neg); }
+.mcp-row[data-state="needs-sign-in"] .mcp-state { color: var(--attn); }
+.mcp-row[data-state="connected"] .mcp-state { color: var(--pos); }
+
+.mcp-detail,
+.mcp-url {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+.mcp-url {
+  font-family: var(--font-mono);
+  color: var(--text-faint);
+  overflow-wrap: anywhere;
+}
+.mcp-lede {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.mcp-empty,
+.mcp-note {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.mcp-note { color: var(--attn); }
+
+/* A zero-height, zero-margin placeholder. Several bindings return one
+   rather than null so a reactive slot always has exactly one child. */
+.mcp-gap { display: none; }
+
+.mcp-acts {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+
+.mcp-tools {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin-top: var(--sp-1);
+}
+.mcp-tool {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  gap: var(--sp-2);
+  align-items: baseline;
+  padding: var(--sp-1) 0;
+  border-top: 1px solid var(--border);
+}
+.mcp-tool-name { font-size: var(--fs-1); color: var(--text); }
+.mcp-tool-args {
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.mcp-tool-why {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+  max-width: 68ch;
+}
+
+.mcp-args,
+.mcp-field {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+}
+
+.mcp-result-head {
+  grid-column: 1 / -1;
+  margin: var(--sp-2) 0 var(--sp-1);
+  font-size: var(--fs-1);
+  color: var(--text);
+}
+.mcp-result {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding: var(--sp-2);
+  background: var(--surface-inset);
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  /* A long answer SCROLLS rather than reflowing: a number that has moved
+     to another line is a number in the wrong column. */
+  max-height: 22rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.mcp-result-why {
+  grid-column: 1 / -1;
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  color: var(--neg);
+  max-width: 72ch;
+}
+
+/* THE SIGN-IN LINK IS A LINK, not a button that opens it. Opening a
+   consent screen unprompted decides, on the operator's behalf, to
+   grant an external service access to their account. */
+.mcp-auth {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface-inset);
+  border-left: 2px solid var(--attn);
+}
+.mcp-auth-head {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-1);
+  color: var(--text);
+  max-width: 68ch;
+}
+.mcp-auth-link {
+  display: inline-block;
+  margin-bottom: var(--sp-2);
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+
+.mcp-add {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-width: 60ch;
+}
+.mcp-sugs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+.mcp-sug {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: baseline;
+}
+.mcp-sug-note {
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+  .mcp-row,
+  .mcp-tool,
+  .mcp-sug { grid-template-columns: minmax(0, 1fr); }
+  .mcp-state { text-align: left; }
+}
+
+/* ================================================================
+   SERVER SETTINGS. `.set-` is free: `classcollide.py` reports no
+   other sheet claiming it, and `.mcp-` next door is this session's
+   other new prefix.
+   ================================================================ */
+.set-row {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: var(--sp-1) var(--sp-3);
+  align-items: baseline;
+  padding: var(--sp-2) 0;
+  border-top: 1px solid var(--border);
+  max-width: 76ch;
+}
+.set-name { font-size: var(--fs-1); color: var(--text); }
+.set-edit { display: flex; gap: var(--sp-2); align-items: center; }
+.set-field { width: 8ch; font-family: var(--font-mono); }
+.set-unit { font-size: var(--fs-0); color: var(--text-muted); }
+.set-what,
+.set-state {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  max-width: 70ch;
+}
+.set-state { color: var(--text-faint); }
+.set-note {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  color: var(--attn);
+  max-width: 70ch;
+}
+.set-gap { display: none; }
+
+@media (max-width: 720px) {
+  .set-row { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ================================================================
+   THIS TERMINAL AS AN MCP SERVER — `ui/cards/mcpservecard.ts`.
+   Prefix `.msrv-`, checked free with `scratchpad/classcollide.py`
+   before a line of it was written: `.mcp-` is the CLIENT card and is
+   claimed by this same sheet, and the `.sy-` defect (one desk
+   rendering in another's clothes for two releases) is what that
+   check exists to stop.
+
+   IT REUSES `.mcp-tool`'s SHAPE ON PURPOSE. The two cards are the
+   two directions of one subject and sit next to each other, so a
+   name-and-description row that looked different here would read as
+   a different KIND of thing. Same argument the client card makes for
+   borrowing `.cx-row`'s 2px rail.
+
+   THE `On` CHIP IS `--pos` AND `Off` IS `--text-muted`, NOT `--neg`.
+   Off is the default and the safe state; painting it red would say
+   something is wrong when nothing is. The same distinction the job
+   list draws for "waiting on you".
+   ================================================================ */
+.msrv-lede { margin: 0 0 var(--sp-2); font-size: var(--fs-1); color: var(--text); max-width: 76ch; }
+
+.msrv-state {
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+.msrv-state[data-on="1"] { color: var(--pos); }
+
+.msrv-acts {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin: var(--sp-3) 0 var(--sp-2);
+}
+.msrv-reach { font-size: var(--fs-0); color: var(--text-faint); }
+
+.msrv-note { margin: 0 0 var(--sp-2); font-size: var(--fs-0); color: var(--attn); max-width: 76ch; }
+.msrv-note[data-on="0"] { display: none; }
+
+.msrv-tools[data-on="0"] { display: none; }
+.msrv-sub {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  margin-bottom: var(--sp-2);
+}
+
+.msrv-list { display: block; }
+.msrv-tool {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: var(--sp-1) var(--sp-3);
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+  margin-bottom: var(--sp-2);
+  max-width: 76ch;
+}
+.msrv-tool-name { font-family: var(--font-mono); font-size: var(--fs-0); color: var(--text); }
+.msrv-tool-what { font-size: var(--fs-0); color: var(--text-muted); line-height: var(--lh-body); }
+
+.msrv-cfg-lede { margin: 0 0 var(--sp-2); font-size: var(--fs-0); color: var(--text-muted); max-width: 76ch; }
+.msrv-snip {
+  margin: 0 0 var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text);
+  overflow-x: auto;
+  max-width: 76ch;
+}
+
+/* The gateway address in the connections row. It is a `<code>`, so it was
+   monospace via the UA stylesheet -- the BROWSER'S default face at the
+   browser's default size, not this terminal's. Undeclared classes do not fail
+   anything; `scratchpad/classundeclared.py` is what finds them. */
+.dd-mono {
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}

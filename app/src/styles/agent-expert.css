@@ -1,0 +1,47 @@
+/* ---------------------------------------------------------- AGENT EXPERT ---
+   The trading-expert additions to the Analyst desk: the line under the head
+   that says what the desk does and who is answering, and the standing prompt
+   row above the composer. The chips reuse `.agent-chip` (chrome.css), so they
+   already carry press feedback from press.css — nothing here animates.
+
+   Loaded before press.css so press feedback still wins on equal specificity. */
+
+.agent-expert-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-2) var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+
+/* Who is answering is the one fact here that changes, so it sits apart and
+   in the body colour: a fallback to the offline analyst must be noticed. */
+.agent-expert-who {
+  margin-left: auto;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.agent-quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5) 0;
+  border-top: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.agent-quick + .agent-compose { border-top: 0; }
+
+.agent-quick .agent-chip:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (max-width: 520px) {
+  .agent-expert-who { margin-left: 0; white-space: normal; }
+}

@@ -1,0 +1,158 @@
+/* ============================================================================
+   TYPE — the rules that make a dense readout legible.
+   ----------------------------------------------------------------------------
+   THE BUG THIS FILE EXISTS TO FIX
+
+   `base.css` defined a `.num` class with tabular figures, documented as "Every
+   price, size and percentage in the app uses this". It was applied in exactly
+   ZERO places. Every number in the terminal was rendering with PROPORTIONAL
+   figures, which means a `1` is narrower than a `0` — so on every tick the
+   digits change width, the column re-flows, and the whole readout shimmers.
+   That is the single loudest amateur tell a trading interface can have, and it
+   was one CSS property away the entire time.
+
+   The fix is not "remember the class". A convention that has to be remembered
+   at 200 call sites will be forgotten at 40 of them, and you cannot see the
+   ones that were forgotten without diffing screenshots. So tabular figures are
+   the DEFAULT for the document, and prose opts out. That inverts the failure
+   mode: forgetting now costs you slightly wide letter-spacing in a paragraph,
+   not a jittering price.
+   ============================================================================ */
+
+:root {
+  /* Tabular by default. `zero` slashes the zero where the face supports it,
+     which is what stops 0 and O being confused in a symbol like `EU0`.        */
+  font-variant-numeric: tabular-nums;
+
+  /* LIGATURES OFF, DOCUMENT-WIDE, AND THIS IS LOAD-BEARING.
+     tokens.css claimed ligatures were "switched off explicitly further down".
+     They were not — no stylesheet in this build set either property, and the
+     only related rule was `text-rendering: auto` on body, which merely declines
+     to force OPTIONAL ligatures on. Standard `liga` and contextual `calt` are
+     applied by default regardless, and the shipped mono face is JetBrains Mono,
+     whose arrow ligatures live in `calt`.
+
+     In a terminal that prints `->`, `!=`, `>=` and `--` inside expressions and
+     symbols, fusing a pair into one glyph changes what the text SAYS, and a
+     minus that has merged into its neighbour is a sign you cannot see. Both
+     properties are set because `font-feature-settings` overrides
+     `font-variant-ligatures` in some engines, so they must agree rather than
+     race.                                                                     */
+  font-variant-ligatures: none;
+  font-feature-settings: "tnum" 1, "zero" 1, "ss01" 1, "liga" 0, "clig" 0, "calt" 0, "dlig" 0;
+}
+
+body {
+  font-family: var(--font-ui);
+  font-size: var(--fs-3);
+  line-height: var(--lh-snug);
+  letter-spacing: var(--track-dense);
+  /* `optimizeLegibility` forces kerning and OPTIONAL LIGATURES on. In a
+     terminal that renders `->`, `!=` and `--` inside expressions and symbols,
+     fusing them into single glyphs changes what the text SAYS. `auto` is
+     correct here and is also what every browser tunes for.                    */
+  text-rendering: auto;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Prose reads better with proportional figures and no extra tracking. This is
+   the opt-out, and it is deliberately narrow: notes, explanations, disclaimers
+   — text you read in sentences, never a value you compare down a column.      */
+.prose,
+p.note,
+.reason,
+.flow-card-reason,
+.view-pending-body,
+.scr-why,
+.verdict-body,
+.season-note,
+.corr-note {
+  font-variant-numeric: proportional-nums;
+  font-feature-settings: normal;
+  letter-spacing: 0;
+  line-height: var(--lh-body);
+}
+
+/* --- the numeric primitive --------------------------------------------------
+   Kept, and now actually meaningful: it switches the FAMILY to mono so a
+   column of prices aligns on the decimal point, on top of the tabular figures
+   the document already has.                                                   */
+.num,
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  /* Mono faces run wide at UI sizes; a touch negative brings a price column
+     back to the width the layout was drawn for.                              */
+  letter-spacing: -0.015em;
+  /* Cascadia Code, Fira Code and JetBrains Mono all ship ligatures ON by
+     default. `-1` must never render as anything but a minus and a one, so
+     `liga` and `calt` are switched off in the SAME declaration as the figure
+     settings — a second font-feature-settings rule would silently replace the
+     first rather than adding to it.                                          */
+  font-variant-ligatures: none;
+  font-feature-settings: "liga" 0, "calt" 0, "tnum" 1, "zero" 1;
+}
+
+/* A price that changed sign should not also change width. */
+.num[data-tone] { font-weight: var(--fw-med); }
+
+/* --- optical tracking by size -----------------------------------------------
+   Applied to the size tokens themselves so no call site has to think about it.
+   Small type needs to open up or it sets solid; large type needs to close in
+   or it looks loose. One tracking value across a 3x size range is what makes a
+   ramp look untuned even when the sizes are right.                            */
+[style*="--fs-1"], .fs-1, .label, .chip { letter-spacing: var(--track-micro); }
+
+.label {
+  /* Uppercase micro-labels need materially more than lowercase at the same
+     size — the counters are larger and the rhythm collapses without it.       */
+  letter-spacing: var(--track-wide);
+  font-weight: var(--fw-semi);
+}
+
+h1, h2, h3, .panel-title, .desk-title, .flow-title, .scr-title, .view-pending-title {
+  font-family: var(--font-disp);
+  letter-spacing: var(--track-tight);
+  line-height: var(--lh-tight);
+  font-weight: var(--fw-semi);
+}
+
+.display, .big-number {
+  font-family: var(--font-mono);
+  font-size: var(--fs-7);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-display);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-variant-ligatures: none;
+}
+
+/* --- weight discipline ------------------------------------------------------
+   Four weights, and only these four. Segoe UI ships Light/Semilight/Regular/
+   Semibold/Bold/Black, so 500 is SYNTHESISED on Windows — the browser fakes it
+   by smearing 400, and at 11px that reads as slightly blurry rather than
+   slightly heavier. `--fw-med: 500` is kept as a token for faces that have it,
+   but emphasis in this UI is carried by 600, which is real everywhere.        */
+strong, b { font-weight: var(--fw-semi); }
+
+/* Long symbols and paths must break rather than push a panel wide. */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Numbers that update in place get their own subgrid-free alignment: right
+   edge fixed, so the eye tracks one column and not a ragged edge.             */
+.num-right { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* --- the honesty contract, typographically ----------------------------------
+   A struck-through number must be UNMISTAKABLY struck at 11px, where a 1px
+   line through a thin glyph nearly disappears.                                */
+.struck {
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: var(--neg);
+  opacity: 0.75;
+}

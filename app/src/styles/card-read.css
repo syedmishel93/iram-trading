@@ -1,0 +1,34 @@
+/* "AI read of the chart" (ui/cards/readcard.ts). Numbered steps; the number's
+   colour is the step's STANDING — supports the read, a caution, or could not
+   check — never the size of anything in the sentence. No motion: it repaints
+   on every bar and nothing here should move. */
+.rd-card { display: flex; flex-direction: column; gap: var(--sp-3); }
+.rd-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+}
+.rd-step { display: flex; align-items: baseline; gap: var(--sp-3); min-width: 0; }
+.rd-n {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text-muted) 14%, transparent);
+  transform: translateY(-1px);
+}
+.rd-step[data-tone="pos"] .rd-n { color: var(--pos); background: color-mix(in srgb, var(--pos) 14%, transparent); }
+.rd-step[data-tone="attn"] .rd-n { color: var(--attn); background: color-mix(in srgb, var(--attn) 14%, transparent); }
+.rd-text { min-width: 0; color: var(--text-muted); }
+.rd-text b { color: var(--text); font-weight: var(--fw-med); }
+.rd-foot { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }

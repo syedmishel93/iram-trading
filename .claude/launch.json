@@ -1,0 +1,57 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "iram-gateway",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "gateway"
+      ],
+      "cwd": "server",
+      "port": 8787
+    },
+    {
+      "name": "iram-launcher",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "run.py",
+        "--no-browser"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "iram-v40",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "app",
+        "run",
+        "dev"
+      ],
+      "port": 5173
+    },
+    {
+      "name": "iram-proxy",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "server/ddt_data_server.py"
+      ],
+      "port": 8787
+    },
+    {
+      "name": "mockups",
+      "runtimeExecutable": "python",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5190",
+        "--bind",
+        "127.0.0.1",
+        "--directory",
+        "docs"
+      ],
+      "port": 5190
+    }
+  ]
+}

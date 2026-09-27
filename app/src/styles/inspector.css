@@ -1,0 +1,343 @@
+/* ============================================================================
+   THE INSPECTOR AS ONE DECISION (v54)
+   ----------------------------------------------------------------------------
+   Two additions to the dock, both in this file:
+
+   .dock-verdict   the answer, pinned between the dock's controls and its
+                   scrolling body, so it cannot be scrolled away.
+   .dock-sec       the section headings that turn ten panels into five
+                   questions asked in order. See DOCK_SECTIONS.
+
+   Colour follows the STANDING, never the number (CLAUDE.md): the verdict wears
+   the decision scale (--verdict-*), which is deliberately not the bull/bear
+   hues, so "your gates pass" is never read as "price is going up". Direction
+   has its own chip, in the candle colours, because it IS price direction.
+   ========================================================================= */
+
+.dock-verdict {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-5) var(--sp-5) var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+  box-shadow: var(--sheen);
+  /* The standing, as a 2px bar on the leading edge — the whole banner tinted
+     would compete with the chart beside it. */
+  border-left: 2px solid var(--dv-tone, var(--border-hi));
+  --dv-tone: var(--text-faint);
+}
+.dock-verdict[data-kind="go"]         { --dv-tone: var(--verdict-fav); }
+.dock-verdict[data-kind="armed"]      { --dv-tone: var(--verdict-fav); }
+.dock-verdict[data-kind="conflict"]   { --dv-tone: var(--verdict-unfav); }
+.dock-verdict[data-kind="stand-down"] { --dv-tone: var(--verdict-unfav); }
+.dock-verdict[data-kind="unknown"],
+.dock-verdict[data-kind="none"],
+.dock-verdict[data-kind="loading"]    { --dv-tone: var(--text-faint); }
+
+.dv-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+/* v59.2: the verdict is an ANSWER, so it is set in the answer face
+   (`--font-serif`, fonts.css) at its one weight. Size up a step to match the
+   serif's smaller x-height against the sans around it. */
+.dv-title {
+  font-family: var(--font-serif);
+  font-size: var(--fs-6);
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: var(--lh-tight);
+  color: var(--dv-tone);
+}
+/* A refusal and an absence read in the text colour, not grey: "No setup" and
+   "Not checked yet" are answers, and an answer in the faintest ink looks like
+   a placeholder. The bar on the edge carries the neutral standing. */
+.dock-verdict[data-kind="none"] .dv-title,
+.dock-verdict[data-kind="unknown"] .dv-title,
+.dock-verdict[data-kind="loading"] .dv-title { color: var(--text-muted); }
+
+.dv-dir {
+  flex: 0 0 auto;
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-1);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+}
+.dv-dir[data-dir="long"]  { color: var(--candle-up); background: var(--candle-up-wash); }
+.dv-dir[data-dir="short"] { color: var(--candle-down); background: var(--candle-down-wash); }
+.dv-gates {
+  margin-left: auto;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.dv-reason {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  /* Two lines at most: this restates the first blocking gate, and the card
+     below holds the full list. A clipped third line is shown in full on the
+     card one click away. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dv-plan {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0 0;
+  border-top: 1px solid var(--border-hair);
+}
+.dv-cell { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+.dv-k { font-size: var(--fs-1); color: var(--text-faint); }
+.dv-v {
+  font-size: var(--fs-2);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Stop and target are VALUE statements about the plan (where it loses, where
+   it pays), so they wear pos/neg — not the candle colours. */
+.dv-cell[data-tone="neg"] .dv-v { color: var(--neg); }
+.dv-cell[data-tone="pos"] .dv-v { color: var(--pos); }
+
+.dv-release {
+  margin: 0;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-1) var(--sp-4);
+  border-radius: var(--r-full);
+  font-size: var(--fs-1);
+  color: var(--attn);
+  background: var(--attn-wash);
+}
+.dv-release::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: currentColor;
+}
+
+.dv-open {
+  align-self: flex-start;
+  font-size: var(--fs-1);
+  color: var(--accent);
+  padding: 0;
+  border-radius: var(--r-1);
+  transition: color var(--dur-1) var(--ease);
+}
+.dv-open::after { content: " ›"; }
+.dv-open:focus-visible { outline: none; box-shadow: var(--ring); }
+@media (hover: hover) { .dv-open:hover { color: var(--text); } }
+
+/* --- section headings ----------------------------------------------------- */
+.dock-sec {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--sp-5) var(--sp-1) var(--sp-2);
+  border-top: 1px solid var(--border-hair);
+  /* Margin on the element, never `+`: `.dock-body` reorders its children with
+     `order`, so DOM adjacency is not visual adjacency (CLAUDE.md). */
+  margin-top: var(--sp-3);
+}
+/* The first heading sits at the top of the scroll, where a rule above it
+   would draw a line under nothing. `order: 0` is the "now" section. */
+.dock-sec[data-sec="now"] { border-top: 0; margin-top: 0; padding-top: 0; }
+.dock-sec[hidden] { display: none; }
+.dock-sec-title {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  letter-spacing: var(--track-dense);
+}
+.dock-sec-q {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+/* --- panel names sit beside their caret, left ------------------------------
+   desks.css has `.panel-head > :first-child { margin-right: auto }` (0,2,0),
+   written for desk cards whose first child is the TITLE, pushing a chip to the
+   right. In the dock the first child is the CARET, so every inspector panel's
+   name was shoved against the right edge — measured: caret at x=1261, name at
+   x=1496 of a 323px header. Unnoticed while every heading was right-aligned
+   caps; obvious once the section headings above them read from the left.
+   (0,3,0) here, so it wins without !important and only inside the dock. */
+.dock .panel-head > .panel-caret { margin-right: 0; }
+.dock .panel-head > .label {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  color: var(--text-muted);
+}
+.dock .panel[data-open="true"] > .card-head > .panel-head > .label { color: var(--text); }
+
+/* --- the price outlook (ui/outlookpanel.ts) -------------------------------- */
+.ol-panel { display: flex; flex-direction: column; gap: var(--sp-3); }
+.ol-text { display: flex; flex-direction: column; gap: var(--sp-2); }
+.ol-range, .ol-odds, .ol-lean, .ol-track { margin: 0; line-height: var(--lh-snug); font-weight: var(--fw-normal); }
+.ol-range { font-size: var(--fs-2); color: var(--text); }
+/* The odds are the line a trader acts on, so they get the text colour; the
+   base rate beneath is context, and says so in its own words. */
+.ol-odds { font-size: var(--fs-2); color: var(--text); }
+.ol-lean { font-size: var(--fs-1); color: var(--text-muted); }
+.ol-track { font-size: var(--fs-1); color: var(--text-faint); }
+/* A measured track record is the one number here that is not modelled. */
+.ol-track[data-state="measured"] { color: var(--text-muted); }
+
+/* --- v55: the verdict as a Fusion card: ring gauge + title ----------------
+   The ring is the gate count drawn as a proportion — five of six is a ring
+   five-sixths full — so the number and the picture are the same fact. The arc
+   wears the brand, not a market colour: gates passing says the RULES are
+   satisfied, not that price is going anywhere (see the header of this file). */
+.dv-top { display: flex; align-items: center; gap: var(--sp-5); min-width: 0; }
+.dv-ring { flex: 0 0 auto; }
+.dv-ring-track { stroke: var(--surface-inset); }
+.dv-ring-arc   { stroke: var(--accent); }
+.dv-ring-num   { fill: var(--text); font-family: var(--font-mono); font-weight: var(--fw-semi); }
+.dv-ring-cap   { fill: var(--text-faint); font-family: var(--font-ui); }
+.dv-titles { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+.dv-sub { display: flex; align-items: center; gap: var(--sp-3); font-size: var(--fs-1); color: var(--text-faint); }
+/* The primary action is a solid accent button, the one filled control in the
+   inspector, so it is found without being looked for. */
+.dv-open-primary {
+  height: 36px;
+  border-radius: var(--r-3);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semi);
+}
+.dv-open-primary:focus-visible { outline: none; box-shadow: var(--ring); }
+
+
+/* === v59.2 CARD HEAD: name, who, pin, remove ================================
+   `.panel-head` (the collapse button) takes the row; the controls sit at the
+   end. Pin and remove are quiet until the row is hovered or focused — they
+   are used rarely, and twelve pairs of always-lit buttons would be the
+   loudest thing in the inspector. A PINNED card's pin stays lit: it is a
+   state, and a state you cannot see is one you forget you set. */
+.dock .card-head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: var(--sp-2);
+}
+.dock .card-head > .panel-head { flex: 1 1 auto; min-width: 0; }
+.dock .card-ic { display: inline-grid; place-items: center; color: var(--text-faint); flex: none; }
+.dock .panel[data-open="true"] .card-ic { color: var(--text-muted); }
+
+/* WHO PRODUCES IT. A tag, not a colour on the whole card: AI in the accent,
+   You in the plain text colour, both together in between. */
+/* v59.2: the v5 design's tag — an uppercase pill on a wash, AI in the AI
+   blue, You in the brand accent, both together in the plain text colour. */
+.card-who {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 0;
+  font-size: 10px;
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.4;
+  color: var(--text-muted);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  white-space: nowrap;
+}
+.card-who[data-who="ai"] { color: var(--ai); background: color-mix(in srgb, var(--ai) 13%, transparent); }
+.card-who[data-who="you"] { color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.card-who[data-who="both"] { color: var(--text); }
+
+.card-ctl {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease), background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.card-head:focus-within .card-ctl,
+.card-pin[aria-pressed="true"] { opacity: 1; }
+.card-pin[aria-pressed="true"] { color: var(--accent); }
+@media (hover: hover) {
+  .card-head:hover .card-ctl { opacity: 1; }
+  .card-ctl:hover { background: var(--surface-hover); color: var(--text); }
+}
+/* No hover on touch, so the controls are simply shown there. */
+@media (hover: none) { .card-ctl { opacity: 1; } }
+.card-ctl:focus-visible { opacity: 1; outline: 2px solid var(--accent); outline-offset: -2px; }
+
+/* "+ Add panel" in the summary row: an icon and a word, like its neighbours. */
+.dock-add { display: inline-flex; align-items: center; gap: 4px; }
+
+/* === v59.2 YOUR SAY — the operator's answer under the verdict ===============
+   Three buttons, then one line saying what was chosen with an Undo. Sits
+   between the pinned verdict and the scrolling column, so it is always
+   beside the recommendation it answers. */
+.say {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  border-bottom: 1px solid var(--border-hair, var(--border));
+}
+.say[hidden] { display: none; }
+.say-head { display: flex; align-items: center; gap: var(--sp-2); }
+.say-label { font-size: var(--fs-1); color: var(--text-muted); }
+.say-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
+.say-btn { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.say-reasons { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.say-reason,
+.say-cancel,
+.say-undo {
+  padding: 3px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-1);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+.say-cancel { border-style: dashed; }
+@media (hover: hover) {
+  .say-reason:hover,
+  .say-cancel:hover,
+  .say-undo:hover { background: var(--surface-hover); color: var(--text); }
+}
+.say-reason:focus-visible,
+.say-cancel:focus-visible,
+.say-undo:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.say-done {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.say-done[data-choice="use"] > span:first-child { color: var(--text); }

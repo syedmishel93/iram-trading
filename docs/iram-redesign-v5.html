@@ -1,0 +1,962 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iram — human and AI (mockup v5)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0C0F;--p1:#101317;--p2:#15191E;--p3:#1C2128;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.13);
+  --tx:#E8EAED;--mu:#A3AAB4;--fa:#8B929C;--acc:#D6B36A;--acc-ink:#141210;--pos:#34D399;--neg:#F87171;--warn:#F5C451;
+  --ai:#9DB8FF;--ai-bg:rgba(157,184,255,.08);--ai-line:rgba(157,184,255,.28);
+  --mono:'Geist Mono',ui-monospace,monospace;--serif:'Instrument Serif',Georgia,serif;--dur:.14s;
+}
+@media (prefers-reduced-motion:reduce){:root{--dur:0s}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-size:13px;min-width:1280px}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+.mono{font-family:var(--mono)}.serif{font-family:var(--serif);font-weight:400}
+.muted{color:var(--mu)}.faint{color:var(--fa)}.pos{color:var(--pos)}.neg{color:var(--neg)}.warn{color:var(--warn)}.ai{color:var(--ai)}
+header.top{height:58px;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;width:118px}
+.brand i{width:26px;height:26px;border-radius:7px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;font:normal 17px var(--serif)}
+.brand span{font:400 21px var(--serif)}
+nav.ws{display:flex;gap:4px}
+nav.ws button{height:40px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--mu);font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;line-height:1.15}
+nav.ws button small{font-size:10px;font-weight:500;letter-spacing:.3px;color:var(--fa)}
+nav.ws button[aria-current="page"]{color:var(--tx);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--line2)}
+nav.ws button[aria-current="page"] small{color:var(--acc)}
+.chip{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:9px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.spacer{flex:1}
+.card{background:var(--p1);border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);padding:16px 18px}
+.card.aiC{background:linear-gradient(0deg,var(--ai-bg),var(--ai-bg)),var(--p1);box-shadow:inset 0 0 0 1px var(--ai-line)}
+.lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.lbl>span:first-child{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--fa);font-weight:500}
+.who{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+.who.ai{color:var(--ai);background:rgba(157,184,255,.12)}
+.who.you{color:var(--acc);background:rgba(214,179,106,.14)}
+.who.both{color:var(--tx);background:rgba(255,255,255,.08)}
+.pill{font-size:11px;font-weight:500;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--mu)}
+.pill.pos{background:rgba(52,211,153,.12);color:var(--pos)}.pill.neg{background:rgba(248,113,113,.12);color:var(--neg)}.pill.warn{background:rgba(245,196,81,.12);color:var(--warn)}
+.btn{height:34px;padding:0 13px;border-radius:9px;border:0;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--line2);cursor:pointer;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:transform var(--dur)}
+.btn:active{transform:translateY(.5px) scale(.985)}
+.btn.primary{background:var(--acc);color:var(--acc-ink);box-shadow:none;font-weight:600}
+.btn.aiB{background:rgba(157,184,255,.14);color:var(--ai);box-shadow:inset 0 0 0 1px var(--ai-line)}
+.btn.sm{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
+@media (hover:hover){.btn:hover{background:rgba(255,255,255,.1)}.btn.primary:hover{background:#E3C47F}.btn.aiB:hover{background:rgba(157,184,255,.22)}}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.ws button:focus-visible,.seg button:focus-visible,.tag:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:5px}.field>label{font-size:11.5px;color:var(--fa)}
+.in{height:34px;border-radius:9px;border:0;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);padding:0 10px;outline:none;width:100%}
+textarea.in{height:auto;min-height:64px;padding:9px 10px;resize:vertical;line-height:1.5}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);gap:2px}
+.seg button{height:28px;padding:0 11px;border:0;border-radius:7px;background:transparent;color:var(--mu);cursor:pointer;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--p3);color:var(--tx);box-shadow:inset 0 0 0 1px var(--line2)}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{height:28px;padding:0 11px;border-radius:999px;border:0;background:transparent;box-shadow:inset 0 0 0 1px var(--line2);color:var(--mu);cursor:pointer;font-size:12px}
+.tag[aria-pressed="true"]{background:rgba(214,179,106,.14);box-shadow:inset 0 0 0 1px rgba(214,179,106,.5);color:var(--acc)}
+.tag.aiT[aria-pressed="true"]{background:rgba(157,184,255,.14);box-shadow:inset 0 0 0 1px var(--ai-line);color:var(--ai)}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font-size:12.5px;color:var(--mu)}
+.kv b{font-family:var(--mono);font-weight:500;color:var(--tx)}
+.hr{height:1px;background:var(--line);margin:12px 0}
+.row{display:grid;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12.5px}
+.row.head{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--fa)}
+h1.page{margin:0;font:400 38px/1.08 var(--serif)}
+.sub{margin:8px 0 0;color:var(--mu);font-size:14px;max-width:760px}
+main.ws{display:none}main.ws.on{display:flex}
+footer.status{height:30px;display:flex;align-items:center;gap:18px;padding:0 18px;border-top:1px solid var(--line);font:11.5px var(--mono);color:var(--mu)}
+.note{font-size:12px;color:var(--fa);line-height:1.5}
+.read p{margin:0 0 10px;line-height:1.6;font-size:13px;color:var(--mu)}
+.read p b{color:var(--tx);font-weight:500}
+.step{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5}
+.step:last-child{border-bottom:0}
+.step .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:600 10.5px var(--mono);flex:none;margin-top:1px}
+.rel{display:grid;grid-template-columns:18px 90px 1fr 110px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.rel input{accent-color:var(--ai);width:15px;height:15px}
+.rule{display:grid;grid-template-columns:1fr 26px;gap:8px;align-items:start;padding:10px 12px;border-radius:10px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);margin-bottom:8px}
+.rule .by{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px}
+.rule input{background:transparent;border:0;outline:none;width:100%;font-family:var(--mono);font-size:12.5px}
+.chat{display:flex;flex-direction:column;gap:10px;max-height:260px;overflow:auto;padding-right:4px}
+.msg{padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.5;max-width:92%}
+.msg.you{align-self:flex-end;background:rgba(214,179,106,.12);color:var(--tx)}
+.msg.ai{align-self:flex-start;background:var(--ai-bg);box-shadow:inset 0 0 0 1px var(--ai-line);color:var(--mu)}
+svg text{font-family:var(--mono)}
+[hidden]{display:none!important}
+.ctb{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.vsep{width:1px;height:20px;background:var(--line2)}
+.popw{position:relative}
+.pop{position:absolute;top:36px;left:0;z-index:5;width:250px;padding:8px;border-radius:12px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line2),0 20px 50px rgba(0,0,0,.55)}
+.pchk{display:flex;align-items:center;gap:9px;padding:7px 6px;border-radius:7px;font-size:12.5px;cursor:pointer}
+.pchk input{accent-color:var(--acc)}
+@media (hover:hover){.pchk:hover{background:rgba(255,255,255,.05)}}
+.trail{width:46px;display:flex;flex-direction:column;gap:3px;padding:8px 6px;border-right:1px solid var(--line)}
+.trail button{width:34px;height:34px;border:0;border-radius:8px;background:transparent;color:var(--fa);display:grid;place-items:center;cursor:pointer}
+.trail button[aria-pressed="true"]{background:rgba(214,179,106,.14);color:var(--acc)}
+@media (hover:hover){.trail button:hover{background:rgba(255,255,255,.06);color:var(--tx)}}
+.trail button:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.legend{position:absolute;top:8px;left:10px;font:11.5px var(--mono);color:var(--mu);pointer-events:none;display:flex;gap:8px;flex-wrap:wrap;max-width:75%}
+.legend b{font-weight:500}
+.hint{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);font-size:11.5px;color:var(--fa);background:rgba(16,19,23,.85);padding:5px 10px;border-radius:8px;pointer-events:none;transition:opacity var(--dur)}
+.orow{display:grid;grid-template-columns:18px 26px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.orow input{accent-color:var(--ai);width:15px;height:15px}
+.lblx{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--fa);font-weight:500}
+.btn.danger{color:var(--neg);box-shadow:inset 0 0 0 1px rgba(248,113,113,.4)}
+:root{--railW:360px;--ui-zoom:1}
+body{font-size:13.5px}
+header.top,.ctb,.drawer,.rail,.strip-rail,main.ws:not(#ws-chart),footer.status{zoom:var(--ui-zoom)}
+header.top{gap:12px}
+.search{display:flex;align-items:center;gap:8px;height:36px;width:260px;padding:0 12px;border-radius:10px;border:0;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);color:var(--fa);cursor:pointer;font-size:12.5px}
+.search span{flex:1;text-align:left}
+kbd{font:11px var(--mono);padding:2px 6px;border-radius:5px;box-shadow:inset 0 0 0 1px var(--line2);color:var(--fa)}
+.status-strip{display:flex;gap:2px;padding:3px;border-radius:10px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line)}
+.sitem{display:flex;align-items:center;gap:6px;height:30px;padding:0 9px;border:0;border-radius:7px;background:transparent;color:var(--mu);font-size:12px;cursor:pointer}
+.sitem b{font-weight:500;color:var(--tx)}
+.sitem.warn b,.sitem.warn svg{color:var(--warn)}.sitem.pos b,.sitem.pos svg{color:var(--pos)}
+@media (hover:hover){.sitem:hover{background:rgba(255,255,255,.06)}}
+.pop.mega{width:860px;padding:14px}
+.mega-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.mitem{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:7px 8px;border:0;border-radius:8px;background:transparent;color:var(--tx);cursor:pointer;font-size:12.5px}
+@media (hover:hover){.mitem:hover{background:rgba(255,255,255,.06)}}
+.vrow{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 4px;font-size:12.5px;color:var(--mu)}
+#ws-chart{flex-direction:row;align-items:stretch}
+#ws-chart.left{flex-direction:row-reverse}
+#ws-chart.left #chartArea{padding:12px 12px 12px 0!important}
+.resizer{width:12px;cursor:col-resize;position:relative;flex:none}
+.resizer::after{content:"";position:absolute;top:50%;left:5px;width:2px;height:44px;margin-top:-22px;border-radius:2px;background:var(--line2)}
+@media (hover:hover){.resizer:hover::after{background:var(--acc)}}
+.resizer:focus-visible{outline:2px solid var(--acc)}
+.rail{width:var(--railW);flex:none;display:flex;flex-direction:column;padding:12px 12px 12px 0;min-height:0}
+#ws-chart.left .rail{padding:12px 0 12px 12px}
+.rail-head{display:flex;align-items:center;gap:6px;padding:4px 2px 10px}
+.rail-body{flex:1;overflow:auto;display:flex;flex-direction:column;gap:10px;padding-right:2px}
+.icon-btn{width:30px;height:30px;border:0;border-radius:8px;background:transparent;color:var(--fa);display:grid;place-items:center;cursor:pointer;flex:none}
+.icon-btn[aria-pressed="true"]{color:var(--acc)}
+@media (hover:hover){.icon-btn:hover{background:rgba(255,255,255,.06);color:var(--tx)}}
+.icon-btn:focus-visible,.pc-toggle:focus-visible,.sitem:focus-visible,.mitem:focus-visible,.search:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.pcard{background:var(--p1);border-radius:14px;box-shadow:inset 0 0 0 1px var(--line)}
+.pcard.aiC{background:linear-gradient(0deg,var(--ai-bg),var(--ai-bg)),var(--p1);box-shadow:inset 0 0 0 1px var(--ai-line)}
+.pcard-head{display:flex;align-items:center;gap:2px;padding:6px 6px 6px 4px}
+.pc-toggle{flex:1;display:flex;align-items:center;gap:8px;min-width:0;height:34px;padding:0 6px;border:0;border-radius:8px;background:transparent;color:var(--tx);cursor:pointer;font-weight:500;font-size:13px;text-align:left}
+.pc-toggle .pc-t{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pc-toggle .chev svg{transition:transform var(--dur);color:var(--fa)}
+.pc-toggle[aria-expanded="true"] .chev svg{transform:rotate(90deg)}
+.pc-ic{color:var(--fa);display:inline-grid}
+.pcard-body{padding:2px 16px 16px}
+.strip-rail{width:48px;flex:none;display:flex;flex-direction:column;align-items:center;gap:4px;padding:12px 6px;border-left:1px solid var(--line)}
+.drawer{border-top:1px solid var(--line)}
+.drawer-head{display:flex;align-items:center;gap:8px;padding:7px 10px}
+#drawerBody{max-height:260px;overflow:auto;border-top:1px solid var(--line)}
+.nitem{padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5}
+.nitem:last-child{border-bottom:0}
+.toast{position:fixed;left:50%;bottom:48px;transform:translateX(-50%) translateY(8px);max-width:520px;padding:10px 16px;border-radius:12px;background:#1C2128;box-shadow:inset 0 0 0 1px var(--line2),0 16px 40px rgba(0,0,0,.5);font-size:13px;opacity:0;pointer-events:none;transition:opacity var(--dur),transform var(--dur);z-index:20}
+.toast.on{opacity:1;transform:translateX(-50%)}
+body.compact .card{padding:11px 13px}
+body.compact .pcard-body{padding:0 12px 11px}
+body.compact .pcard-head{padding:3px 4px}
+body.compact .rail-body{gap:6px}
+body.compact .kv{padding:3px 0}
+body.compact .step{padding:5px 0}
+nav.ws button,.sitem,.search,.btn,.chip{white-space:nowrap}
+header.top{min-width:0}
+@media (max-width:1560px){.sitem .faint{display:none}.search{width:auto}.search span,.search kbd{display:none}}
+@media (max-width:1320px){nav.ws button small{display:none}nav.ws button{height:34px}.chip{display:none}}
+</style>
+</head>
+<body>
+<header class="top" id="topbar">
+  <div class="brand"><i>i</i><span>Iram</span></div>
+  <nav class="ws" aria-label="Workspaces" id="nav"></nav>
+  <div class="popw"><button class="btn sm" id="toolsBtn" aria-haspopup="true" aria-expanded="false" style="height:36px">All tools <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="pop mega" id="toolsPop" hidden></div></div>
+  <span class="spacer"></span>
+  <button class="search" id="searchBtn" aria-label="Search symbols, tools and commands"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span>Search symbols, tools…</span><kbd>Ctrl K</kbd></button>
+  <div class="status-strip" id="strip" aria-label="System status"></div>
+  <div class="popw"><button class="btn sm" id="viewBtn" aria-haspopup="true" aria-expanded="false" style="height:36px">View</button><div class="pop" id="viewPop" hidden style="left:auto;right:0;width:280px"></div></div>
+  <div class="chip"><span class="mono">10,000.00</span><span class="faint">USD</span></div>
+</header>
+
+<!-- ============================ TODAY ============================ -->
+<main class="ws" id="ws-today" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">AI briefs · you plan</span><h1 class="page" style="margin-top:10px">Good morning. Here's what matters, and what you'll do about it.</h1></div>
+  <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:16px">
+    <section class="card aiC">
+      <div class="lbl"><span>AI morning brief</span><span class="who ai">AI</span></div>
+      <div class="read">
+        <p><b>BTCUSDT</b> broke out overnight: the last closed bar moved 8.2× its normal size on 10.5× normal volume. Structure turned bullish, but nothing is takeable yet — the closest setup already ran 4.2× ATR past its level.</p>
+        <p><b>ETHUSDT</b> is the cleaner idea: a break of structure long with all 8 checks passing. On its own history this setup reached target 37 of 64 times (58%).</p>
+        <p><b>Watch out:</b> an FOMC member speaks in 22 minutes. Your rule blocks new trades inside 30 minutes of major news.</p>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px"><button class="btn aiB" data-go="chart">Open ETHUSDT chart</button><button class="btn sm" style="height:34px">Ask a follow-up</button></div>
+    </section>
+    <section class="card">
+      <div class="lbl"><span>Your plan</span><span class="who you">You</span></div>
+      <div class="field"><label>Focus list — AI suggests, you keep or drop</label><div class="tags" id="focus"></div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px">
+        <div class="field"><label for="mt">Max trades</label><input class="in mono" id="mt" type="number" value="3"></div>
+        <div class="field"><label for="ml">Max loss %</label><input class="in mono" id="ml" type="number" value="3"></div>
+        <div class="field"><label for="rp">Risk / trade %</label><input class="in mono" id="rp" type="number" value="1" step="0.25"></div>
+      </div>
+      <button class="btn primary" id="commit" style="width:100%;margin-top:14px;height:40px">Commit today's plan</button>
+    </section>
+  </div>
+  <section class="card" style="padding:0;overflow:hidden">
+    <div class="lbl" style="padding:14px 18px 0"><span>AI scanned your list</span><span class="who ai">AI</span></div>
+    <div class="row head" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><span>Symbol</span><span>What AI sees</span><span>Side</span><span>Checks</span><span>Why it matters</span><span></span></div>
+    <div class="row" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><b>ETHUSDT</b><span class="muted">Break of structure</span><span class="pos">long</span><span class="mono">8/8</span><span class="faint">Cleanest setup on your list today</span><button class="btn sm" data-go="chart">Open</button></div>
+    <div class="row" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><b>BTCUSDT</b><span class="muted">No takeable setup</span><span class="faint">—</span><span class="mono">5/8</span><span class="faint">Moved too far — wait for a retest</span><button class="btn sm" data-go="chart">Open</button></div>
+    <div class="row" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><b>XAUUSD</b><span class="faint">not scanned yet</span><span class="faint">—</span><span class="faint">—</span><span class="faint">scan runs when the feed is connected</span><span></span></div>
+  </section>
+</main>
+
+<!-- ============================ CHART (AI-led) ============================ -->
+<main class="ws on" id="ws-chart" style="height:calc(100vh - 88px)">
+  <div id="chartArea" style="flex:1;min-width:0;display:flex;flex-direction:column;padding:12px 0 12px 12px">
+    <section class="card" style="padding:0;overflow:visible;position:relative;flex:1;display:flex;flex-direction:column;min-height:0">
+      <div class="ctb">
+        <b style="font-size:15px">ETHUSDT</b><span class="mono" style="font-size:20px" id="lastPx"></span><span class="pill pos mono" id="chg"></span>
+        <span class="vsep"></span>
+        <div class="seg" role="group" aria-label="Timeframe"><button>5m</button><button>15m</button><button aria-pressed="true">1h</button><button>4h</button><button>1d</button></div>
+        <select class="in" id="ctype" aria-label="Chart type" style="width:124px;height:30px"><option value="candles">Candles</option><option value="hollow">Hollow</option><option value="heikin">Heikin Ashi</option><option value="bars">Bars</option><option value="line">Line</option><option value="area">Area</option></select>
+        <div class="popw"><button class="btn sm" id="indBtn" aria-haspopup="true" aria-expanded="false">Indicators <span class="mono faint" id="indCount"></span></button><div class="pop" id="indPop" hidden></div></div>
+        <div class="popw"><button class="btn sm aiB" id="autoBtn" aria-haspopup="true" aria-expanded="false">Auto-marking <span class="mono" id="autoCount"></span></button><div class="pop" id="autoPop" hidden></div></div>
+        <span class="spacer"></span>
+        <button class="btn sm" id="fit" title="Reset zoom">Fit</button>
+        <button class="btn sm" id="logBtn" aria-pressed="false" title="Log scale">Log</button>
+        <button class="btn sm" id="railToggle" aria-pressed="true" title="Show or hide the side panel (])">Panels</button>
+      </div>
+      <div style="display:flex;flex:1;min-height:0">
+        <div class="trail" id="tools" role="toolbar" aria-label="Drawing tools"></div>
+        <div style="position:relative;flex:1;min-width:0">
+          <canvas id="cv" style="display:block;width:100%;height:100%;touch-action:none" aria-label="Interactive chart: scroll to zoom, drag to pan, pick a tool to draw"></canvas>
+          <div class="legend" id="legend"></div>
+          <div class="hint" id="hint">Scroll to zoom · drag to pan · pick a tool on the left to draw</div>
+        </div>
+      </div>
+      <div class="drawer" id="drawer" data-open="false">
+        <div class="drawer-head">
+          <div class="seg" role="group" aria-label="Lower panel" id="lowerSeg"><button aria-pressed="true" data-p="objects">Objects <span class="mono faint" id="objCount"></span></button><button data-p="ask">Ask the AI</button><button data-p="pos">Positions 0</button><button data-p="alog">Alerts log</button></div>
+          <span class="spacer"></span><span class="faint" style="font-size:11.5px">illustrative data</span>
+          <button class="btn sm" id="drawerBtn" aria-expanded="false" aria-controls="drawerBody">Expand</button>
+        </div>
+        <div id="drawerBody" hidden>
+          <div id="p-objects" style="padding:6px 16px 12px"></div>
+          <div id="p-ask" style="padding:14px 16px" hidden>
+            <div class="chat" id="chat"></div>
+            <div class="tags" style="margin-top:10px" id="asks"></div>
+            <div style="display:flex;gap:8px;margin-top:10px"><input class="in" id="askIn" placeholder="Ask anything — 'what invalidates this?', 'compare with BTC'"><button class="btn aiB" id="askGo">Ask</button></div>
+          </div>
+          <div id="p-pos" style="padding:14px 16px" hidden><p class="note" style="margin:0">No open positions. MT5 is offline — positions appear here live once it connects.</p></div>
+          <div id="p-alog" style="padding:14px 16px" hidden><p class="note" style="margin:0">No alerts have fired today.</p></div>
+        </div>
+      </div>
+    </section>
+  </div>
+  <div class="resizer" id="resizer" role="separator" aria-orientation="vertical" aria-label="Resize the side panel" tabindex="0"></div>
+  <aside class="rail" id="rail">
+    <div class="rail-head">
+      <span class="lblx">Panels</span><span class="spacer"></span>
+      <div class="popw"><button class="btn sm" id="addPanel" aria-haspopup="true" aria-expanded="false">+ Add panel</button><div class="pop" id="addPop" hidden style="left:auto;right:0"></div></div>
+      <button class="icon-btn" id="collapseAll" title="Collapse all" aria-label="Collapse all panels"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M7 14l5-5 5 5"/></svg></button>
+      <button class="icon-btn" id="hideRail" title="Hide panels (])" aria-label="Hide the side panel"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+    </div>
+    <div class="rail-body" id="railBody"></div>
+  </aside>
+  <nav class="strip-rail" id="stripRail" hidden aria-label="Hidden panels"></nav>
+</main>
+
+<!-- ============================ RESEARCH (you steer) ============================ -->
+<main class="ws" id="ws-research" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">You steer · AI assists</span><h1 class="page" style="margin-top:10px">Pick what to study. The AI finds what moves with it.</h1><p class="sub">Quant analysis and machine learning. You choose the asset and the question; the AI chooses related assets and inputs, and says why for each. Anything it adds, you can switch off.</p></div>
+  <div class="seg" role="group" aria-label="Research view" id="rSeg" style="align-self:flex-start"><button aria-pressed="true" data-r="study">Study</button><button data-r="data">Data library</button></div>
+  <div id="r-study" style="display:grid;grid-template-columns:400px 1fr;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card">
+        <div class="lbl"><span>1 · Your asset</span><span class="who you">You</span></div>
+        <div class="tags" id="assetPick"></div>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>2 · Your question</span><span class="who you">You</span></div>
+        <div class="field"><label for="goal">Predict</label><select class="in" id="goal"><option>Price range, next 24 bars</option><option>Direction, next 24 bars</option><option>Win or loss of a setup</option><option>Volatility</option><option>Market regime</option></select></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px">
+          <div class="field"><label for="rtf">Timeframe</label><select class="in" id="rtf"><option>1h</option><option>4h</option><option>1d</option></select></div>
+          <div class="field"><label for="hist">History</label><select class="in" id="hist"><option>2 years</option><option>1 year</option><option>5 years</option></select></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>4 · How strict</span><span class="who you">You</span></div>
+        <div class="field"><label for="folds">Walk-forward test rounds <span class="mono" id="foldsOut">6</span></label><input type="range" id="folds" min="3" max="12" value="6"></div>
+        <div class="field" style="margin-top:10px"><label>Costs</label><div class="seg" role="group" aria-label="Costs"><button aria-pressed="true">Your broker's</button><button>None</button></div></div>
+        <button class="btn primary" id="runR" style="width:100%;margin-top:14px;height:40px">Run research</button>
+      </section>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card aiC">
+        <div class="lbl"><span>3 · Related assets — chosen by AI</span><span class="who ai">AI</span></div>
+        <div class="note" style="margin-bottom:6px" id="relIntro"></div>
+        <div id="rel"></div>
+        <div style="display:flex;gap:8px;margin-top:10px"><input class="in mono" id="relAdd" placeholder="Add your own, e.g. NASDAQ" style="width:240px"><button class="btn sm" id="relAddBtn" style="height:34px">Add</button></div>
+      </section>
+      <section class="card aiC">
+        <div class="lbl"><span>Inputs and models — chosen by AI</span><span class="who ai">AI</span></div>
+        <div class="field"><label>Inputs</label><div class="tags" id="feats"></div></div>
+        <div class="field" style="margin-top:10px"><label>Models that will compete</label><div class="tags" id="models"></div></div>
+        <p class="note" style="margin:10px 0 0">The AI picked these for your question. Each is compared against the current baseline — the simulated paths, whose 90% band held 85% of the time over 237 checks.</p>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>Results</span><span class="who both">AI explains · you decide</span></div>
+        <div id="rOut" class="note">Run the research to see which model wins, what the related assets added, and the AI's plain-language explanation.</div>
+      </section>
+    </div>
+  </div>
+  <div id="r-data" hidden style="display:flex;flex-direction:column;gap:16px">
+    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px" id="libKpis"></div>
+    <div style="display:grid;grid-template-columns:1fr 400px;gap:16px">
+      <section class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap">
+          <span class="lblx">Your data library</span><span class="pill">sample rows</span><span class="spacer"></span>
+          <input class="in mono" id="dSym" placeholder="Symbol, e.g. SOLUSDT" aria-label="Symbol to download" style="width:170px;height:32px">
+          <select class="in" id="dTf" aria-label="Timeframe" style="width:80px;height:32px"><option>1h</option><option>15m</option><option>4h</option><option>1d</option></select>
+          <select class="in" id="dDepth" aria-label="How much history" style="width:110px;height:32px"><option>2 years</option><option>1 year</option><option>5 years</option><option>All available</option></select>
+          <button class="btn primary sm" id="dAdd" style="height:32px">Download</button>
+        </div>
+        <div class="row head" style="grid-template-columns:1.1fr .5fr .8fr 1.3fr .8fr .6fr 1fr 160px"><span>Series</span><span>TF</span><span>Source</span><span>Range</span><span>Bars</span><span>Size</span><span>Used by</span><span></span></div>
+        <div id="lib"></div>
+      </section>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <section class="card aiC">
+          <div class="lbl"><span>What the system has learned</span><span class="who ai">AI memory</span></div>
+          <div id="learned"></div>
+          <p class="note" style="margin:10px 0 0">Forgetting removes the stored results only — your bars stay. Anything forgotten is simply recomputed the next time it's needed.</p>
+        </section>
+        <section class="card">
+          <div class="lbl"><span>How the AI may use it</span><span class="who you">You decide</span></div>
+          <label class="orow" style="grid-template-columns:18px 1fr"><input type="checkbox" checked><span>Reuse stored backtests — a re-run only computes what changed</span></label>
+          <label class="orow" style="grid-template-columns:18px 1fr"><input type="checkbox" checked><span>Let the AI draft strategies from what has worked before</span></label>
+          <label class="orow" style="grid-template-columns:18px 1fr"><input type="checkbox"><span>Keep downloading new bars in the background</span></label>
+        </section>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ STRATEGY (together) ============================ -->
+<main class="ws" id="ws-strategy" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">Built together</span><h1 class="page" style="margin-top:10px">Describe the idea. The AI drafts, tests and critiques. You shape it.</h1></div>
+  <div style="display:grid;grid-template-columns:420px 1fr;gap:16px">
+    <section class="card">
+      <div class="lbl"><span>The conversation</span><span class="who both">Both</span></div>
+      <div class="chat" id="sChat"></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><input class="in" id="sIn" placeholder="e.g. only take it in the London session"><button class="btn aiB" id="sGo">Send</button></div>
+    </section>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card">
+        <div class="lbl"><span>The rules</span><span class="faint" style="font-size:11.5px">edit any line · the AI marks its own</span></div>
+        <div id="rules"></div>
+        <button class="btn sm" id="addRule">+ Add your rule</button>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>Backtest on your stored data</span><span class="who both">you pick · AI reuses</span></div>
+        <div class="tags" id="sData"></div>
+        <p class="note" style="margin:10px 0 0">The AI starts from backtests already in your library that used similar rules, so a re-run only computes what changed. It remembers which versions you dropped, and why.</p>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>Simulation</span><div style="display:flex;gap:8px"><button class="btn sm" id="simRun" style="height:30px">Run simulation</button></div></div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px">
+          <div><svg viewBox="0 0 440 150" width="100%" role="img" aria-label="Illustrative equity curve"><line x1="0" y1="120" x2="440" y2="120" stroke="rgba(255,255,255,.08)"/><polyline id="curve" fill="none" stroke="#D6B36A" stroke-width="2" points=""/></svg><div class="note" id="simNote">Not run yet — the curve shape here is illustrative only.</div></div>
+          <div class="card aiC" style="padding:12px 14px">
+            <div class="lbl" style="margin-bottom:8px"><span>AI critique</span><span class="who ai">AI</span></div>
+            <div id="critique" class="note"></div>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>Your decision</span><span class="who you">You</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px"><button class="btn" data-sd="Keep iterating">Keep iterating</button><button class="btn" data-sd="Paper trade it">Paper trade it</button><button class="btn" data-sd="Discard">Discard</button></div>
+        <div class="note" id="sDec" style="margin-top:8px"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ REVIEW ============================ -->
+<main class="ws" id="ws-review" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">AI finds · you judge</span><h1 class="page" style="margin-top:10px">The AI studies your trades. You decide what's true.</h1><p class="sub">From your MT5 fills and your decision log. <span class="faint">Sample rows · test fixture.</span></p></div>
+  <div style="display:grid;grid-template-columns:1fr 400px;gap:16px">
+    <section class="card aiC">
+      <div class="lbl"><span>What the AI noticed</span><span class="who ai">AI</span></div>
+      <div id="finds"></div>
+    </section>
+    <section class="card">
+      <div class="lbl"><span>Next week's rule</span><span class="who you">You</span></div>
+      <div class="note" style="margin-bottom:10px">The AI proposes; you word it and commit.</div>
+      <textarea class="in" id="nextRule">Don't trade within 30 minutes of major news — even when the setup is clean.</textarea>
+      <button class="btn primary" id="commitRule" style="width:100%;margin-top:12px;height:40px">Commit</button>
+      <div class="note" id="ruleDone" style="margin-top:8px"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="status"><span><span class="dot" style="background:var(--pos);width:6px;height:6px"></span> binance · 280 ms</span><span>ETHUSDT 1h</span><span>ATR 0.92%</span><span>London open</span><span class="spacer"></span><span class="ai">AI · read at 11:14</span></footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const WS = [["today", "Today", "AI briefs · you plan"], ["chart", "Chart", "AI-led"], ["research", "Research", "you steer"], ["strategy", "Strategy", "together"], ["review", "Review", "AI finds · you judge"]];
+$("nav").innerHTML = WS.map(([id, n, s]) => `<button data-ws="${id}" ${id === "chart" ? 'aria-current="page"' : ""}>${n}<small>${s}</small></button>`).join("");
+function go(id) {
+  document.querySelectorAll("nav.ws button").forEach((b) => b.toggleAttribute("aria-current", b.dataset.ws === id));
+  document.querySelectorAll("nav.ws button[aria-current]").forEach((b) => b.setAttribute("aria-current", "page"));
+  document.querySelectorAll("main.ws").forEach((m) => m.classList.toggle("on", m.id === "ws-" + id));
+}
+$("nav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) go(b.dataset.ws); });
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-go]"); if (g) go(g.dataset.go); });
+document.querySelectorAll(".seg").forEach((g) => g.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) g.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
+function tags(el, items, on, ai = false) {
+  el.innerHTML = items.map((t) => `<button class="tag${ai ? " aiT" : ""}" aria-pressed="${on.includes(t)}">${t}</button>`).join("");
+  el.onclick = (e) => { const b = e.target.closest(".tag"); if (b) b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); };
+}
+
+/* TODAY */
+tags($("focus"), ["ETHUSDT", "BTCUSDT", "XAUUSD", "EURUSD"], ["ETHUSDT", "BTCUSDT", "XAUUSD"]);
+$("commit").onclick = () => { $("commit").textContent = "Committed ✓ — edit"; };
+
+/* ================= SHELL: toast, tools menu, status strip, view ================= */
+let UIZ = 1; /* text-size factor, read by the chart's own labels too */
+function toast(msg) {
+  let t = document.getElementById("toast");
+  if (!t) { t = document.createElement("div"); t.id = "toast"; t.className = "toast"; t.setAttribute("role", "status"); document.body.appendChild(t); }
+  t.textContent = msg; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 2600);
+}
+const TOOLS_MENU = [
+  ["Markets", [["Watchlist and heatmap", "today"], ["Opportunity scan", "today"], ["Sessions", "chart"], ["Economic calendar", "chart"], ["News", "chart"]]],
+  ["Flow and on-chain", [["Liquidations", "chart"], ["Open interest and funding", "chart"], ["Whale watch", "chart"], ["Smart-money wallets", "research"], ["New token pairs", "today"]]],
+  ["Trading", [["Risk governor", "chart"], ["Position sizing", "chart"], ["Paper trading", "chart"], ["Price alerts", "chart"], ["Armed signals", "strategy"], ["MT5 fills and costs", "review"]]],
+  ["Research and ML", [["Analyse a relationship", "research"], ["Quant statistics", "research"], ["Volatility (GARCH)", "research"], ["Causal analysis", "research"], ["Forecast race", "research"], ["ML classifier", "research"], ["Portfolio optimiser", "research"], ["Cross-asset", "research"], ["Knowledge base", "research"], ["Claims ledger", "review"]]],
+  ["System", [["Data library", "research"], ["Backup and sync", null], ["Telegram", null], ["Service health", null], ["Settings", null]]],
+];
+$("toolsPop").innerHTML = `<div class="mega-grid">${TOOLS_MENU.map(([g, items]) => `<div><div class="lblx" style="margin:4px 6px 8px">${g}</div>${items.map(([n, ws]) => `<button class="mitem" data-ws="${ws || ""}" data-n="${n}">${n}</button>`).join("")}</div>`).join("")}</div><div class="note" style="padding:10px 6px 2px">Every tool here is backed by a service that already runs — most of them had no screen until now.</div>`;
+$("toolsPop").addEventListener("click", (e) => { const b = e.target.closest(".mitem"); if (!b) return; $("toolsPop").hidden = true; if (b.dataset.ws) { go(b.dataset.ws); toast(`${b.dataset.n} — opened in ${b.dataset.ws[0].toUpperCase() + b.dataset.ws.slice(1)}`); if (b.dataset.n === "Data library") document.querySelector('#rSeg [data-r=data]')?.click(); } else toast(`${b.dataset.n} — opens in Settings`); });
+const STATUS = [
+  ["Alerts", "0", "", "No price alerts armed. They fire from the server even when the terminal is closed.", "M6 16V11a6 6 0 1112 0v5l2 2H4zM10 20a2 2 0 004 0"],
+  ["Signals", "0 armed", "", "No strategies armed. Arm one in Strategy and the server watches it bar by bar.", "M13 2L4 14h7l-1 8 9-12h-7z"],
+  ["Risk", "can't see book", "warn", "The risk governor can't read open positions while MT5 is offline, so it answers WARN, never ALLOW.", "M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"],
+  ["MT5", "offline", "warn", "The MetaTrader5 package isn't installed in the backend's Python. Install it and log in to MT5.", "M4 12h16M12 4v16"],
+  ["Telegram", "not set", "", "Set a bot token to get alerts, signals and the daily brief on your phone.", "M21 4L3 11l6 2 2 6 3-4 5 4z"],
+  ["Services", "11/11", "pos", "All eleven background services are running.", "M4 13h4l3-8 4 14 3-6h2"],
+];
+$("strip").innerHTML = STATUS.map(([n, v, tone, why, d]) => `<button class="sitem ${tone}" title="${why}" data-why="${why}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg><span class="faint">${n}</span><b>${v}</b></button>`).join("");
+$("strip").addEventListener("click", (e) => { const b = e.target.closest(".sitem"); if (b) toast(b.dataset.why); });
+$("searchBtn").onclick = () => toast("Command palette — symbols, tools and every command (Ctrl K).");
+document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") { e.preventDefault(); $("searchBtn").click(); } });
+
+/* View menu */
+$("viewPop").innerHTML = `
+  <div class="vrow"><span>Text size</span><div class="seg" role="group" aria-label="Text size" id="vText"><button data-z=".92">S</button><button data-z="1" aria-pressed="true">M</button><button data-z="1.1">L</button></div></div>
+  <div class="vrow"><span>Density</span><div class="seg" role="group" aria-label="Density" id="vDens"><button data-d="compact">Compact</button><button data-d="comfy" aria-pressed="true">Comfortable</button></div></div>
+  <div class="vrow"><span>Panel side</span><div class="seg" role="group" aria-label="Panel side" id="vSide"><button data-s="left">Left</button><button data-s="right" aria-pressed="true">Right</button></div></div>
+  <div class="lblx" style="margin:12px 4px 6px">Layout</div>
+  <button class="mitem" data-l="focus">Chart focus <span class="faint">— panels hidden, drawer closed</span></button>
+  <button class="mitem" data-l="balanced">Balanced <span class="faint">— panels open, drawer closed</span></button>
+  <button class="mitem" data-l="analysis">Analysis <span class="faint">— wide panels, drawer open</span></button>`;
+const pressIn = (g, b) => g.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+$("viewPop").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.dataset.z) { pressIn($("vText"), b); UIZ = Number(b.dataset.z); document.documentElement.style.setProperty("--ui-zoom", b.dataset.z); if (typeof render === "function") render(); }
+  if (b.dataset.d) { pressIn($("vDens"), b); document.body.classList.toggle("compact", b.dataset.d === "compact"); }
+  if (b.dataset.s) { pressIn($("vSide"), b); $("ws-chart").classList.toggle("left", b.dataset.s === "left"); }
+  if (b.dataset.l) {
+    const l = b.dataset.l;
+    setRail(l !== "focus"); setDrawer(l === "analysis");
+    document.documentElement.style.setProperty("--railW", l === "analysis" ? "460px" : "360px");
+  }
+});
+for (const [btn, pop] of [["toolsBtn", "toolsPop"], ["viewBtn", "viewPop"]]) {
+  $(btn).addEventListener("click", (e) => { e.stopPropagation(); const open = $(pop).hidden; document.querySelectorAll(".pop").forEach((p) => { p.hidden = true; }); $(pop).hidden = !open; $(btn).setAttribute("aria-expanded", String(open)); });
+  $(pop).addEventListener("click", (e) => e.stopPropagation());
+}
+
+/* ================= SIDE PANEL: cards you pin, collapse, add, remove ================= */
+const I = (d) => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
+const PANELS = [
+  { id: "rec", t: "AI recommendation", who: "ai", on: true, open: true, pin: true, ic: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z", html: `
+    <div style="display:flex;justify-content:flex-end;margin:-4px 0 6px"><span class="pill" id="recPill"></span></div>
+    <div class="serif" style="font-size:26px;line-height:1.12" id="recTitle"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;font-size:11.5px;color:var(--fa)">
+      <div>Entry<div class="mono" style="font-size:14px;color:var(--tx);margin-top:3px" id="recE"></div></div>
+      <div>Stop<div class="mono" style="font-size:14px;color:var(--neg);margin-top:3px" id="recS"></div></div>
+      <div>Target<div class="mono" style="font-size:14px;color:var(--pos);margin-top:3px" id="recT"></div></div>
+    </div>
+    <p class="note" style="margin:12px 0 0" id="recNote"></p>
+    <div class="hr"></div>
+    <div class="lbl" style="margin-bottom:8px"><span>Your say</span><span class="who you">You</span></div>
+    <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px"><button class="btn primary" id="accept">Use this plan</button><button class="btn" id="adjust">Adjust</button><button class="btn" id="dismiss">Not for me</button></div>
+    <div id="decided" class="note" style="margin-top:10px"></div>
+    <div id="ticket" hidden style="margin-top:12px">
+      <div class="field"><label for="tr">Risk <span class="mono" id="trOut">1.00%</span></label><input type="range" id="tr" min="0.25" max="2" step="0.25" value="1"></div>
+      <div class="kv"><span>Size</span><b id="tSize"></b></div><div class="kv"><span>You risk</span><b class="neg" id="tRisk"></b></div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px"><button class="btn">Alert at entry</button><button class="btn primary">Review order…</button></div>
+    </div>` },
+  { id: "read", t: "AI read of the chart", who: "ai", on: true, open: false, pin: false, ic: "M4 6h16M4 12h16M4 18h10", html: `<div id="aiRead"></div>` },
+  { id: "risk", t: "Can I trade now?", who: "ai", on: true, open: true, pin: false, ic: "M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z", html: `
+    <div class="serif warn" style="font-size:22px;line-height:1.15">Not yet — news in 22 min</div>
+    <div class="kv" style="margin-top:8px"><span>Open risk</span><b>0.0% <span class="faint">/ 6.0%</span></b></div>
+    <div class="kv"><span>Today</span><b>0.00 <span class="faint">/ −3.0%</span></b></div>
+    <div class="kv"><span>Trades today</span><b>0 <span class="faint">/ 3</span></b></div>
+    <div class="kv"><span>Losses in a row</span><b>0 <span class="faint">/ 3</span></b></div>
+    <p class="note" style="margin:8px 0 0">From the risk governor. MT5 is offline, so open positions can't be seen — it warns rather than clears.</p>` },
+  { id: "levels", t: "Key levels", who: "ai", on: true, open: false, pin: false, ic: "M3 7h18M3 12h18M3 17h18", html: `<div id="levelsBody"></div>` },
+  { id: "cal", t: "Calendar", who: "", on: true, open: false, pin: false, ic: "M4 6h16v14H4zM4 10h16M9 3v4M15 3v4", html: `
+    <div class="kv"><span>FOMC member speaks</span><b class="warn">in 22 min</b></div>
+    <div class="kv"><span>German Buba monthly report</span><b>in 62 min</b></div>
+    <p class="note" style="margin:6px 0 0">Your no-trade window is 30 minutes around major news.</p>` },
+  { id: "flow", t: "Flow — funding, OI, liquidations", who: "", on: false, open: true, pin: false, ic: "M4 17l5-5 4 4 7-8", html: `
+    <div class="kv"><span>Funding rate</span><b class="faint">live when connected</b></div>
+    <div class="kv"><span>Open interest, 24h</span><b class="faint">—</b></div>
+    <div class="kv"><span>Liquidations over $10K</span><b class="faint">none on the tape</b></div>` },
+  { id: "news", t: "News", who: "", on: false, open: true, pin: false, ic: "M5 4h14v16H5zM8 8h8M8 12h8M8 16h5", html: `
+    <div class="nitem">Bitcoin reclaims 50-week moving average as analysts eye end of bear market <span class="faint">· Cointelegraph</span></div>
+    <div class="nitem">X sues its own users for running a fake bitcoin news bot farm <span class="faint">· CoinDesk</span></div>
+    <div class="nitem">Kalshi faces 'fake crypto volume' allegations <span class="faint">· CoinDesk</span></div>` },
+  { id: "rel", t: "Related assets", who: "ai", on: false, open: true, pin: false, ic: "M7 7h10v10H7zM3 12h4M17 12h4", html: `
+    <div class="kv"><span>BTCUSDT <span class="faint">leads crypto</span></span><b class="pos">+4.88%</b></div>
+    <div class="kv"><span>DXY <span class="faint">dollar</span></span><b class="faint">—</b></div>
+    <div class="kv"><span>SOLUSDT <span class="faint">high-beta peer</span></span><b class="faint">—</b></div>
+    <p class="note" style="margin:6px 0 0">How closely each moves with ETH is measured in Research.</p>` },
+  { id: "alerts", t: "Alerts", who: "you", on: false, open: true, pin: false, ic: "M6 16V11a6 6 0 1112 0v5l2 2H4zM10 20a2 2 0 004 0", html: `
+    <div style="display:flex;gap:6px"><input class="in mono" id="alPx" placeholder="Price" aria-label="Alert price" style="height:32px"><select class="in" id="alOp" aria-label="Condition" style="width:96px;height:32px"><option>above</option><option>below</option></select><button class="btn sm" id="alAdd" style="height:32px">Add</button></div>
+    <div id="alList" class="note" style="margin-top:8px">No alerts. They fire from the server — even with the terminal closed.</div>` },
+  { id: "watch", t: "Watchlist", who: "you", on: false, open: true, pin: false, ic: "M12 5c5 0 9 7 9 7s-4 7-9 7-9-7-9-7 4-7 9-7z", html: `
+    <div class="kv"><span>BTCUSDT</span><b>84,242.01 <span class="pos">+4.88%</span></b></div>
+    <div class="kv"><span>ETHUSDT</span><b>2,700.44 <span class="pos">+4.68%</span></b></div>
+    <div class="kv"><span>XAUUSD</span><b class="faint">—</b></div>
+    <div class="kv"><span>EURUSD</span><b class="faint">—</b></div>` },
+  { id: "whale", t: "Whale watch", who: "", on: false, open: true, pin: false, ic: "M3 13c4-6 14-6 18 0-4 4-14 4-18 0z", html: `
+    <p class="note" style="margin:0 0 8px">No wallets watched. Add one to be told about its large transfers.</p>
+    <div style="display:flex;gap:6px"><input class="in mono" placeholder="0x… wallet" aria-label="Wallet address" style="height:32px"><button class="btn sm" style="height:32px">Watch</button></div>` },
+  { id: "sim", t: "Similar setups, history", who: "ai", on: false, open: true, pin: false, ic: "M4 19h16M6 15l4-4 3 3 5-6", html: `<p class="note" style="margin:0">How this setup did before, replayed from your data library. Run it once in Research and it answers instantly after that.</p>` },
+];
+const cards = new Map();
+function buildCard(p) {
+  const el = document.createElement("section"); el.className = "pcard" + (p.who === "ai" ? " aiC" : ""); el.dataset.id = p.id;
+  el.innerHTML = `<div class="pcard-head"><button class="pc-toggle" aria-expanded="${p.open}"><span class="chev">${I("M9 6l6 6-6 6")}</span><span class="pc-ic">${I(p.ic)}</span><span class="pc-t">${p.t}</span>${p.who ? `<span class="who ${p.who}">${p.who === "ai" ? "AI" : "You"}</span>` : ""}</button><button class="icon-btn pc-pin" aria-pressed="${p.pin}" title="Pin to top" aria-label="Pin ${p.t}">${I("M9 3h6l-1 6 4 3H6l4-3zM12 12v9")}</button><button class="icon-btn pc-x" title="Remove panel" aria-label="Remove ${p.t}">${I("M6 6l12 12M18 6L6 18")}</button></div><div class="pcard-body"${p.open ? "" : " hidden"}>${p.html}</div>`;
+  cards.set(p.id, el); return el;
+}
+PANELS.forEach(buildCard);
+function layoutRail() {
+  const body = $("railBody"); const on = PANELS.filter((p) => p.on);
+  const order = [...on.filter((p) => p.pin), ...on.filter((p) => !p.pin)];
+  for (const p of PANELS) if (!p.on) cards.get(p.id).remove();
+  order.forEach((p) => body.appendChild(cards.get(p.id)));
+  $("addPop").innerHTML = PANELS.filter((p) => !p.on).map((p) => `<button class="mitem" data-add="${p.id}"><span class="pc-ic">${I(p.ic)}</span> ${p.t}</button>`).join("") || `<div class="note" style="padding:6px">Every panel is already on.</div>`;
+  $("stripRail").innerHTML = `<button class="icon-btn" data-open="" title="Show panels (])" aria-label="Show panels">${I("M15 6l-6 6 6 6")}</button>` + order.map((p) => `<button class="icon-btn" data-open="${p.id}" title="${p.t}" aria-label="Open ${p.t}">${I(p.ic)}</button>`).join("");
+}
+$("railBody").addEventListener("click", (e) => {
+  const card = e.target.closest(".pcard"); if (!card) return; const p = PANELS.find((x) => x.id === card.dataset.id);
+  if (e.target.closest(".pc-toggle")) { p.open = !p.open; card.querySelector(".pcard-body").hidden = !p.open; card.querySelector(".pc-toggle").setAttribute("aria-expanded", String(p.open)); }
+  if (e.target.closest(".pc-pin")) { p.pin = !p.pin; card.querySelector(".pc-pin").setAttribute("aria-pressed", String(p.pin)); layoutRail(); }
+  if (e.target.closest(".pc-x")) { p.on = false; layoutRail(); toast(`${p.t} removed — add it back from "+ Add panel".`); }
+});
+$("addPanel").addEventListener("click", (e) => { e.stopPropagation(); const open = $("addPop").hidden; document.querySelectorAll(".pop").forEach((x) => { x.hidden = true; }); $("addPop").hidden = !open; });
+$("addPop").addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("[data-add]"); if (!b) return; const p = PANELS.find((x) => x.id === b.dataset.add); p.on = true; p.open = true; cards.get(p.id).querySelector(".pcard-body").hidden = false; layoutRail(); $("addPop").hidden = true; cards.get(p.id).scrollIntoView({ block: "nearest" }); });
+$("collapseAll").onclick = () => { for (const p of PANELS) { if (p.pin) continue; p.open = false; const c = cards.get(p.id); c.querySelector(".pcard-body").hidden = true; c.querySelector(".pc-toggle").setAttribute("aria-expanded", "false"); } };
+function setRail(on) { $("rail").hidden = !on; $("resizer").hidden = !on; $("stripRail").hidden = on; $("railToggle").setAttribute("aria-pressed", String(on)); }
+$("hideRail").onclick = () => setRail(false);
+$("railToggle").onclick = () => setRail($("rail").hidden);
+$("stripRail").addEventListener("click", (e) => { const b = e.target.closest("[data-open]"); if (!b) return; setRail(true); const id = b.dataset.open; if (id) { const p = PANELS.find((x) => x.id === id); p.open = true; const c = cards.get(id); c.querySelector(".pcard-body").hidden = false; c.querySelector(".pc-toggle").setAttribute("aria-expanded", "true"); c.scrollIntoView({ block: "nearest" }); } });
+document.addEventListener("keydown", (e) => { if (e.key === "]" && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) setRail($("rail").hidden); });
+/* drag to resize */
+(() => { const r = $("resizer"); let x0 = 0, w0 = 0, on = false;
+  r.addEventListener("pointerdown", (e) => { on = true; x0 = e.clientX; w0 = $("rail").offsetWidth; r.setPointerCapture(e.pointerId); });
+  r.addEventListener("pointermove", (e) => { if (!on) return; const left = $("ws-chart").classList.contains("left"); const w = Math.max(280, Math.min(600, w0 + (left ? e.clientX - x0 : x0 - e.clientX))); document.documentElement.style.setProperty("--railW", w + "px"); });
+  r.addEventListener("pointerup", () => { on = false; });
+  r.addEventListener("keydown", (e) => { const cur = $("rail").offsetWidth; if (e.key === "ArrowLeft" || e.key === "ArrowRight") { const d = (e.key === "ArrowLeft") !== $("ws-chart").classList.contains("left") ? 20 : -20; document.documentElement.style.setProperty("--railW", Math.max(280, Math.min(600, cur + d)) + "px"); } });
+})();
+/* alerts panel */
+document.addEventListener("click", (e) => { if (e.target.id !== "alAdd") return; const v = Number($("alPx").value); if (!v) { $("alPx").focus(); return; } const list = $("alList"); if (!list.dataset.n) list.innerHTML = ""; list.dataset.n = "1"; list.insertAdjacentHTML("beforeend", `<div class="kv"><span>ETHUSDT ${$("alOp").value}</span><b>${v.toLocaleString()}</b></div>`); $("alPx").value = ""; });
+
+/* ================= the drawer under the chart: collapsed until you want it ================= */
+function setDrawer(open) { $("drawer").dataset.open = String(open); $("drawerBody").hidden = !open; $("drawerBtn").textContent = open ? "Collapse" : "Expand"; $("drawerBtn").setAttribute("aria-expanded", String(open)); }
+$("drawerBtn").onclick = () => setDrawer($("drawerBody").hidden);
+$("lowerSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; pressIn($("lowerSeg"), b); for (const k of ["objects", "ask", "pos", "alog"]) $("p-" + k).hidden = b.dataset.p !== k; setDrawer(true); });
+
+layoutRail(); setDrawer(false);
+
+/* ================= CHART — canvas, like the real engine ================= */
+const COL = { pos: "#34D399", neg: "#F87171", tx: "#E8EAED", fa: "#8B929C", mu: "#A3AAB4", grid: "rgba(255,255,255,.045)", ai: "#9DB8FF", acc: "#D6B36A", warn: "#F5C451", e20: "#E6C98A", e50: "#8AB4FF", e200: "#C084FC", bb: "rgba(157,184,255,.55)", vwap: "#F472B6" };
+const B = (() => { /* illustrative 1h ETHUSDT-like series, seeded */
+  let s = 20250921; const r = () => (s = (s * 16807) % 2147483647) / 2147483647;
+  const g = () => { let u = 0; for (let k = 0; k < 6; k++) u += r(); return u - 3; };
+  const out = []; let p = 2410; const t0 = Date.UTC(2026, 7, 18, 0);
+  for (let i = 0; i < 820; i++) {
+    const drift = i < 300 ? 0.15 : i < 520 ? -0.35 : i < 700 ? 0.25 : 0.55;
+    const vol = i > 790 ? 13 : 8;
+    const o = p; let c = o + drift + g() * vol; if (i === 812) c = o + 58;
+    const h = Math.max(o, c) + Math.abs(g()) * vol * .7, l = Math.min(o, c) - Math.abs(g()) * vol * .7;
+    const v = (900 + r() * 700) * (1 + Math.abs(c - o) / 12) * (i === 812 ? 6 : 1);
+    out.push({ t: t0 + i * 3600e3, o, h, l, c, v }); p = c;
+  }
+  const k = 2700.44 / out[out.length - 1].c; for (const b of out) { b.o *= k; b.h *= k; b.l *= k; b.c *= k; }
+  return out;
+})();
+const N = B.length;
+const closes = B.map((b) => b.c);
+const ema = (a, p) => { const k = 2 / (p + 1); let e = a[0]; return a.map((v) => (e = v * k + e * (1 - k))); };
+const sma = (a, p) => a.map((_, i) => i < p - 1 ? NaN : a.slice(i - p + 1, i + 1).reduce((x, y) => x + y, 0) / p);
+const IND = (() => {
+  const s20 = sma(closes, 20);
+  const sd = closes.map((_, i) => i < 19 ? NaN : Math.sqrt(closes.slice(i - 19, i + 1).reduce((a, v) => a + (v - s20[i]) ** 2, 0) / 20));
+  let pv = 0, vv = 0; const vwap = B.map((b, i) => { if (i % 24 === 0) { pv = 0; vv = 0; } const tp = (b.h + b.l + b.c) / 3; pv += tp * b.v; vv += b.v; return pv / vv; });
+  let ag = 0, al = 0; const rsi = closes.map((c, i) => { if (i === 0) return 50; const d = c - closes[i - 1]; ag = (ag * 13 + Math.max(d, 0)) / 14; al = (al * 13 + Math.max(-d, 0)) / 14; return al === 0 ? 100 : 100 - 100 / (1 + ag / al); });
+  const m12 = ema(closes, 12), m26 = ema(closes, 26), macd = m12.map((v, i) => v - m26[i]), sig = ema(macd, 9);
+  const trs = B.map((b, i) => i ? Math.max(b.h - b.l, Math.abs(b.h - B[i - 1].c), Math.abs(b.l - B[i - 1].c)) : b.h - b.l);
+  return { e20: ema(closes, 20), e50: ema(closes, 50), e200: ema(closes, 200), bbU: s20.map((m, i) => m + 2 * sd[i]), bbM: s20, bbL: s20.map((m, i) => m - 2 * sd[i]), vwap, rsi, macd, sig, hist: macd.map((v, i) => v - sig[i]), atr: ema(trs, 14) };
+})();
+const HA = (() => { const o = []; B.forEach((b, i) => { const c = (b.o + b.h + b.l + b.c) / 4; const op = i ? (o[i - 1].o + o[i - 1].c) / 2 : (b.o + b.c) / 2; o.push({ o: op, c, h: Math.max(b.h, op, c), l: Math.min(b.l, op, c) }); }); return o; })();
+
+/* ---------- auto-marking: computed from the bars, like the detectors ---------- */
+const AUTO = (() => {
+  const K = 5, sw = [];
+  for (let i = K; i < N - K; i++) {
+    const w = B.slice(i - K, i + K + 1);
+    if (B[i].h === Math.max(...w.map((b) => b.h))) sw.push({ i, p: B[i].h, hi: true });
+    if (B[i].l === Math.min(...w.map((b) => b.l))) sw.push({ i, p: B[i].l, hi: false });
+  }
+  const bos = []; let lastH = null, lastL = null, si = 0;
+  for (let i = 0; i < N; i++) {
+    while (si < sw.length && sw[si].i + K <= i) { if (sw[si].hi) lastH = sw[si]; else lastL = sw[si]; si++; }
+    if (lastH && B[i].c > lastH.p) { bos.push({ from: lastH.i, to: i, p: lastH.p, up: true }); lastH = null; }
+    if (lastL && B[i].c < lastL.p) { bos.push({ from: lastL.i, to: i, p: lastL.p, up: false }); lastL = null; }
+  }
+  const fvg = [];
+  for (let i = 2; i < N; i++) {
+    if (B[i].l > B[i - 2].h) { const lo = B[i - 2].h, hi = B[i].l; let end = N - 1; for (let j = i + 1; j < N; j++) if (B[j].l <= lo) { end = j; break; } if (end === N - 1 && hi - lo > IND.atr[i] * .25) fvg.push({ from: i - 2, to: end, lo, hi, up: true }); }
+    if (B[i].h < B[i - 2].l) { const hi = B[i - 2].l, lo = B[i].h; let end = N - 1; for (let j = i + 1; j < N; j++) if (B[j].h >= hi) { end = j; break; } if (end === N - 1 && hi - lo > IND.atr[i] * .25) fvg.push({ from: i - 2, to: end, lo, hi, up: false }); }
+  }
+  const lv = []; for (const a of sw) { const c = lv.find((x) => Math.abs(x.p - a.p) / a.p < .0045); if (c) { c.n++; c.p = (c.p * (c.n - 1) + a.p) / c.n; c.last = Math.max(c.last, a.i); } else lv.push({ p: a.p, n: 1, last: a.i }); }
+  const levels = lv.filter((x) => x.n >= 3).sort((a, b) => b.last - a.last).slice(0, 6);
+  const pats = []; const H = sw.filter((x) => x.hi), L = sw.filter((x) => !x.hi);
+  /* A double top needs a REAL dip between the peaks (>= 2 ATR), or every pair of
+     nearby highs becomes a "pattern" and the chart turns into noise. */
+  const deep = (a, b, hi) => { let ext = hi ? Infinity : -Infinity; for (let j = a.i; j <= b.i; j++) ext = hi ? Math.min(ext, B[j].l) : Math.max(ext, B[j].h); return hi ? a.p - ext >= IND.atr[b.i] * 2 : ext - a.p >= IND.atr[b.i] * 2; };
+  for (let k = 1; k < H.length; k++) { const a = H[k - 1], b = H[k]; if (b.i - a.i >= 12 && b.i - a.i < 80 && Math.abs(a.p - b.p) / a.p < .004 && deep(a, b, true)) pats.push({ name: "Double top", a, b, up: false }); }
+  for (let k = 1; k < L.length; k++) { const a = L[k - 1], b = L[k]; if (b.i - a.i >= 12 && b.i - a.i < 80 && Math.abs(a.p - b.p) / a.p < .004 && deep(a, b, false)) pats.push({ name: "Double bottom", a, b, up: true }); }
+  pats.splice(0, Math.max(0, pats.length - 4));
+  const div = []; for (let k = 1; k < H.length; k++) { const a = H[k - 1], b = H[k]; if (b.i - a.i < 60 && b.p > a.p && IND.rsi[b.i] < IND.rsi[a.i] - 3) div.push({ a, b, bear: true }); }
+  const lastBos = [...bos].reverse().find((x) => x.up) || null;
+  bos.splice(0, Math.max(0, bos.length - 10));
+  div.splice(0, Math.max(0, div.length - 3));
+  const zone = [...fvg].reverse().find((f) => f.up && f.hi < B[N - 1].c) || null;
+  return { sw, bos, fvg, levels, pats, div, lastBos, zone };
+})();
+const PLAN = (() => {
+  const last = B[N - 1].c, atr = IND.atr[N - 1];
+  const hi = AUTO.zone ? AUTO.zone.hi : last - atr * .6, lo = AUTO.zone ? AUTO.zone.lo : last - atr * 1.2;
+  const entry = (hi + lo) / 2, stop = Math.min(lo, AUTO.lastBos ? AUTO.lastBos.p : lo) - atr * .35, target = entry + (entry - stop) * 1.5;
+  return { entry, stop, target, zlo: lo, zhi: hi };
+})();
+
+/* ---------- state ---------- */
+const S = { type: "candles", log: false, end: N + 6, count: 150, tool: "cursor", magnet: true, drawings: [], draft: null, hover: null, drag: null,
+  ind: new Set(["e20", "e50", "vol", "rsi"]), auto: new Set(["bos", "fvg", "levels", "patterns", "div", "ai"]) };
+const INDS = [["e20", "EMA 20"], ["e50", "EMA 50"], ["e200", "EMA 200"], ["bb", "Bollinger bands"], ["vwap", "VWAP (daily)"], ["vol", "Volume"], ["rsi", "RSI 14 (pane)"], ["macd", "MACD (pane)"]];
+const AUTOS = [["bos", "Break of structure"], ["swings", "Swing highs and lows"], ["fvg", "Fair value gaps"], ["levels", "Support and resistance"], ["patterns", "Chart patterns"], ["div", "RSI divergences"], ["vp", "Volume profile"], ["sess", "London session"], ["ai", "AI plan zone"]];
+const TOOLS = [["cursor", "Cursor", "M5 3l14 8-6 2-2 6z"], ["trend", "Trend line", "M4 20L20 4"], ["ray", "Ray", "M4 20L20 4M20 4h-5"], ["hline", "Horizontal line", "M3 12h18"], ["rect", "Rectangle", "M4 6h16v12H4z"], ["fib", "Fib retracement", "M3 5h18M3 10h18M3 14h18M3 19h18"], ["long", "Long position", "M5 4h14v8H5zM5 12h14v8H5z"], ["measure", "Measure", "M4 20L20 4M4 14v6h6"]];
+
+/* ---------- layout and scales ---------- */
+const cv = $("cv"), cx = cv.getContext("2d");
+let L = {};
+function layout() {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const axis = 70, tAxis = 22, pane = 88;
+  const subs = ["rsi", "macd"].filter((k) => S.ind.has(k));
+  const mainH = h - tAxis - subs.length * pane;
+  L = { w, h, axis, plotW: w - axis, mainT: 8, mainB: mainH - 4, subs: subs.map((k, j) => ({ k, t: mainH + j * pane + 6, b: mainH + (j + 1) * pane - 4 })), tAxisY: h - tAxis };
+  const start = S.end - S.count; L.start = start; L.bw = L.plotW / S.count;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = Math.max(0, Math.floor(start)); i < Math.min(N, Math.ceil(S.end)); i++) { lo = Math.min(lo, B[i].l); hi = Math.max(hi, B[i].h); if (S.ind.has("bb") && !isNaN(IND.bbU[i])) { lo = Math.min(lo, IND.bbL[i]); hi = Math.max(hi, IND.bbU[i]); } }
+  const pad = (hi - lo) * .08; L.lo = lo - pad; L.hi = hi + pad;
+}
+const X = (i) => (i - L.start + .5) * L.bw;
+const tf = (v) => S.log ? Math.log(v) : v;
+const Y = (v) => L.mainB - (tf(v) - tf(L.lo)) / (tf(L.hi) - tf(L.lo)) * (L.mainB - L.mainT);
+const Pinv = (y) => { const f = (L.mainB - y) / (L.mainB - L.mainT) * (tf(L.hi) - tf(L.lo)) + tf(L.lo); return S.log ? Math.exp(f) : f; };
+const Iinv = (x) => x / L.bw - .5 + L.start;
+const fmtP = (v) => v.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+/* ---------- drawing primitives ---------- */
+function line(x1, y1, x2, y2, c, w = 1, dash) { cx.save(); cx.strokeStyle = c; cx.lineWidth = w; if (dash) cx.setLineDash(dash); cx.beginPath(); cx.moveTo(x1, y1); cx.lineTo(x2, y2); cx.stroke(); cx.restore(); }
+function poly(arr, c, w = 1.3, pane) { cx.save(); cx.strokeStyle = c; cx.lineWidth = w; cx.beginPath(); let on = false; const y = pane || Y; for (let i = Math.max(0, Math.floor(L.start) - 1); i < Math.min(N, Math.ceil(S.end) + 1); i++) { const v = arr[i]; if (isNaN(v)) continue; const px = X(i), py = y(v); if (!on) { cx.moveTo(px, py); on = true; } else cx.lineTo(px, py); } cx.stroke(); cx.restore(); }
+function box(x1, y1, x2, y2, fill, stroke) { cx.save(); cx.fillStyle = fill; cx.fillRect(Math.min(x1, x2), Math.min(y1, y2), Math.abs(x2 - x1), Math.abs(y2 - y1)); if (stroke) { cx.strokeStyle = stroke; cx.strokeRect(Math.min(x1, x2) + .5, Math.min(y1, y2) + .5, Math.abs(x2 - x1), Math.abs(y2 - y1)); } cx.restore(); }
+function tag(x, y, t, bg, fg = "#0A0C0F", align = "left") { cx.save(); cx.font = `600 ${10.5 * UIZ}px 'Geist Mono', monospace`; const w = cx.measureText(t).width + 10; const bx = align === "right" ? x - w : x; cx.fillStyle = bg; cx.beginPath(); cx.roundRect(bx, y - 9, w, 18, 4); cx.fill(); cx.fillStyle = fg; cx.fillText(t, bx + 5, y + 4); cx.restore(); }
+function text(x, y, t, c, size = 10.5, align = "left") { cx.save(); cx.font = `${size * UIZ}px 'Geist Mono', monospace`; cx.fillStyle = c; cx.textAlign = align; cx.fillText(t, x, y); cx.restore(); }
+
+/* ---------- render ---------- */
+function render() {
+  layout();
+  const { w, h, plotW } = L;
+  cx.clearRect(0, 0, w, h);
+  cx.save(); cx.beginPath(); cx.rect(0, 0, plotW, L.mainB + 4); cx.clip();
+  for (let k = 0; k <= 6; k++) { const v = L.lo + (L.hi - L.lo) * k / 6; line(0, Y(v), plotW, Y(v), COL.grid); }
+  const i0 = Math.max(0, Math.floor(L.start)), i1 = Math.min(N, Math.ceil(S.end));
+  if (S.auto.has("sess")) for (let i = i0; i < i1; i++) { const hr = new Date(B[i].t).getUTCHours(); if (hr >= 7 && hr < 16) box(X(i) - L.bw / 2, L.mainT, X(i) + L.bw / 2, L.mainB, "rgba(157,184,255,.035)"); }
+  if (S.ind.has("vol")) { let mv = 0; for (let i = i0; i < i1; i++) mv = Math.max(mv, B[i].v); for (let i = i0; i < i1; i++) { const hh = B[i].v / mv * (L.mainB - L.mainT) * .16; box(X(i) - L.bw * .35, L.mainB - hh, X(i) + L.bw * .35, L.mainB, B[i].c >= B[i].o ? "rgba(52,211,153,.22)" : "rgba(248,113,113,.22)"); } }
+  if (S.auto.has("vp")) { const bins = 28, vb = new Array(bins).fill(0); for (let i = i0; i < i1; i++) { const k = Math.min(bins - 1, Math.max(0, Math.floor((B[i].c - L.lo) / (L.hi - L.lo) * bins))); vb[k] += B[i].v; } const mx = Math.max(...vb), poc = vb.indexOf(mx); vb.forEach((v, k) => { const y1 = Y(L.lo + (L.hi - L.lo) * k / bins), y2 = Y(L.lo + (L.hi - L.lo) * (k + 1) / bins), ww = v / mx * plotW * .16; box(plotW - ww, y2 + 1, plotW, y1 - 1, k === poc ? "rgba(214,179,106,.35)" : "rgba(255,255,255,.07)"); }); text(plotW - 6, Y(L.lo + (L.hi - L.lo) * (poc + .5) / bins) - 8, "POC", COL.acc, 10, "right"); }
+  if (S.auto.has("fvg")) for (const f of AUTO.fvg) { if (f.to < i0 || f.from > i1) continue; box(X(f.from), Y(f.hi), X(Math.min(f.to, i1 + 5)), Y(f.lo), f.up ? "rgba(52,211,153,.09)" : "rgba(248,113,113,.09)"); text(X(f.from) + 3, Y(f.hi) - 3, "FVG", f.up ? COL.pos : COL.neg, 9.5); }
+  if (S.auto.has("levels")) for (const lv of AUTO.levels) { line(0, Y(lv.p), plotW, Y(lv.p), "rgba(245,196,81,.45)", 1, [2, 4]); text(6, Y(lv.p) - 4, `S/R ×${lv.n}`, COL.warn, 9.5); }
+  if (S.auto.has("ai")) { box(X(N - 40), Y(PLAN.zhi), X(N + 8), Y(PLAN.zlo), "rgba(157,184,255,.14)", "rgba(157,184,255,.5)"); line(X(N - 60), Y(PLAN.stop), X(N + 8), Y(PLAN.stop), COL.neg, 1.2, [5, 4]); line(X(N - 60), Y(PLAN.target), X(N + 8), Y(PLAN.target), COL.pos, 1.2, [5, 4]); text(X(N - 40) + 4, Y(PLAN.zhi) - 5, "AI · pullback zone", COL.ai, 10); text(X(N - 60) + 2, Y(PLAN.stop) + 13, "AI · invalidation", COL.neg, 10); text(X(N - 60) + 2, Y(PLAN.target) - 5, "AI · target 1.5R", COL.pos, 10); }
+  if (S.ind.has("bb")) { poly(IND.bbU, COL.bb, 1); poly(IND.bbL, COL.bb, 1); poly(IND.bbM, "rgba(157,184,255,.3)", 1); }
+  const src = S.type === "heikin" ? HA : B;
+  if (S.type === "line" || S.type === "area") {
+    if (S.type === "area") { cx.save(); cx.beginPath(); cx.moveTo(X(i0), L.mainB); for (let i = i0; i < i1; i++) cx.lineTo(X(i), Y(B[i].c)); cx.lineTo(X(i1 - 1), L.mainB); cx.closePath(); cx.fillStyle = "rgba(214,179,106,.10)"; cx.fill(); cx.restore(); }
+    poly(closes, COL.acc, 1.6);
+  } else for (let i = i0; i < i1; i++) {
+    const b = src[i], up = b.c >= b.o, c = up ? COL.pos : COL.neg, x = X(i), bw = Math.max(1, L.bw * .64);
+    if (S.type === "bars") { line(x, Y(b.h), x, Y(b.l), c); line(x - bw / 2, Y(b.o), x, Y(b.o), c); line(x, Y(b.c), x + bw / 2, Y(b.c), c); continue; }
+    line(x, Y(b.h), x, Y(b.l), c);
+    const y1 = Y(Math.max(b.o, b.c)), y2 = Y(Math.min(b.o, b.c));
+    if (S.type === "hollow" && up) { cx.save(); cx.strokeStyle = c; cx.strokeRect(x - bw / 2 + .5, y1 + .5, bw - 1, Math.max(1, y2 - y1)); cx.restore(); }
+    else box(x - bw / 2, y1, x + bw / 2, y1 + Math.max(1, y2 - y1), c);
+  }
+  if (S.ind.has("e20")) poly(IND.e20, COL.e20); if (S.ind.has("e50")) poly(IND.e50, COL.e50); if (S.ind.has("e200")) poly(IND.e200, COL.e200); if (S.ind.has("vwap")) poly(IND.vwap, COL.vwap, 1.2);
+  if (S.auto.has("swings")) for (const s of AUTO.sw) { if (s.i < i0 || s.i >= i1) continue; text(X(s.i), s.hi ? Y(s.p) - 6 : Y(s.p) + 14, s.hi ? "▼" : "▲", s.hi ? "rgba(248,113,113,.7)" : "rgba(52,211,153,.7)", 8.5, "center"); }
+  if (S.auto.has("bos")) for (const b of AUTO.bos) { if (b.to < i0 || b.from > i1) continue; line(X(b.from), Y(b.p), X(b.to), Y(b.p), b.up ? COL.pos : COL.neg, 1, [1, 3]); text((X(b.from) + X(b.to)) / 2, Y(b.p) + (b.up ? -4 : 12), "BOS", b.up ? COL.pos : COL.neg, 9.5, "center"); }
+  if (S.auto.has("patterns")) for (const p of AUTO.pats) { if (p.b.i < i0 || p.a.i > i1) continue; line(X(p.a.i), Y(p.a.p), X(p.b.i), Y(p.b.p), COL.ai, 1.4); tag((X(p.a.i) + X(p.b.i)) / 2 - 36, Y(p.a.p) + (p.up ? 22 : -18), p.name, "rgba(157,184,255,.9)"); }
+  if (S.auto.has("div")) for (const d of AUTO.div) { if (d.b.i < i0 || d.a.i > i1) continue; line(X(d.a.i), Y(d.a.p) - 10, X(d.b.i), Y(d.b.p) - 10, COL.warn, 1.2); text(X(d.b.i), Y(d.b.p) - 16, "div", COL.warn, 9.5, "center"); }
+  for (const d of S.drawings.concat(S.draft ? [S.draft] : [])) drawShape(d);
+  cx.restore();
+  /* sub panes */
+  for (const p of L.subs) {
+    line(0, p.t - 6, w, p.t - 6, "rgba(255,255,255,.08)");
+    if (p.k === "rsi") { const yy = (v) => p.b - v / 100 * (p.b - p.t); box(0, yy(70), plotW, yy(30), "rgba(157,184,255,.05)"); line(0, yy(70), plotW, yy(70), COL.grid); line(0, yy(30), plotW, yy(30), COL.grid); cx.save(); cx.beginPath(); cx.rect(0, p.t, plotW, p.b - p.t); cx.clip(); poly(IND.rsi, "#C084FC", 1.3, yy); cx.restore(); text(6, p.t + 10, `RSI 14  ${IND.rsi[Math.min(N - 1, Math.ceil(S.end) - 1)].toFixed(1)}`, COL.mu); text(plotW + 6, yy(70) + 4, "70", COL.fa); text(plotW + 6, yy(30) + 4, "30", COL.fa); }
+    if (p.k === "macd") { let m = 0; for (let i = i0; i < i1; i++) m = Math.max(m, Math.abs(IND.macd[i]), Math.abs(IND.sig[i])); const yy = (v) => (p.t + p.b) / 2 - v / (m || 1) * (p.b - p.t) / 2; cx.save(); cx.beginPath(); cx.rect(0, p.t, plotW, p.b - p.t); cx.clip(); for (let i = i0; i < i1; i++) box(X(i) - L.bw * .3, yy(0), X(i) + L.bw * .3, yy(IND.hist[i]), IND.hist[i] >= 0 ? "rgba(52,211,153,.4)" : "rgba(248,113,113,.4)"); poly(IND.macd, COL.e50, 1.2, yy); poly(IND.sig, COL.e20, 1.2, yy); cx.restore(); text(6, p.t + 10, "MACD 12 26 9", COL.mu); }
+  }
+  /* axes */
+  cx.save(); cx.fillStyle = "#101317"; cx.fillRect(plotW, 0, L.axis, h); cx.restore();
+  for (let k = 0; k <= 6; k++) { const v = L.lo + (L.hi - L.lo) * k / 6; text(plotW + 8, Y(v) + 4, fmtP(v), COL.fa); }
+  const last = B[N - 1]; tag(plotW + 2, Y(last.c), fmtP(last.c), last.c >= last.o ? COL.pos : COL.neg);
+  const step = Math.max(1, Math.round(90 / L.bw)); for (let i = Math.ceil(L.start / step) * step; i < S.end; i += step) { if (i < 0 || i >= N) continue; const d = new Date(B[i].t); text(X(i), L.tAxisY + 15, d.getUTCHours() === 0 ? `${d.getUTCDate()} ${d.toLocaleString("en", { month: "short", timeZone: "UTC" })}` : `${String(d.getUTCHours()).padStart(2, "0")}:00`, COL.fa, 10, "center"); }
+  /* crosshair */
+  if (S.hover) { const { x, y } = S.hover; line(x, 0, x, L.tAxisY, "rgba(255,255,255,.25)", 1, [3, 3]); if (y < L.mainB) { line(0, y, plotW, y, "rgba(255,255,255,.25)", 1, [3, 3]); tag(plotW + 2, y, fmtP(Pinv(y)), "#2A3038", COL.tx); } }
+  legend();
+}
+/* Magnet: snap to the nearest open/high/low/close, but only within 10px of it.
+   Snapping unconditionally put a long position's stop on the same price as its
+   entry whenever both were placed on one candle — a drawing of zero size. */
+function snap(i, p) { if (!S.magnet) return p; const b = B[Math.max(0, Math.min(N - 1, Math.round(i)))]; const v = [b.o, b.h, b.l, b.c].reduce((a, q) => Math.abs(q - p) < Math.abs(a - p) ? q : a, b.c); return Math.abs(Y(v) - Y(p)) <= 10 ? v : p; }
+function drawShape(d) {
+  const a = d.a, b = d.b || d.a, x1 = X(a.i), y1 = Y(a.p), x2 = X(b.i), y2 = Y(b.p), c = d.sel ? COL.acc : "#E8EAED";
+  if (d.kind === "trend") line(x1, y1, x2, y2, c, 1.6);
+  if (d.kind === "ray") { const k = (y2 - y1) / ((x2 - x1) || 1e-9); line(x1, y1, L.plotW, y1 + k * (L.plotW - x1), c, 1.6); }
+  if (d.kind === "hline") { line(0, y1, L.plotW, y1, c, 1.4); tag(L.plotW - 4, y1, fmtP(a.p), c, "#0A0C0F", "right"); }
+  if (d.kind === "rect") box(x1, y1, x2, y2, "rgba(214,179,106,.10)", c);
+  if (d.kind === "fib") { const lv = [0, .236, .382, .5, .618, .786, 1]; for (const f of lv) { const p = b.p + (a.p - b.p) * f; line(Math.min(x1, x2), Y(p), L.plotW, Y(p), f === .618 ? COL.acc : "rgba(232,234,237,.5)", 1); text(Math.min(x1, x2) + 4, Y(p) - 3, `${f}  ${fmtP(p)}`, COL.mu, 9.5); } }
+  if (d.kind === "long") { const ent = a.p, st = b.p, tg = ent + (ent - st) * 2, xe = x1 + Math.max(60, L.bw * 30); box(x1, Y(ent), xe, Y(tg), "rgba(52,211,153,.14)", COL.pos); box(x1, Y(ent), xe, Y(st), "rgba(248,113,113,.14)", COL.neg); text(x1 + 6, Y(tg) + 14, `target ${fmtP(tg)} · 2R`, COL.pos, 10); text(x1 + 6, Y(st) - 5, `stop ${fmtP(st)} · −1R`, COL.neg, 10); }
+  if (d.kind === "measure") { box(x1, y1, x2, y2, "rgba(157,184,255,.10)", COL.ai); const pct = (b.p - a.p) / a.p * 100; tag(x2 + 6, y2, `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}% · ${Math.round(Math.abs(b.i - a.i))} bars`, COL.ai); }
+}
+function legend() {
+  const i = S.hover ? Math.max(0, Math.min(N - 1, Math.round(Iinv(S.hover.x)))) : N - 1, b = B[i];
+  const up = b.c >= b.o, c = up ? "var(--pos)" : "var(--neg)";
+  const inds = [["e20", "EMA20", IND.e20, COL.e20], ["e50", "EMA50", IND.e50, COL.e50], ["e200", "EMA200", IND.e200, COL.e200], ["vwap", "VWAP", IND.vwap, COL.vwap]].filter(([k]) => S.ind.has(k));
+  $("legend").innerHTML = `<span class="faint">${new Date(b.t).toISOString().slice(5, 16).replace("T", " ")}</span> O <b style="color:${c}">${fmtP(b.o)}</b> H <b style="color:${c}">${fmtP(b.h)}</b> L <b style="color:${c}">${fmtP(b.l)}</b> C <b style="color:${c}">${fmtP(b.c)}</b>` + inds.map(([, n, a, col]) => ` <span style="color:${col}">${n} ${fmtP(a[i])}</span>`).join("");
+}
+
+/* ---------- interaction ---------- */
+const pt = (e) => { const r = cv.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+cv.addEventListener("wheel", (e) => { e.preventDefault(); const { x } = pt(e); const anchor = Iinv(x), f = e.deltaY > 0 ? 1.12 : 1 / 1.12; const nc = Math.max(30, Math.min(N, S.count * f)); S.end = anchor + (S.end - anchor) * nc / S.count; S.count = nc; clampView(); render(); }, { passive: false });
+function clampView() { S.end = Math.max(S.count * .3, Math.min(N + S.count * .5, S.end)); }
+cv.addEventListener("pointerdown", (e) => {
+  const q = pt(e); cv.setPointerCapture(e.pointerId); $("hint").style.opacity = 0;
+  if (S.tool === "cursor") { S.drag = { x: q.x, end: S.end }; cv.style.cursor = "grabbing"; return; }
+  const i = Iinv(q.x), p = snap(i, Pinv(q.y));
+  if (S.tool === "hline") { S.drawings.push({ kind: "hline", a: { i, p } }); objects(); render(); return; }
+  S.draft = { kind: S.tool, a: { i, p }, b: { i, p } };
+});
+cv.addEventListener("pointermove", (e) => {
+  const q = pt(e); S.hover = q;
+  if (S.drag) { S.end = S.drag.end - (q.x - S.drag.x) / L.bw; clampView(); }
+  if (S.draft) { const i = Iinv(q.x); S.draft.b = { i, p: snap(i, Pinv(q.y)) }; }
+  render();
+});
+cv.addEventListener("pointerup", () => { S.drag = null; cv.style.cursor = S.tool === "cursor" ? "crosshair" : "copy"; if (S.draft) { if (Math.abs(S.draft.a.i - S.draft.b.i) > .3 || S.draft.a.p !== S.draft.b.p) S.drawings.push(S.draft); S.draft = null; objects(); render(); } });
+cv.addEventListener("pointerleave", () => { S.hover = null; render(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { S.draft = null; setTool("cursor"); render(); } if ((e.key === "Delete" || e.key === "Backspace") && document.activeElement === document.body) { S.drawings = S.drawings.filter((d) => !d.sel); objects(); render(); } });
+window.addEventListener("resize", render);
+
+function setTool(t) { S.tool = t; $("tools").querySelectorAll("button[data-t]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.t === t))); cv.style.cursor = t === "cursor" ? "crosshair" : "copy"; }
+$("tools").innerHTML = TOOLS.map(([k, n, d]) => `<button data-t="${k}" aria-label="${n}" title="${n}" aria-pressed="${k === "cursor"}"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg></button>`).join("") +
+  `<span style="height:1px;background:var(--line);margin:6px 4px"></span><button id="magnet" aria-label="Magnet: snap to open, high, low, close" title="Magnet: snap to OHLC" aria-pressed="true"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M6 4v8a6 6 0 0012 0V4M6 8h4M14 8h4"/></svg></button><button id="clearAll" aria-label="Remove all your drawings" title="Remove all your drawings"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>`;
+$("tools").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; if (b.dataset.t) setTool(b.dataset.t); if (b.id === "magnet") { S.magnet = !S.magnet; b.setAttribute("aria-pressed", String(S.magnet)); } if (b.id === "clearAll") { S.drawings = []; objects(); render(); } });
+
+function popover(btn, pop, items, set, cnt, total) {
+  const paint = () => { pop.innerHTML = items.map(([k, n]) => `<label class="pchk"><input type="checkbox" data-k="${k}" ${set.has(k) ? "checked" : ""}> ${n}</label>`).join("") + `<div class="note" style="padding:8px 4px 2px">${total}</div>`; cnt.textContent = set.size; };
+  paint();
+  btn.onclick = (e) => { e.stopPropagation(); const open = pop.hidden; document.querySelectorAll(".pop").forEach((p) => { p.hidden = true; }); pop.hidden = !open; btn.setAttribute("aria-expanded", String(open)); };
+  pop.onchange = (e) => { const k = e.target.dataset.k; if (!k) return; if (e.target.checked) set.add(k); else set.delete(k); cnt.textContent = set.size; objects(); render(); };
+  pop.onclick = (e) => e.stopPropagation();
+}
+document.addEventListener("click", () => document.querySelectorAll(".pop").forEach((p) => { p.hidden = true; }));
+popover($("indBtn"), $("indPop"), INDS, S.ind, $("indCount"), "The product has 23 — Ichimoku, Supertrend, Keltner, ADX, Stochastic, anchored VWAP and more.");
+popover($("autoBtn"), $("autoPop"), AUTOS, S.auto, $("autoCount"), "The product detects ~33 kinds — order blocks, liquidity sweeps, harmonics, wedges, triangles and more.");
+$("ctype").onchange = (e) => { S.type = e.target.value; render(); };
+$("fit").onclick = () => { S.end = N + 6; S.count = 150; render(); };
+$("logBtn").onclick = () => { S.log = !S.log; $("logBtn").setAttribute("aria-pressed", String(S.log)); render(); };
+
+function objects() {
+  const counts = { bos: AUTO.bos.length, swings: AUTO.sw.length, fvg: AUTO.fvg.length, levels: AUTO.levels.length, patterns: AUTO.pats.length, div: AUTO.div.length, vp: 1, sess: 1, ai: 1 };
+  const autoRows = AUTOS.map(([k, n]) => `<label class="orow"><input type="checkbox" data-a="${k}" ${S.auto.has(k) ? "checked" : ""}><span class="ai">AI</span><span>${n}</span><span class="mono faint">${counts[k]}</span></label>`).join("");
+  const names = Object.fromEntries(TOOLS.map(([k, n]) => [k, n]));
+  const yours = S.drawings.map((d, i) => `<div class="orow"><input type="checkbox" checked disabled aria-label="visible"><span style="color:var(--acc)">You</span><span>${names[d.kind]} · ${fmtP(d.a.p)}${d.b ? " → " + fmtP(d.b.p) : ""}</span><button class="btn sm" data-del="${i}" aria-label="Delete drawing">Delete</button></div>`).join("");
+  $("objCount").textContent = [...S.auto].filter((k) => counts[k] > 0).reduce((a, k) => a + (["vp", "sess", "ai"].includes(k) ? 0 : counts[k]), 0) + S.drawings.length;
+  $("p-objects").innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px"><div><div class="lbl" style="margin:8px 0"><span>Marked by the AI</span><span class="who ai">AI</span></div>${autoRows}</div><div><div class="lbl" style="margin:8px 0"><span>Drawn by you</span><span class="who you">You</span></div>${yours || '<div class="note" style="padding:6px 0">Nothing yet — pick a tool on the left of the chart and draw.</div>'}</div></div>`;
+}
+$("p-objects").addEventListener("change", (e) => { const k = e.target.dataset.a; if (!k) return; if (e.target.checked) S.auto.add(k); else S.auto.delete(k); $("autoPop").querySelectorAll("input").forEach((i) => { i.checked = S.auto.has(i.dataset.k); }); $("autoCount").textContent = S.auto.size; render(); });
+$("p-objects").addEventListener("click", (e) => { const b = e.target.closest("[data-del]"); if (b) { S.drawings.splice(Number(b.dataset.del), 1); objects(); render(); } });
+
+/* ---------- the AI read, computed from what was marked ---------- */
+function aiRead() {
+  const i = N - 1, e20 = IND.e20[i], e50 = IND.e50[i], e200 = IND.e200[i], up = e20 > e50 && e50 > e200;
+  const lastDiv = AUTO.div[AUTO.div.length - 1], recentDiv = lastDiv && N - lastDiv.b.i < 40;
+  const bosTxt = AUTO.lastBos ? `broke above ${fmtP(AUTO.lastBos.p)} ${N - AUTO.lastBos.to} bars ago` : "no recent break";
+  const steps = [
+    [up ? "pos" : "warn", "Trend", up ? "up — EMA 20 over 50 over 200." : "mixed — the averages are not stacked."],
+    ["pos", "Structure", `break of structure: price ${bosTxt}.`],
+    [AUTO.zone ? "pos" : "warn", "Pullback area", AUTO.zone ? `an unfilled gap at ${fmtP(AUTO.zone.lo)}–${fmtP(AUTO.zone.hi)} is the first place buyers may return.` : "no unfilled gap below — no clean pullback area."],
+    [recentDiv ? "warn" : "pos", "Momentum", recentDiv ? "RSI made a lower high while price made a higher one — the push is tiring." : "RSI confirms the latest high."],
+    ["ai", "Levels", `${AUTO.levels.length} support/resistance levels, ${AUTO.pats.length} double tops/bottoms and ${AUTO.fvg.length} open gaps are marked on the chart.`],
+  ];
+  const col = { pos: ["rgba(52,211,153,.14)", "var(--pos)"], warn: ["rgba(245,196,81,.14)", "var(--warn)"], ai: ["rgba(157,184,255,.14)", "var(--ai)"] };
+  $("aiRead").innerHTML = steps.map(([c, h, t], k) => `<div class="step"><span class="n" style="background:${col[c][0]};color:${col[c][1]}">${k + 1}</span><span><b>${h}:</b> <span class="muted">${t}</span></span></div>`).join("");
+  const checksOk = up && AUTO.zone && !recentDiv;
+  $("recTitle").textContent = AUTO.zone ? `Long on a pullback into ${fmtP(PLAN.zlo)}–${fmtP(PLAN.zhi)}` : "Wait — no clean entry yet";
+  $("recE").textContent = fmtP(PLAN.entry); $("recS").textContent = fmtP(PLAN.stop); $("recT").textContent = fmtP(PLAN.target);
+  $("recPill").textContent = checksOk ? "structure and trend agree" : "partial agreement"; $("recPill").className = "pill " + (checksOk ? "pos" : "warn");
+  $("recNote").textContent = `Stop sits below the break level and the gap; target is 1.5R. ${recentDiv ? "Momentum is fading, so size down. " : ""}The replayed record for this setup comes from your data library when you run it.`;
+  const last = B[N - 1], prev = B[N - 25];
+  $("lastPx").textContent = fmtP(last.c); $("chg").textContent = `${((last.c - prev.c) / prev.c * 100 >= 0 ? "+" : "")}${((last.c - prev.c) / prev.c * 100).toFixed(2)}% 24h`;
+}
+function fillLevels() {
+  const last = B[N - 1].c;
+  const rows = AUTO.levels.map((l) => ({ ...l, d: (l.p - last) / last * 100 })).sort((a, b) => Math.abs(a.d) - Math.abs(b.d)).slice(0, 5);
+  $("levelsBody").innerHTML = rows.map((l) => `<div class="kv"><span>${l.d >= 0 ? "Resistance" : "Support"} <span class="faint">· ${l.n} touches</span></span><b>${fmtP(l.p)} <span class="${l.d >= 0 ? "neg" : "pos"}">${l.d >= 0 ? "+" : ""}${l.d.toFixed(2)}%</span></b></div>`).join("") + `<p class="note" style="margin:6px 0 0">Nearest first, measured from the last price.</p>`;
+}
+new ResizeObserver(() => render()).observe(cv);
+aiRead(); fillLevels(); objects(); setTool("cursor"); render();
+
+const ANSWERS = {
+  "What would invalidate this?": `A close below ${fmtP(PLAN.stop)} — under the gap and the level the break came from. Below it, the structure I'm reading no longer exists.`,
+  "Why wait for the news?": "Your own rule blocks new trades within 30 minutes of major news, and an FOMC speaker is due in 22 minutes. The setup stays valid for about 1.5 sessions, so waiting costs little.",
+  "How does BTC look?": "BTCUSDT broke out harder but has run 4.2× ATR past its level — no takeable setup there. ETH is the cleaner entry.",
+};
+function say(el, who, text) { el.insertAdjacentHTML("beforeend", `<div class="msg ${who}">${esc(text)}</div>`); el.scrollTop = el.scrollHeight; }
+say($("chat"), "ai", "I've read this chart and marked everything I found on it — structure breaks, gaps, levels, patterns and divergences. Ask me anything about it.");
+$("asks").innerHTML = Object.keys(ANSWERS).map((q) => `<button class="tag aiT" aria-pressed="false">${q}</button>`).join("");
+$("asks").onclick = (e) => { const b = e.target.closest(".tag"); if (!b) return; say($("chat"), "you", b.textContent); say($("chat"), "ai", ANSWERS[b.textContent]); };
+$("askGo").onclick = () => { const v = $("askIn").value.trim(); if (!v) return; say($("chat"), "you", v); say($("chat"), "ai", "In the product this is answered from the chart's own data, with every figure it quotes shown alongside."); $("askIn").value = ""; };
+const RISK_PER_UNIT = PLAN.entry - PLAN.stop;
+function ticket() { const r = Number($("tr").value), m = 10000 * r / 100; $("trOut").textContent = r.toFixed(2) + "%"; $("tSize").textContent = (m / RISK_PER_UNIT).toFixed(3) + " ETH"; $("tRisk").textContent = "−" + m.toFixed(2) + " USD"; }
+$("tr").oninput = ticket; ticket();
+$("accept").onclick = () => { $("ticket").hidden = false; $("decided").innerHTML = '<span class="pos">You accepted.</span> Sized to your 1% risk — review it below. Logged.'; };
+$("adjust").onclick = () => { $("ticket").hidden = false; setTool("long"); $("decided").innerHTML = 'Draw your own version with the long-position tool (now selected) — the AI re-checks it.'; };
+$("dismiss").onclick = () => { $("ticket").hidden = true; $("decided").innerHTML = '<span class="faint">Dismissed and logged.</span> The AI will tell you if the picture changes.'; };
+
+/* RESEARCH */
+const RELATED = {
+  BTCUSDT: [["ETHUSDT", "Closest crypto peer — often moves first or confirms"], ["DXY", "US dollar index — a stronger dollar tends to weigh on crypto"], ["US10Y", "10-year yield — tighter money, less risk appetite"], ["NASDAQ", "Tech stocks — shared risk-on / risk-off swings"], ["XAUUSD", "Gold — competing hedge asset"]],
+  ETHUSDT: [["BTCUSDT", "Leads the crypto market"], ["ETH/BTC", "Cross pair — ETH's strength relative to BTC"], ["DXY", "US dollar index — broad risk driver"], ["SOLUSDT", "High-beta peer — shows crypto risk appetite"], ["NASDAQ", "Tech stocks — shared risk swings"]],
+  XAUUSD: [["DXY", "US dollar — gold is priced in it"], ["US10Y", "Real yields — the classic gold driver"], ["XAGUSD", "Silver — closest metal peer"], ["EURUSD", "Largest dollar cross"], ["BTCUSDT", "Competing hedge asset"]],
+  EURUSD: [["DXY", "Dollar index — EUR is its largest part"], ["GBPUSD", "Closest major cross"], ["US10Y", "Rate differential driver"], ["EURGBP", "Cross pair — euro vs sterling"], ["XAUUSD", "Dollar-sensitive hedge"]],
+};
+let asset = "BTCUSDT";
+$("assetPick").innerHTML = Object.keys(RELATED).map((a) => `<button class="tag" aria-pressed="${a === asset}" data-a="${a}">${a}</button>`).join("");
+$("assetPick").onclick = (e) => { const b = e.target.closest("[data-a]"); if (!b) return; asset = b.dataset.a; $("assetPick").querySelectorAll(".tag").forEach((t) => t.setAttribute("aria-pressed", String(t === b))); related(); };
+function related() {
+  $("relIntro").textContent = `For ${asset}, the AI added these because they tend to move with it or drive it. Their actual correlation is measured when you run.`;
+  $("rel").innerHTML = RELATED[asset].map(([s, why]) => `<label class="rel"><input type="checkbox" checked><b class="mono">${s}</b><span class="muted">${why}</span><span class="mono faint" style="text-align:right">measured on run</span></label>`).join("");
+}
+related();
+$("relAddBtn").onclick = () => { const v = $("relAdd").value.trim().toUpperCase(); if (!v) return; $("rel").insertAdjacentHTML("beforeend", `<label class="rel"><input type="checkbox" checked><b class="mono">${esc(v)}</b><span class="muted">Added by you</span><span class="mono faint" style="text-align:right">measured on run</span></label>`); $("relAdd").value = ""; };
+tags($("feats"), ["Price action", "ATR / volatility", "Sessions", "Related assets", "Open interest", "Funding", "Regime"], ["Price action", "ATR / volatility", "Sessions", "Related assets", "Regime"], true);
+tags($("models"), ["Simulated paths (baseline)", "Calibrated paths", "LightGBM quantile", "Temporal Fusion Transformer"], ["Simulated paths (baseline)", "Calibrated paths", "LightGBM quantile"], true);
+$("folds").oninput = () => { $("foldsOut").textContent = $("folds").value; };
+$("runR").onclick = () => { $("rOut").innerHTML = `<div class="kv"><span>Status</span><b class="ai">queued on the quant service</b></div><div class="kv"><span>Asset</span><b>${asset}</b></div><div class="kv"><span>Related assets included</span><b>${$("rel").querySelectorAll("input:checked").length}</b></div><div class="kv"><span>Test rounds</span><b>${$("folds").value}</b></div><p class="note" style="margin:10px 0 0">When it finishes, the AI explains in plain words which model won, whether the related assets helped, and whether any result is strong enough for you to promote. Numbers appear only once they're measured.</p>`; };
+
+/* STRATEGY */
+const R0 = [["ai", "Setup: break of structure on 1h, in the trend's direction"], ["ai", "Entry: pullback into the untested gap"], ["ai", "Stop: beyond the level the break came from"], ["ai", "Target: 1.5 R, move stop to entry at 1 R"], ["you", "Skip if major news within 30 minutes"]];
+let rules = R0.slice();
+function drawRules() { $("rules").innerHTML = rules.map(([by, t], i) => `<div class="rule"><div><div class="by ${by === "ai" ? "ai" : ""}" style="color:${by === "ai" ? "var(--ai)" : "var(--acc)"}">${by === "ai" ? "AI drafted" : "Your rule"}</div><input value="${esc(t)}" data-i="${i}" aria-label="Rule ${i + 1}"></div><button class="btn sm" data-x="${i}" aria-label="Remove rule">✕</button></div>`).join(""); }
+drawRules();
+$("rules").oninput = (e) => { const i = e.target.dataset.i; if (i !== undefined) { rules[i] = ["you", e.target.value]; e.target.previousElementSibling.textContent = "Edited by you"; e.target.previousElementSibling.style.color = "var(--acc)"; } };
+$("rules").onclick = (e) => { const b = e.target.closest("[data-x]"); if (b) { rules.splice(Number(b.dataset.x), 1); drawRules(); critique(); } };
+$("addRule").onclick = () => { rules.push(["you", "Your rule"]); drawRules(); };
+say($("sChat"), "you", "I want to buy pullbacks after a break of structure, in the trend's direction.");
+say($("sChat"), "ai", "I've drafted that as 4 rules on the right. Before simulating: this setup is reported live more often than it leaves history, so the sample may be thin. I've added your news rule from Review.");
+$("sGo").onclick = () => { const v = $("sIn").value.trim(); if (!v) return; say($("sChat"), "you", v); rules.push(["you", v]); drawRules(); say($("sChat"), "ai", "Added as a rule. I'll re-run the simulation with it and tell you what it changed."); $("sIn").value = ""; critique(); };
+function critique() {
+  const n = rules.length;
+  $("critique").innerHTML = [
+    `${n} rules. Each extra rule is another chance to fit the past instead of the future.`,
+    "Selection of this kind has failed on new data about 9 times in 10 (PBO 89%) — the simulation will be deflated for how many versions you try.",
+    "Costs from your broker are included; a strategy that only works without them is rejected.",
+  ].map((t) => `<div style="padding:5px 0">• ${t}</div>`).join("");
+}
+critique();
+$("simRun").onclick = () => { const pts = []; let v = 120; for (let i = 0; i <= 40; i++) { v -= (Math.sin(i / 3) * 3 + 1.1); pts.push(`${i * 11},${Math.max(10, Math.min(140, v))}`); } $("curve").setAttribute("points", pts.join(" ")); $("simNote").textContent = "Illustrative shape — the real run uses your archive, walk-forward, after costs."; };
+document.querySelectorAll("[data-sd]").forEach((b) => b.onclick = () => { $("sDec").innerHTML = `<span class="pos">Recorded:</span> ${b.dataset.sd}.`; });
+
+/* REVIEW */
+const FINDS = [["Your two EURUSD trades both followed the plan — one hit target, one hit the stop. Execution was clean; the result was the market.", "confirmed"], ["The gold trade had no plan attached, so it can't be graded. Unplanned trades are where records get noisy.", ""], ["Only 3 trades — too few for any pattern to be real yet. I'll keep watching.", ""]];
+$("finds").innerHTML = FINDS.map(([t], i) => `<div class="step"><span class="n" style="background:rgba(157,184,255,.14);color:var(--ai)">${i + 1}</span><div style="flex:1"><div class="muted" style="font-size:13px;line-height:1.55">${t}</div><div style="display:flex;gap:6px;margin-top:8px" data-f="${i}"><button class="btn sm">Agree</button><button class="btn sm">Disagree</button><button class="btn sm">Add note</button></div></div></div>`).join("");
+$("finds").onclick = (e) => { const b = e.target.closest("[data-f] button"); if (!b) return; b.parentElement.querySelectorAll("button").forEach((x) => x.style.boxShadow = x === b ? "inset 0 0 0 1px var(--acc)" : ""); };
+$("commitRule").onclick = () => { $("ruleDone").innerHTML = '<span class="pos">Committed.</span> The AI will check new trades against it and add it to Strategy drafts.'; };
+/* ================= DATA LIBRARY (sample rows) ================= */
+let LIB = [
+  { s: "BTCUSDT", tf: "1h", src: "Binance", from: "Sep 2024", to: "today", bars: 17520, used: "2 strategies · 3 models", pin: true },
+  { s: "ETHUSDT", tf: "1h", src: "Binance", from: "Sep 2024", to: "today", bars: 17520, used: "1 strategy · 3 models", pin: true },
+  { s: "XAUUSD", tf: "1h", src: "MT5", from: "Sep 2024", to: "Sep 19", bars: 12380, used: "1 model", pin: false },
+  { s: "EURUSD", tf: "1h", src: "MT5", from: "Sep 2024", to: "Sep 19", bars: 12410, used: "—", pin: false },
+  { s: "BTCUSDT", tf: "15m", src: "Binance", from: "Mar 2026", to: "today", bars: 17280, used: "1 strategy", pin: false },
+  { s: "DXY", tf: "1h", src: "Yahoo", from: "Sep 2024", to: "Sep 19", bars: 11960, used: "related asset", pin: false },
+];
+let LEARNED = [
+  { k: "Knowledge base", d: "setup × market-condition results", n: "1,284 cells", on: true },
+  { k: "Stored backtests", d: "rules × data × costs → result", n: "46 runs", on: true },
+  { k: "Model runs", d: "forecast models and their scores", n: "9 runs", on: true },
+  { k: "Strategy memory", d: "what you and the AI tried, and why it was kept or dropped", n: "14 ideas", on: true },
+];
+const kb = (bars) => Math.round(bars * 48 / 1024);
+function lib() {
+  $("lib").innerHTML = LIB.map((r, i) => `<div class="row" style="grid-template-columns:1.1fr .5fr .8fr 1.3fr .8fr .6fr 1fr 160px"><b>${r.s}${r.pin ? ' <span class="faint" title="Pinned — never cleaned up automatically">· pinned</span>' : ""}</b><span class="mono">${r.tf}</span><span class="muted">${r.src}</span><span class="muted">${r.from} → ${r.to}</span><span class="mono">${r.state || r.bars.toLocaleString()}</span><span class="mono faint">${r.state ? "—" : kb(r.bars) + " KB"}</span><span class="faint">${r.used}</span><span style="display:flex;gap:6px;justify-content:flex-end">${r.confirm ? `<button class="btn sm danger" data-yes="${i}">Delete ${r.bars.toLocaleString()} bars</button><button class="btn sm" data-no="${i}">Keep</button>` : `<button class="btn sm" data-up="${i}">Update</button><button class="btn sm" data-pin="${i}">${r.pin ? "Unpin" : "Pin"}</button><button class="btn sm" data-del="${i}" aria-label="Delete ${r.s} ${r.tf}">✕</button>`}</span></div>`).join("");
+  const bars = LIB.reduce((a, r) => a + (r.state ? 0 : r.bars), 0);
+  const k = [["Series stored", LIB.length], ["Bars", bars.toLocaleString()], ["On disk", (bars * 48 / 1048576).toFixed(1) + " MB"], ["Learned results", "1,353"]];
+  $("libKpis").innerHTML = k.map(([a, b]) => `<section class="card"><div class="faint" style="font-size:12px">${a}</div><div class="mono" style="font-size:24px;margin-top:6px">${b}</div></section>`).join("");
+}
+$("lib").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return; const d = b.dataset;
+  if (d.del !== undefined) LIB[d.del].confirm = true;
+  if (d.no !== undefined) LIB[d.no].confirm = false;
+  if (d.yes !== undefined) LIB.splice(Number(d.yes), 1);
+  if (d.pin !== undefined) LIB[d.pin].pin = !LIB[d.pin].pin;
+  if (d.up !== undefined) { LIB[d.up].to = "today"; LIB[d.up].state = "updating…"; setTimeout(() => { delete LIB[d.up].state; lib(); }, 900); }
+  lib();
+});
+$("dAdd").onclick = () => {
+  const s = $("dSym").value.trim().toUpperCase(); if (!s) { $("dSym").focus(); return; }
+  const years = { "1 year": 1, "2 years": 2, "5 years": 5, "All available": 6 }[$("dDepth").value], per = { "15m": 35040, "1h": 8760, "4h": 2190, "1d": 365 }[$("dTf").value];
+  const row = { s, tf: $("dTf").value, src: "auto", from: `${2026 - years}`, to: "today", bars: per * years, used: "—", pin: false, state: "downloading…" };
+  LIB.unshift(row); $("dSym").value = ""; lib(); setTimeout(() => { delete row.state; lib(); }, 1100);
+};
+function learned() {
+  $("learned").innerHTML = LEARNED.map((l, i) => `<div class="orow" style="grid-template-columns:1fr auto auto"><span><b style="font-weight:500">${l.k}</b><br><span class="faint" style="font-size:11.5px">${l.d}</span></span><span class="mono faint">${l.n}</span><button class="btn sm" data-f="${i}">${l.n === "forgotten" ? "Rebuild" : "Forget"}</button></div>`).join("");
+}
+$("learned").addEventListener("click", (e) => { const b = e.target.closest("[data-f]"); if (!b) return; const l = LEARNED[b.dataset.f]; l.n = l.n === "forgotten" ? "rebuilds on next run" : "forgotten"; learned(); });
+lib(); learned();
+$("rSeg").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; $("r-study").hidden = b.dataset.r !== "study"; $("r-data").hidden = b.dataset.r !== "data"; });
+tags($("sData"), ["BTCUSDT 1h", "ETHUSDT 1h", "XAUUSD 1h", "EURUSD 1h", "BTCUSDT 15m"], ["BTCUSDT 1h", "ETHUSDT 1h", "XAUUSD 1h"]);
+
+</script>
+</body>
+</html>

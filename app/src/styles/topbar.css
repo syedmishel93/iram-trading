@@ -1,0 +1,289 @@
+/* ============================================================================
+   THE CHART HEADER ("Fusion")
+   ============================================================================
+
+   Symbol · price headline · range stats · … · timeframes · style · indicators
+   · Replay · overflow · feed. Built in shell.ts from `ui/shell/topbar.ts`.
+
+   Loads after chrome.css so it can specialise `.tool-btn`, `.tf-btn` and the
+   row itself without raising specificity. Every pill here IS a `.tool-btn`
+   or a `.tf-btn`, so press feedback and the transition shorthand stay owned
+   by press.css — nothing in this file declares `transition`.
+
+   No motion at all: the price and its chip change many times a minute, which
+   is exactly the frequency CLAUDE.md says does not animate.
+   ========================================================================= */
+
+/* --- one control height, one corner -------------------------------------- */
+
+/* The same problem the command bar had, one row down and smaller. MEASURED at
+   1920 before this block: the symbol box 32, the timeframe group 33.6, every
+   pill 28, the feed badge 28 — four scales in a 42px band, all centred on the
+   same line so the mismatch showed as ragged tops and bottoms rather than as
+   anything you could point at.
+
+   Re-pointed as TOKENS on the row, for the reason v5.css gives for the header:
+   every control here reads `--h-ctl-sm` or `--h-ctl`, so one declaration moves
+   the lot and the next control added inherits it.
+
+   The segmented groups are the exception that needs saying out loud: a group
+   is a CONTAINER of buttons, so its height is the button plus its own 2px
+   padding and 1px border on each side, and simply re-pointing the token made
+   it the tallest thing in the row by six pixels. It is given the row height
+   directly and its buttons the inside measurement, exactly as `.status-strip`
+   and `.sitem` already do it in the header. */
+.topbar {
+  --h-ctl-sm: 32px;
+  --h-ctl: 32px;
+  --r-ctl: 8px;
+}
+.topbar > :is(.tf-group, .seg) {
+  height: var(--h-ctl-sm);
+  align-items: center;
+  border-radius: var(--r-ctl);
+}
+.topbar > :is(.tf-group, .seg) > :is(.tf-btn, .seg-btn) { height: calc(var(--h-ctl-sm) - 6px); }
+.topbar > .tool-btn,
+.topbar > .topbar-actions > .tool-btn,
+.topbar > .sym-picker > .sym-input,
+.topbar > .feed-badge { border-radius: var(--r-ctl); }
+
+/* THE ANCHORED PANELS ARE CHILDREN OF THIS ROW, so they inherit whatever it
+   declares. `.tool-pop-wrap` is `display: contents` and its panel is
+   fixed-positioned, but custom properties still inherit straight through it —
+   so without this the detector and study popovers would silently come up on
+   the toolbar's 32px control scale instead of the terminal's. Restore the
+   values from tokens.css rather than guessing them, and note that the
+   `>`-scoped rules above are what keeps a segmented control INSIDE a panel
+   from being measured by this row's ladder. */
+.topbar > .tool-pop-wrap {
+  --h-ctl-sm: 28px;
+  --h-ctl: 32px;
+  --r-ctl: var(--r-2);
+}
+
+/* The hairline between what you are looking at and what you can change about
+   it — the mockup's `.vsep`. It groups the symbol, the price and the range
+   with each other and separates them from the controls; it is not the edge of
+   anything, so it is one border weight and 20px tall, like `.bar-rule` in the
+   header above it. */
+.tb-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 20px;
+  margin: 0 var(--sp-2);
+  background: var(--border);
+}
+
+/* --- price headline ------------------------------------------------------ */
+
+.tb-quote {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+}
+
+.tb-price {
+  font-family: var(--font-mono);
+  font-size: var(--fs-quote);
+  font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  line-height: 1;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* The chip is coloured by DIRECTION with the candle colours, so it agrees
+   with the bars under it — including when the operator has repainted them. */
+.tb-chg {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-1);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.tb-chg[data-dir="up"]   { background: var(--candle-up-wash);   color: var(--candle-up); }
+.tb-chg[data-dir="down"] { background: var(--candle-down-wash); color: var(--candle-down); }
+
+/* The span the change covers ("24h", "6h", "4d"): part of the figure's
+   meaning, so it stays on the chip, one step quieter. */
+.tb-chg-k {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-normal);
+  opacity: 0.75;
+}
+
+/* --- range stats --------------------------------------------------------- */
+
+.tb-stats {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-5);
+  flex: 0 0 auto;
+}
+.tb-stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.tb-stat-k {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+.tb-stat-v {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* --- WHAT GIVES WAY, IN ORDER ---------------------------------------------
+
+   `data-fit` is set by MEASURING the row in shell.ts, not by a viewport
+   query: the row is the chart column's width, and the dock beside it decides
+   that as much as the window does. Each rung is CUMULATIVE — listed under
+   every step from where it starts — and each sheds something that is either
+   somewhere else on screen or is the label of a control that keeps its icon,
+   its title and its accessible name.
+
+   THE COST OF EACH RUNG IS WHY THERE ARE SIX (v60.1). The loop stops at the
+   first rung that fits, so a rung that sheds more than the row is short by
+   leaves the difference as empty band across the top of the chart. MEASURED
+   at a 1282px column with the old five rungs: `full` overflowed by 289 and
+   `compact` by 2 — two pixels — so the row dropped to `tight` and carried
+   293px of nothing. `compact` was shedding all three range figures and the
+   feed badge's words in one move. Measured costs at that column:
+
+     compact   -127  the ATR reading (50), the feed badge's words (77)
+     snug      -160  the two range figures (the high and the low)
+     tight     -135  the Auto-marking (79) and Indicators (56) labels
+     tighter   -184  the change chip (94), the Replay label, Fit and Log
+     tightest        the feed badge (the live bar carries the feed), a
+                     narrower symbol box, only the current timeframe and
+                     "More", a smaller price, the chart style's word
+
+   SPLIT AGAIN AT 1208 (v60.1, second pass). With the change chip and the two
+   pill labels on one rung, `snug` overflowed by 64 and `tight` had 174 to
+   spare — a third of the band, empty, for want of sixty-four pixels. The two
+   labels alone are 135, which is the smallest rung that clears it, and the
+   change chip goes with the other things that are read rather than chosen.
+
+   ATR LEAVES BEFORE THE RANGE. It is the one figure here the live bar at the
+   foot of the screen already prints; the 24-bar high and low are not anywhere
+   else in the chrome, and the chart's own axis shows the window's extremes
+   rather than the lookback's. */
+
+.topbar:is([data-fit="compact"], [data-fit="snug"], [data-fit="tight"], [data-fit="tighter"], [data-fit="tightest"]) .tb-stat-atr,
+.topbar:is([data-fit="compact"], [data-fit="snug"], [data-fit="tight"], [data-fit="tighter"], [data-fit="tightest"]) .feed-badge > :not(.feed-dot) { display: none; }
+
+.topbar:is([data-fit="snug"], [data-fit="tight"], [data-fit="tighter"], [data-fit="tightest"]) .tb-stats { display: none; }
+
+/* THE ROW'S OWN GAPS ARE A RUNG, and the cheapest one there is. Ten items
+   means nine gaps, so two pixels off each is eighteen — and MEASURED, the two
+   widths where the ladder still left a hole were missing by SEVENTEEN and
+   THIRTEEN: a 1108px column overflowed `tight` by 17 and fell to `tighter`
+   with 187 to spare, a 908px column overflowed `tighter` by 13 and fell to
+   `tightest` with 262. Both were a rung's worth of band lost to about a
+   pixel and a half per gap. A row that is running out of room tightening its
+   spacing before it starts deleting readings is also the right order of
+   preference. Nothing below 6px: at that point the controls stop reading as
+   separate. */
+.topbar:is([data-fit="snug"], [data-fit="tight"], [data-fit="tighter"], [data-fit="tightest"]) { gap: 10px; }
+.topbar:is([data-fit="tighter"], [data-fit="tightest"]) { gap: var(--sp-4); }
+
+.topbar:is([data-fit="tight"], [data-fit="tighter"], [data-fit="tightest"]) .tb-am-label,
+.topbar:is([data-fit="tight"], [data-fit="tighter"], [data-fit="tightest"]) .tb-ind-label { display: none; }
+
+.topbar:is([data-fit="tighter"], [data-fit="tightest"]) .tb-quote .tb-chg,
+.topbar:is([data-fit="tighter"], [data-fit="tightest"]) .topbar-actions .tool-btn.wide > span { display: none; }
+.topbar:is([data-fit="tighter"], [data-fit="tightest"]) .topbar-actions .tool-btn.wide { padding: 0 var(--sp-2); }
+.topbar:is([data-fit="tighter"], [data-fit="tightest"]) :is(.tb-fit, .tb-log) { display: none; }
+/* THE BOX, NOT ONLY THE WRAPPER. `max-width` on `.sym-picker` alone left
+   `.sym-input` at its declared 148px, and an input is not a flex item of the
+   row — it is the wrapper's only child, so it simply OVERFLOWED it by 38px
+   and painted over the price beside it. MEASURED at a 574px column: the
+   wrapper ran x=13..123, the input x=13..161, and the price, correctly laid
+   out at x=135 and fully rendered, read "136.01" on screen because its first
+   three characters were underneath the symbol box. Constrain the thing that
+   has the width. `width: 110px`, not `width: 100%`: the wrapper is
+   `flex: 0 1 auto` and has no intrinsic width of its own, so a percentage
+   asks the child how wide it is and the pair collapsed to 38px. */
+.topbar[data-fit="tightest"] .sym-picker { max-width: 110px; }
+.topbar[data-fit="tightest"] .sym-input { width: 110px; }
+.topbar[data-fit="tightest"] .tf-group .tf-btn:not(.tf-more):not([aria-pressed="true"]) { display: none; }
+
+.topbar[data-fit="tightest"] .feed-badge { display: none; }
+.topbar[data-fit="tightest"] .tb-price { font-size: var(--fs-4); }
+/* The chart-style pill keeps its caret and its menu; the word goes last. */
+.topbar[data-fit="tightest"] .tb-style .tb-pill-label { display: none; }
+
+/* --- pills --------------------------------------------------------------- */
+
+.tb-pill { gap: var(--sp-3); }
+
+/* `.tool-btn[data-on]` paints a control accent when it is ON. The Indicators
+   pill is on for almost everyone (the default averages), so the accent would
+   stop meaning anything; the count carries the state instead. */
+.tool-btn.tb-pill[data-on="true"] { color: var(--text-muted); }
+
+.tb-caret {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  line-height: 1;
+}
+
+.tb-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-full);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.tb-count[data-zero="true"] {
+  background: var(--surface-inset);
+  color: var(--text-faint);
+}
+
+.tf-more {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+/* Two classes: `.tool-btn` is declared again in risk.css, which loads after
+   this file, and would otherwise win on equal specificity. */
+.tool-btn.tb-overflow {
+  font-size: var(--fs-5);
+  line-height: 1;
+}
+
+/* The words go, the state stays: the style pill keeps its name (it IS the
+   state), the indicators pill its count, Replay its icon and its lit state.
+   Every one keeps its title and its accessible name. The rules that do it are
+   in the ladder above, at the rung each one was costed for — they were here
+   as a second copy of the `tight` step, which is how the ladder came to shed
+   three things on one rung. */
+
+/* The panels opened from menu rows are fixed-positioned; their hosts must not
+   take a flex gap in the row. */
+.topbar > .tool-pop-wrap { display: contents; }

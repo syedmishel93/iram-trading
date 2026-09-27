@@ -1,0 +1,51 @@
+/*
+ * Small-chart kit (ui/minichart.ts): the wrapper and its hover readout.
+ *
+ * The readout is a DOM element over the canvas rather than text drawn into it:
+ * it stays crisp at any pixel ratio, it is selectable, and it takes the same
+ * type roles as every other number in the terminal. It never takes the pointer
+ * (so it cannot steal the pointerleave that hides it) and never takes focus.
+ *
+ * Colours through role tokens only. No transition: a hover readout is met
+ * hundreds of times a session and moves with the pointer, so animating it
+ * would only make it lag.
+ */
+
+.mc {
+  position: relative;
+}
+
+.mc + .mc {
+  margin-top: var(--sp-2);
+}
+
+.mc-readout {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--z-chart-ui);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-2);
+  box-shadow: var(--elev-pop);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  color: var(--text-muted);
+  white-space: nowrap;
+  pointer-events: none;
+  user-select: none;
+}
+
+.mc-readout[hidden] {
+  display: none;
+}
+
+.mc-readout-lead {
+  color: var(--text);
+}

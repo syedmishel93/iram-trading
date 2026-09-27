@@ -1,0 +1,159 @@
+/* ============================================================================
+   THE LIVE PANEL (v55.2)
+   ----------------------------------------------------------------------------
+   The inspector's log of what changed. See ui/livefeed.ts for why a row shows
+   its numbers rather than scrolling the chart, and why nothing in here moves.
+
+   SEVERITY IS NOT DIRECTION. One custom property, --lf-tone, carries it:
+
+       act    --attn          the attention role
+       watch  --text-muted
+       info   --text-faint    the dimmest of the three text roles
+
+   NEVER --pos/--neg and never --candle-up/--candle-down. An event is a thing
+   that happened; a market that broke downward is exactly as worth reading as
+   one that broke upward, and a red row would say otherwise. Same argument
+   --verdict-* makes about the gates in inspector.css.
+
+   NO ANIMATION AT ALL. A row arriving is met dozens of times a session, which
+   is the frequency rule's own test. There is therefore no `transition` here,
+   and so no literal duration for prefers-reduced-motion to fail to reach.
+   ========================================================================= */
+
+.livefeed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* --- the head: what is in the list, and the way to empty it --------------- */
+.lf-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+.lf-count {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  letter-spacing: var(--track-micro);
+}
+.lf-clear {
+  flex: 0 0 auto;
+}
+
+/* --- the list ------------------------------------------------------------- */
+.lf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+/* Spacing belongs to the ELEMENT, as a margin, not to `+`. `.dock-body`
+   reorders its children with CSS `order`, so DOM adjacency is not visual
+   adjacency in this column — the rule CLAUDE.md records. These rows are not in
+   that container, but the margin costs nothing and the next person copying
+   this block may put them there. */
+.lf-row {
+  min-width: 0;
+  --lf-tone: var(--text-faint);
+}
+.lf-row + .lf-row {
+  border-top: 1px solid var(--border-hair);
+}
+.lf-row[data-sev="act"]   { --lf-tone: var(--attn); }
+.lf-row[data-sev="watch"] { --lf-tone: var(--text-muted); }
+.lf-row[data-sev="info"]  { --lf-tone: var(--text-faint); }
+
+.lf-item {
+  min-width: 0;
+}
+
+/* --- one line ------------------------------------------------------------- */
+.lf-line {
+  display: grid;
+  grid-template-columns: 8px max-content minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-2);
+  cursor: pointer;
+  list-style: none;
+  min-width: 0;
+  border-radius: var(--r-1);
+}
+/* The native disclosure triangle, removed on both engines. The dot carries the
+   severity and a second glyph in front of it is noise in a 320px column. */
+.lf-line::-webkit-details-marker { display: none; }
+.lf-line::marker { content: ""; }
+
+.lf-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--lf-tone);
+  align-self: center;
+}
+/* `info` is the dimmest text role and a 6px disc of it is almost invisible, so
+   that severity gets a ring instead of a fill — still one colour, still the
+   quietest of the three, but findable. */
+.lf-row[data-sev="info"] .lf-dot {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--lf-tone);
+}
+
+.lf-time {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lf-what {
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text);
+  min-width: 0;
+}
+/* An `act` row is the only one that raises its own sentence, and it does it in
+   the attention role rather than in bold: weight in a list of sentences reads
+   as a heading, colour reads as a flag. */
+.lf-row[data-sev="act"] .lf-what { color: var(--lf-tone); }
+.lf-row[data-sev="info"] .lf-what { color: var(--text-muted); }
+
+@media (hover: hover) {
+  .lf-line:hover { background: var(--surface-inset); }
+}
+.lf-line:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+/* --- the measurement behind it -------------------------------------------- */
+.lf-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  /* Indented to the sentence above it, so the reason reads as belonging to the
+     line rather than as a new row. 8px dot + 6px gap + the time column is not
+     a fixed width across locales, so this indents to the dot and no further. */
+  padding: var(--sp-2) var(--sp-2) var(--sp-5) calc(8px + var(--sp-3));
+  min-width: 0;
+}
+.lf-because {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+  min-width: 0;
+}
+.lf-where {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  letter-spacing: var(--track-micro);
+}

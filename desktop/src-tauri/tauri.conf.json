@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "IRAM Terminal",
+  "version": "50.0.0",
+  "identifier": "com.iram.terminal",
+  "build": {
+    "frontendDist": "../../app/dist",
+    "devUrl": "http://localhost:5173",
+    "beforeDevCommand": "npm --prefix ../app run dev",
+    "beforeBuildCommand": "npm --prefix ../app run build"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "IRAM Intelligence Terminal",
+        "width": 1600,
+        "height": 980,
+        "minWidth": 1024,
+        "minHeight": 640,
+        "resizable": true,
+        "center": true,
+        "theme": "Dark",
+        "visible": true,
+        "backgroundColor": "#0B0E14",
+        "decorations": true,
+        "dragDropEnabled": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' ipc: http://ipc.localhost https://api.binance.com https://fapi.binance.com https://stream.binance.com wss://stream.binance.com wss://fstream.binance.com http://127.0.0.1:8787 http://127.0.0.1:8788 http://127.0.0.1:8789 http://localhost:11434 http://localhost:1234 https://api.anthropic.com https://api.openai.com https://*.supabase.co",
+      "assetProtocol": { "enable": false }
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["nsis", "app", "dmg", "deb", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "copyright": "IRAM Intelligence Terminal",
+    "category": "Finance",
+    "shortDescription": "Market analysis terminal",
+    "longDescription": "Decision-support terminal for market structure, alerts and strategy validation. It reports; it does not trade."
+  }
+}

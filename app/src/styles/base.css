@@ -1,0 +1,109 @@
+/* ============================================================================
+   BASE — reset, document defaults, shared primitives.
+   No component styling lives here. No colours either: roles only.
+   ============================================================================ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--surface-base);
+  color: var(--text);
+  overflow: hidden;              /* the shell owns all scrolling */
+  overscroll-behavior: none;
+  /* Family, size, line-height, tracking and font-feature settings all live in
+     type.css, which loads after this file. They were here AND there; two
+     owners for one property is how a ramp drifts.                            */
+}
+
+h1, h2, h3, h4, h5, h6, p, figure { margin: 0; }
+ul, ol { margin: 0; padding: 0; list-style: none; }
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  margin: 0;
+}
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; opacity: 0.45; }
+
+canvas { display: block; }
+
+/* Focus: visible for keyboard, silent for pointer. A terminal that flashes a
+   ring on every click reads as noisy; one that has no ring at all is unusable
+   by keyboard. :focus-visible is the whole answer.                           */
+:focus { outline: none; }
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  border-radius: var(--r-1);
+}
+
+/* --- scrollbars: present but quiet */
+* { scrollbar-width: thin; scrollbar-color: var(--border-hi) transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-hi);
+  border-radius: var(--r-full);
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+@media (hover: hover) { *::-webkit-scrollbar-thumb:hover { background-clip: content-box; background-color: var(--text-faint); } }
+
+/* --- shared primitives ---------------------------------------------------- */
+
+.label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+
+.hairline { border-bottom: 1px solid var(--border-hair); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-1);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-med);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.chip[data-tone="pos"]    { color: var(--pos);  background: var(--pos-wash);    border-color: transparent; }
+.chip[data-tone="neg"]    { color: var(--neg);  background: var(--neg-wash);    border-color: transparent; }
+.chip[data-tone="accent"] { color: var(--accent); background: var(--accent-wash); border-color: transparent; }
+.chip[data-tone="attn"]   { color: var(--attn); background: var(--attn-wash);   border-color: transparent; }
+
+/* Screen-reader-only, for the live regions the terminal announces through. */
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* --- icons ----------------------------------------------------------------
+   One rule for the whole set. `currentColor` means an icon needs no state
+   styling of its own: it takes the colour of whatever control it sits in, so
+   hover, pressed and disabled all come for free from the button.            */
+.icon {
+  flex: 0 0 auto;
+  display: block;
+  color: currentColor;
+  /* Stroke width is authored for a 16px grid. Letting it scale with the box
+     keeps the weight optically identical at every size the set is used at. */
+  vector-effect: non-scaling-stroke;
+}

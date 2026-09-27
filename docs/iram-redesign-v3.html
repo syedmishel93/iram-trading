@@ -1,0 +1,397 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Iram — human and AI (mockup v3)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&family=Instrument+Serif&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0C0F;--p1:#101317;--p2:#15191E;--p3:#1C2128;--line:rgba(255,255,255,.07);--line2:rgba(255,255,255,.13);
+  --tx:#E8EAED;--mu:#A3AAB4;--fa:#8B929C;--acc:#D6B36A;--acc-ink:#141210;--pos:#34D399;--neg:#F87171;--warn:#F5C451;
+  --ai:#9DB8FF;--ai-bg:rgba(157,184,255,.08);--ai-line:rgba(157,184,255,.28);
+  --mono:'Geist Mono',ui-monospace,monospace;--serif:'Instrument Serif',Georgia,serif;--dur:.14s;
+}
+@media (prefers-reduced-motion:reduce){:root{--dur:0s}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:'Geist',system-ui,sans-serif;-webkit-font-smoothing:antialiased;font-size:13px;min-width:1280px}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit}
+.mono{font-family:var(--mono)}.serif{font-family:var(--serif);font-weight:400}
+.muted{color:var(--mu)}.faint{color:var(--fa)}.pos{color:var(--pos)}.neg{color:var(--neg)}.warn{color:var(--warn)}.ai{color:var(--ai)}
+header.top{height:58px;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:10px;width:118px}
+.brand i{width:26px;height:26px;border-radius:7px;background:var(--acc);color:var(--acc-ink);display:grid;place-items:center;font:normal 17px var(--serif)}
+.brand span{font:400 21px var(--serif)}
+nav.ws{display:flex;gap:4px}
+nav.ws button{height:40px;padding:0 14px;border:0;border-radius:10px;background:transparent;color:var(--mu);font-weight:500;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;line-height:1.15}
+nav.ws button small{font-size:10px;font-weight:500;letter-spacing:.3px;color:var(--fa)}
+nav.ws button[aria-current="page"]{color:var(--tx);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--line2)}
+nav.ws button[aria-current="page"] small{color:var(--acc)}
+.chip{display:flex;align-items:center;gap:8px;height:34px;padding:0 12px;border-radius:9px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);font-size:12.5px}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block}
+.spacer{flex:1}
+.card{background:var(--p1);border-radius:14px;box-shadow:inset 0 0 0 1px var(--line);padding:16px 18px}
+.card.aiC{background:linear-gradient(0deg,var(--ai-bg),var(--ai-bg)),var(--p1);box-shadow:inset 0 0 0 1px var(--ai-line)}
+.lbl{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.lbl>span:first-child{font-size:11px;letter-spacing:.9px;text-transform:uppercase;color:var(--fa);font-weight:500}
+.who{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;padding:3px 8px;border-radius:999px}
+.who.ai{color:var(--ai);background:rgba(157,184,255,.12)}
+.who.you{color:var(--acc);background:rgba(214,179,106,.14)}
+.who.both{color:var(--tx);background:rgba(255,255,255,.08)}
+.pill{font-size:11px;font-weight:500;padding:3px 8px;border-radius:999px;background:rgba(255,255,255,.06);color:var(--mu)}
+.pill.pos{background:rgba(52,211,153,.12);color:var(--pos)}.pill.neg{background:rgba(248,113,113,.12);color:var(--neg)}.pill.warn{background:rgba(245,196,81,.12);color:var(--warn)}
+.btn{height:34px;padding:0 13px;border-radius:9px;border:0;background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px var(--line2);cursor:pointer;font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:transform var(--dur)}
+.btn:active{transform:translateY(.5px) scale(.985)}
+.btn.primary{background:var(--acc);color:var(--acc-ink);box-shadow:none;font-weight:600}
+.btn.aiB{background:rgba(157,184,255,.14);color:var(--ai);box-shadow:inset 0 0 0 1px var(--ai-line)}
+.btn.sm{height:28px;padding:0 10px;font-size:12px;border-radius:8px}
+@media (hover:hover){.btn:hover{background:rgba(255,255,255,.1)}.btn.primary:hover{background:#E3C47F}.btn.aiB:hover{background:rgba(157,184,255,.22)}}
+.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,nav.ws button:focus-visible,.seg button:focus-visible,.tag:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.field{display:flex;flex-direction:column;gap:5px}.field>label{font-size:11.5px;color:var(--fa)}
+.in{height:34px;border-radius:9px;border:0;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);padding:0 10px;outline:none;width:100%}
+textarea.in{height:auto;min-height:64px;padding:9px 10px;resize:vertical;line-height:1.5}
+.seg{display:inline-flex;padding:3px;border-radius:10px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);gap:2px}
+.seg button{height:28px;padding:0 11px;border:0;border-radius:7px;background:transparent;color:var(--mu);cursor:pointer;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--p3);color:var(--tx);box-shadow:inset 0 0 0 1px var(--line2)}
+input[type=range]{width:100%;accent-color:var(--acc)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.tag{height:28px;padding:0 11px;border-radius:999px;border:0;background:transparent;box-shadow:inset 0 0 0 1px var(--line2);color:var(--mu);cursor:pointer;font-size:12px}
+.tag[aria-pressed="true"]{background:rgba(214,179,106,.14);box-shadow:inset 0 0 0 1px rgba(214,179,106,.5);color:var(--acc)}
+.tag.aiT[aria-pressed="true"]{background:rgba(157,184,255,.14);box-shadow:inset 0 0 0 1px var(--ai-line);color:var(--ai)}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:5px 0;font-size:12.5px;color:var(--mu)}
+.kv b{font-family:var(--mono);font-weight:500;color:var(--tx)}
+.hr{height:1px;background:var(--line);margin:12px 0}
+.row{display:grid;gap:12px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);font-size:12.5px}
+.row.head{font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:var(--fa)}
+h1.page{margin:0;font:400 38px/1.08 var(--serif)}
+.sub{margin:8px 0 0;color:var(--mu);font-size:14px;max-width:760px}
+main.ws{display:none}main.ws.on{display:flex}
+footer.status{height:30px;display:flex;align-items:center;gap:18px;padding:0 18px;border-top:1px solid var(--line);font:11.5px var(--mono);color:var(--mu)}
+.note{font-size:12px;color:var(--fa);line-height:1.5}
+.read p{margin:0 0 10px;line-height:1.6;font-size:13px;color:var(--mu)}
+.read p b{color:var(--tx);font-weight:500}
+.step{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5}
+.step:last-child{border-bottom:0}
+.step .n{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font:600 10.5px var(--mono);flex:none;margin-top:1px}
+.rel{display:grid;grid-template-columns:18px 90px 1fr 110px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.rel input{accent-color:var(--ai);width:15px;height:15px}
+.rule{display:grid;grid-template-columns:1fr 26px;gap:8px;align-items:start;padding:10px 12px;border-radius:10px;background:var(--p2);box-shadow:inset 0 0 0 1px var(--line);margin-bottom:8px}
+.rule .by{font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;margin-bottom:4px}
+.rule input{background:transparent;border:0;outline:none;width:100%;font-family:var(--mono);font-size:12.5px}
+.chat{display:flex;flex-direction:column;gap:10px;max-height:260px;overflow:auto;padding-right:4px}
+.msg{padding:10px 12px;border-radius:12px;font-size:12.5px;line-height:1.5;max-width:92%}
+.msg.you{align-self:flex-end;background:rgba(214,179,106,.12);color:var(--tx)}
+.msg.ai{align-self:flex-start;background:var(--ai-bg);box-shadow:inset 0 0 0 1px var(--ai-line);color:var(--mu)}
+svg text{font-family:var(--mono)}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><i>i</i><span>Iram</span></div>
+  <nav class="ws" aria-label="Workspaces" id="nav"></nav>
+  <span class="spacer"></span>
+  <div class="chip"><span class="dot" style="background:var(--ai)"></span><span class="ai">AI co-pilot on</span><span class="faint">· reads, proposes, never trades alone</span></div>
+  <div class="chip"><span class="dot" style="background:var(--warn)"></span><span class="muted">MT5 offline</span><span class="mono">10,000.00</span><span class="faint">USD</span></div>
+</header>
+
+<!-- ============================ TODAY ============================ -->
+<main class="ws" id="ws-today" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">AI briefs · you plan</span><h1 class="page" style="margin-top:10px">Good morning. Here's what matters, and what you'll do about it.</h1></div>
+  <div style="display:grid;grid-template-columns:1.25fr 1fr;gap:16px">
+    <section class="card aiC">
+      <div class="lbl"><span>AI morning brief</span><span class="who ai">AI</span></div>
+      <div class="read">
+        <p><b>BTCUSDT</b> broke out overnight: the last closed bar moved 8.2× its normal size on 10.5× normal volume. Structure turned bullish, but nothing is takeable yet — the closest setup already ran 4.2× ATR past its level.</p>
+        <p><b>ETHUSDT</b> is the cleaner idea: a break of structure long with all 8 checks passing. On its own history this setup reached target 37 of 64 times (58%).</p>
+        <p><b>Watch out:</b> an FOMC member speaks in 22 minutes. Your rule blocks new trades inside 30 minutes of major news.</p>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px"><button class="btn aiB" data-go="chart">Open ETHUSDT chart</button><button class="btn sm" style="height:34px">Ask a follow-up</button></div>
+    </section>
+    <section class="card">
+      <div class="lbl"><span>Your plan</span><span class="who you">You</span></div>
+      <div class="field"><label>Focus list — AI suggests, you keep or drop</label><div class="tags" id="focus"></div></div>
+      <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:12px">
+        <div class="field"><label for="mt">Max trades</label><input class="in mono" id="mt" type="number" value="3"></div>
+        <div class="field"><label for="ml">Max loss %</label><input class="in mono" id="ml" type="number" value="3"></div>
+        <div class="field"><label for="rp">Risk / trade %</label><input class="in mono" id="rp" type="number" value="1" step="0.25"></div>
+      </div>
+      <button class="btn primary" id="commit" style="width:100%;margin-top:14px;height:40px">Commit today's plan</button>
+    </section>
+  </div>
+  <section class="card" style="padding:0;overflow:hidden">
+    <div class="lbl" style="padding:14px 18px 0"><span>AI scanned your list</span><span class="who ai">AI</span></div>
+    <div class="row head" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><span>Symbol</span><span>What AI sees</span><span>Side</span><span>Checks</span><span>Why it matters</span><span></span></div>
+    <div class="row" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><b>ETHUSDT</b><span class="muted">Break of structure</span><span class="pos">long</span><span class="mono">8/8</span><span class="faint">Cleanest setup on your list today</span><button class="btn sm" data-go="chart">Open</button></div>
+    <div class="row" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><b>BTCUSDT</b><span class="muted">No takeable setup</span><span class="faint">—</span><span class="mono">5/8</span><span class="faint">Moved too far — wait for a retest</span><button class="btn sm" data-go="chart">Open</button></div>
+    <div class="row" style="grid-template-columns:1fr 1.5fr .6fr .6fr 2fr 130px"><b>XAUUSD</b><span class="faint">not scanned yet</span><span class="faint">—</span><span class="faint">—</span><span class="faint">scan runs when the feed is connected</span><span></span></div>
+  </section>
+</main>
+
+<!-- ============================ CHART (AI-led) ============================ -->
+<main class="ws on" id="ws-chart" style="flex-direction:column;min-height:calc(100vh - 88px)">
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:14px;padding:14px;flex:1">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <section class="card" style="padding:0;overflow:hidden">
+        <div style="display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--line)">
+          <b style="font-size:15px">ETHUSDT</b><span class="mono" style="font-size:22px">2,700.44</span><span class="pill pos mono">+4.68% 24h</span>
+          <span class="spacer"></span>
+          <label class="faint" style="display:flex;align-items:center;gap:8px;font-size:12px"><input type="checkbox" id="annot" checked style="accent-color:var(--ai)"> AI annotations</label>
+          <div class="seg" role="group" aria-label="Timeframe"><button>15m</button><button aria-pressed="true">1h</button><button>4h</button><button>1d</button></div>
+        </div>
+        <svg id="chart" viewBox="0 0 900 420" width="100%" style="display:block" role="img" aria-label="Illustrative ETHUSDT chart with AI annotations"></svg>
+      </section>
+      <section class="card aiC">
+        <div class="lbl"><span>Ask the AI about this chart</span><span class="who ai">AI</span></div>
+        <div class="chat" id="chat"></div>
+        <div class="tags" style="margin-top:10px" id="asks"></div>
+        <div style="display:flex;gap:8px;margin-top:10px"><input class="in" id="askIn" placeholder="Ask anything — 'what invalidates this?', 'compare with BTC'"><button class="btn aiB" id="askGo">Ask</button></div>
+      </section>
+    </div>
+    <aside style="display:flex;flex-direction:column;gap:14px">
+      <section class="card aiC">
+        <div class="lbl"><span>AI read of the chart</span><span class="who ai">AI · updated each bar</span></div>
+        <div class="step"><span class="n" style="background:rgba(52,211,153,.14);color:var(--pos)">1</span><span><b>Trend:</b> <span class="muted">up — EMA 20 over 50 over 200, and price broke the prior swing high.</span></span></div>
+        <div class="step"><span class="n" style="background:rgba(52,211,153,.14);color:var(--pos)">2</span><span><b>Structure:</b> <span class="muted">break of structure long; an untested gap sits below as the pullback area.</span></span></div>
+        <div class="step"><span class="n" style="background:rgba(245,196,81,.14);color:var(--warn)">3</span><span><b>Participation:</b> <span class="muted">higher high with RSI falling — the second push had less behind it.</span></span></div>
+        <div class="step"><span class="n" style="background:rgba(245,196,81,.14);color:var(--warn)">4</span><span><b>Risk nearby:</b> <span class="muted">FOMC member speaks in 22 min.</span></span></div>
+        <div class="step"><span class="n" style="background:rgba(157,184,255,.14);color:var(--ai)">5</span><span><b>History:</b> <span class="muted">this setup here reached target 37 of 64 times (58%), +0.16R per attempt.</span></span></div>
+      </section>
+      <section class="card aiC" id="recCard">
+        <div class="lbl"><span>AI recommendation</span><span class="pill pos">8 of 8 checks</span></div>
+        <div class="serif" style="font-size:30px;line-height:1.1">Long on a pullback into 2,692–2,705</div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px;font-size:11.5px;color:var(--fa)">
+          <div>Entry<div class="mono" style="font-size:14px;color:var(--tx);margin-top:3px">2,698</div></div>
+          <div>Stop<div class="mono" style="font-size:14px;color:var(--neg);margin-top:3px">2,673.91</div></div>
+          <div>Target<div class="mono" style="font-size:14px;color:var(--pos);margin-top:3px">2,723.77</div></div>
+        </div>
+        <p class="note" style="margin:12px 0 0">Wait until the news passes. Confidence is moderate — the replayed record flatters itself because it's tested on the same history.</p>
+        <div class="hr"></div>
+        <div class="lbl" style="margin-bottom:8px"><span>Your say</span><span class="who you">You</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
+          <button class="btn primary" id="accept">Use this plan</button>
+          <button class="btn" id="adjust">Adjust</button>
+          <button class="btn" id="dismiss">Not for me</button>
+        </div>
+        <div id="decided" class="note" style="margin-top:10px"></div>
+      </section>
+      <section class="card" id="ticket" hidden>
+        <div class="lbl"><span>Your ticket</span><span class="who you">You</span></div>
+        <div class="field"><label for="tr">Risk <span class="mono" id="trOut">1.00%</span></label><input type="range" id="tr" min="0.25" max="2" step="0.25" value="1"></div>
+        <div class="kv"><span>Size</span><b id="tSize"></b></div>
+        <div class="kv"><span>You risk</span><b class="neg" id="tRisk"></b></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px"><button class="btn">Alert at entry</button><button class="btn primary">Review order…</button></div>
+      </section>
+    </aside>
+  </div>
+</main>
+
+<!-- ============================ RESEARCH (you steer) ============================ -->
+<main class="ws" id="ws-research" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">You steer · AI assists</span><h1 class="page" style="margin-top:10px">Pick what to study. The AI finds what moves with it.</h1><p class="sub">Quant analysis and machine learning. You choose the asset and the question; the AI chooses related assets and inputs, and says why for each. Anything it adds, you can switch off.</p></div>
+  <div style="display:grid;grid-template-columns:400px 1fr;gap:16px">
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card">
+        <div class="lbl"><span>1 · Your asset</span><span class="who you">You</span></div>
+        <div class="tags" id="assetPick"></div>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>2 · Your question</span><span class="who you">You</span></div>
+        <div class="field"><label for="goal">Predict</label><select class="in" id="goal"><option>Price range, next 24 bars</option><option>Direction, next 24 bars</option><option>Win or loss of a setup</option><option>Volatility</option><option>Market regime</option></select></div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px">
+          <div class="field"><label for="rtf">Timeframe</label><select class="in" id="rtf"><option>1h</option><option>4h</option><option>1d</option></select></div>
+          <div class="field"><label for="hist">History</label><select class="in" id="hist"><option>2 years</option><option>1 year</option><option>5 years</option></select></div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>4 · How strict</span><span class="who you">You</span></div>
+        <div class="field"><label for="folds">Walk-forward test rounds <span class="mono" id="foldsOut">6</span></label><input type="range" id="folds" min="3" max="12" value="6"></div>
+        <div class="field" style="margin-top:10px"><label>Costs</label><div class="seg" role="group" aria-label="Costs"><button aria-pressed="true">Your broker's</button><button>None</button></div></div>
+        <button class="btn primary" id="runR" style="width:100%;margin-top:14px;height:40px">Run research</button>
+      </section>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card aiC">
+        <div class="lbl"><span>3 · Related assets — chosen by AI</span><span class="who ai">AI</span></div>
+        <div class="note" style="margin-bottom:6px" id="relIntro"></div>
+        <div id="rel"></div>
+        <div style="display:flex;gap:8px;margin-top:10px"><input class="in mono" id="relAdd" placeholder="Add your own, e.g. NASDAQ" style="width:240px"><button class="btn sm" id="relAddBtn" style="height:34px">Add</button></div>
+      </section>
+      <section class="card aiC">
+        <div class="lbl"><span>Inputs and models — chosen by AI</span><span class="who ai">AI</span></div>
+        <div class="field"><label>Inputs</label><div class="tags" id="feats"></div></div>
+        <div class="field" style="margin-top:10px"><label>Models that will compete</label><div class="tags" id="models"></div></div>
+        <p class="note" style="margin:10px 0 0">The AI picked these for your question. Each is compared against the current baseline — the simulated paths, whose 90% band held 85% of the time over 237 checks.</p>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>Results</span><span class="who both">AI explains · you decide</span></div>
+        <div id="rOut" class="note">Run the research to see which model wins, what the related assets added, and the AI's plain-language explanation.</div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ STRATEGY (together) ============================ -->
+<main class="ws" id="ws-strategy" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">Built together</span><h1 class="page" style="margin-top:10px">Describe the idea. The AI drafts, tests and critiques. You shape it.</h1></div>
+  <div style="display:grid;grid-template-columns:420px 1fr;gap:16px">
+    <section class="card">
+      <div class="lbl"><span>The conversation</span><span class="who both">Both</span></div>
+      <div class="chat" id="sChat"></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><input class="in" id="sIn" placeholder="e.g. only take it in the London session"><button class="btn aiB" id="sGo">Send</button></div>
+    </section>
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <section class="card">
+        <div class="lbl"><span>The rules</span><span class="faint" style="font-size:11.5px">edit any line · the AI marks its own</span></div>
+        <div id="rules"></div>
+        <button class="btn sm" id="addRule">+ Add your rule</button>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>Simulation</span><div style="display:flex;gap:8px"><button class="btn sm" id="simRun" style="height:30px">Run simulation</button></div></div>
+        <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:16px">
+          <div><svg viewBox="0 0 440 150" width="100%" role="img" aria-label="Illustrative equity curve"><line x1="0" y1="120" x2="440" y2="120" stroke="rgba(255,255,255,.08)"/><polyline id="curve" fill="none" stroke="#D6B36A" stroke-width="2" points=""/></svg><div class="note" id="simNote">Not run yet — the curve shape here is illustrative only.</div></div>
+          <div class="card aiC" style="padding:12px 14px">
+            <div class="lbl" style="margin-bottom:8px"><span>AI critique</span><span class="who ai">AI</span></div>
+            <div id="critique" class="note"></div>
+          </div>
+        </div>
+      </section>
+      <section class="card">
+        <div class="lbl"><span>Your decision</span><span class="who you">You</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px"><button class="btn" data-sd="Keep iterating">Keep iterating</button><button class="btn" data-sd="Paper trade it">Paper trade it</button><button class="btn" data-sd="Discard">Discard</button></div>
+        <div class="note" id="sDec" style="margin-top:8px"></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<!-- ============================ REVIEW ============================ -->
+<main class="ws" id="ws-review" style="padding:26px 34px;gap:16px;flex-direction:column">
+  <div><span class="who both">AI finds · you judge</span><h1 class="page" style="margin-top:10px">The AI studies your trades. You decide what's true.</h1><p class="sub">From your MT5 fills and your decision log. <span class="faint">Sample rows · test fixture.</span></p></div>
+  <div style="display:grid;grid-template-columns:1fr 400px;gap:16px">
+    <section class="card aiC">
+      <div class="lbl"><span>What the AI noticed</span><span class="who ai">AI</span></div>
+      <div id="finds"></div>
+    </section>
+    <section class="card">
+      <div class="lbl"><span>Next week's rule</span><span class="who you">You</span></div>
+      <div class="note" style="margin-bottom:10px">The AI proposes; you word it and commit.</div>
+      <textarea class="in" id="nextRule">Don't trade within 30 minutes of major news — even when the setup is clean.</textarea>
+      <button class="btn primary" id="commitRule" style="width:100%;margin-top:12px;height:40px">Commit</button>
+      <div class="note" id="ruleDone" style="margin-top:8px"></div>
+    </section>
+  </div>
+</main>
+
+<footer class="status"><span><span class="dot" style="background:var(--pos);width:6px;height:6px"></span> binance · 280 ms</span><span>ETHUSDT 1h</span><span>ATR 0.92%</span><span>London open</span><span class="spacer"></span><span class="ai">AI · read at 11:14</span></footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const WS = [["today", "Today", "AI briefs · you plan"], ["chart", "Chart", "AI-led"], ["research", "Research", "you steer"], ["strategy", "Strategy", "together"], ["review", "Review", "AI finds · you judge"]];
+$("nav").innerHTML = WS.map(([id, n, s]) => `<button data-ws="${id}" ${id === "chart" ? 'aria-current="page"' : ""}>${n}<small>${s}</small></button>`).join("");
+function go(id) {
+  document.querySelectorAll("nav.ws button").forEach((b) => b.toggleAttribute("aria-current", b.dataset.ws === id));
+  document.querySelectorAll("nav.ws button[aria-current]").forEach((b) => b.setAttribute("aria-current", "page"));
+  document.querySelectorAll("main.ws").forEach((m) => m.classList.toggle("on", m.id === "ws-" + id));
+}
+$("nav").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) go(b.dataset.ws); });
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-go]"); if (g) go(g.dataset.go); });
+document.querySelectorAll(".seg").forEach((g) => g.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) g.querySelectorAll("button").forEach((x) => x.setAttribute("aria-pressed", String(x === b))); }));
+function tags(el, items, on, ai = false) {
+  el.innerHTML = items.map((t) => `<button class="tag${ai ? " aiT" : ""}" aria-pressed="${on.includes(t)}">${t}</button>`).join("");
+  el.onclick = (e) => { const b = e.target.closest(".tag"); if (b) b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true")); };
+}
+
+/* TODAY */
+tags($("focus"), ["ETHUSDT", "BTCUSDT", "XAUUSD", "EURUSD"], ["ETHUSDT", "BTCUSDT", "XAUUSD"]);
+$("commit").onclick = () => { $("commit").textContent = "Committed ✓ — edit"; };
+
+/* CHART (illustrative candles, AI annotations) */
+const C = (() => { let s = 11; const r = () => (s = (s * 16807) % 2147483647) / 2147483647; let p = 2560; const o = []; for (let i = 0; i < 100; i++) { const a = p; let c = a + (r() - .5) * 22 + (i > 55 ? 2.6 : -.4); if (i === 96) c = a + 55; const h = Math.max(a, c) + r() * 10, l = Math.min(a, c) - r() * 10; o.push([a, h, l, c]); p = c; } return o; })();
+const LO = 2520, HI = 2760, CH = 420, PW = 800;
+const y = (v) => CH - 18 - ((v - LO) / (HI - LO)) * (CH - 36);
+function chart() {
+  const w = 620 / C.length; let g = "";
+  for (let k = 0; k < 6; k++) { const v = LO + (HI - LO) * (k + .5) / 6; g += `<line x1="0" x2="${PW}" y1="${y(v)}" y2="${y(v)}" stroke="rgba(255,255,255,.04)"/><text x="${PW + 10}" y="${y(v) + 4}" fill="#8B929C" font-size="10.5">${v.toFixed(0)}</text>`; }
+  if ($("annot").checked) {
+    g += `<rect x="440" y="${y(2705)}" width="${PW - 440}" height="${y(2692) - y(2705)}" fill="#9DB8FF" opacity=".10"/><text x="446" y="${y(2705) - 6}" fill="#9DB8FF" font-size="10.5">AI · pullback zone 2,692–2,705</text>`;
+    g += `<line x1="300" x2="${PW}" y1="${y(2673.9)}" y2="${y(2673.9)}" stroke="#F87171" stroke-dasharray="4 4"/><text x="${PW - 150}" y="${y(2673.9) + 14}" fill="#F87171" font-size="10.5">invalidation 2,673.91</text>`;
+    g += `<line x1="300" x2="${PW}" y1="${y(2723.8)}" y2="${y(2723.8)}" stroke="#34D399" stroke-dasharray="4 4"/><text x="${PW - 150}" y="${y(2723.8) - 6}" fill="#34D399" font-size="10.5">target 2,723.77</text>`;
+    g += `<line x1="330" x2="560" y1="${y(2640)}" y2="${y(2640)}" stroke="#9DB8FF" stroke-width="1.2"/><text x="336" y="${y(2640) - 6}" fill="#9DB8FF" font-size="10.5">AI · BOS — prior swing high broken</text>`;
+  }
+  C.forEach(([o, h, l, c], i) => { const x = i * w + w / 2, col = c >= o ? "#34D399" : "#F87171"; g += `<line x1="${x}" x2="${x}" y1="${y(h)}" y2="${y(l)}" stroke="${col}" opacity=".8"/><rect x="${x - w * .32}" y="${y(Math.max(o, c))}" width="${w * .64}" height="${Math.max(1, Math.abs(y(o) - y(c)))}" rx="1" fill="${col}"/>`; });
+  if ($("annot").checked) g += `<text x="640" y="30" fill="#8B929C" font-size="10.5">illustrative chart · AI marks are live in the product</text>`;
+  $("chart").innerHTML = g;
+}
+$("annot").onchange = chart; chart();
+
+const ANSWERS = {
+  "What would invalidate this?": "A close back below 2,673.91 — that's the level the break came from. Below it, the structure I'm reading no longer exists.",
+  "Why wait for the news?": "Your own rule blocks new trades within 30 minutes of major news, and an FOMC speaker is due in 22 minutes. The setup stays valid for about 1.5 sessions, so waiting costs little.",
+  "How does BTC look?": "BTCUSDT broke out harder but has run 4.2× ATR past its level — no takeable setup there. ETH is the cleaner entry.",
+};
+function say(el, who, text) { el.insertAdjacentHTML("beforeend", `<div class="msg ${who}">${esc(text)}</div>`); el.scrollTop = el.scrollHeight; }
+say($("chat"), "ai", "I've read this chart: trend up, a fresh break of structure, weaker momentum on the second push, and news in 22 minutes. Ask me anything about it.");
+$("asks").innerHTML = Object.keys(ANSWERS).map((q) => `<button class="tag aiT" aria-pressed="false">${q}</button>`).join("");
+$("asks").onclick = (e) => { const b = e.target.closest(".tag"); if (!b) return; say($("chat"), "you", b.textContent); say($("chat"), "ai", ANSWERS[b.textContent]); };
+$("askGo").onclick = () => { const v = $("askIn").value.trim(); if (!v) return; say($("chat"), "you", v); say($("chat"), "ai", "In the product this is answered from the chart's own data, with every figure it quotes shown alongside."); $("askIn").value = ""; };
+const RISK_PER_UNIT = 2698 - 2673.91;
+function ticket() { const r = Number($("tr").value), m = 10000 * r / 100; $("trOut").textContent = r.toFixed(2) + "%"; $("tSize").textContent = (m / RISK_PER_UNIT).toFixed(3) + " ETH"; $("tRisk").textContent = "−" + m.toFixed(2) + " USD"; }
+$("tr").oninput = ticket; ticket();
+$("accept").onclick = () => { $("ticket").hidden = false; $("decided").innerHTML = '<span class="pos">You accepted.</span> Sized to your 1% risk — review it below. Logged.'; };
+$("adjust").onclick = () => { $("ticket").hidden = false; $("decided").innerHTML = 'Drag the levels on the chart to adjust — the AI re-checks your version.'; };
+$("dismiss").onclick = () => { $("ticket").hidden = true; $("decided").innerHTML = '<span class="faint">Dismissed and logged.</span> The AI will tell you if the picture changes.'; };
+
+/* RESEARCH */
+const RELATED = {
+  BTCUSDT: [["ETHUSDT", "Closest crypto peer — often moves first or confirms"], ["DXY", "US dollar index — a stronger dollar tends to weigh on crypto"], ["US10Y", "10-year yield — tighter money, less risk appetite"], ["NASDAQ", "Tech stocks — shared risk-on / risk-off swings"], ["XAUUSD", "Gold — competing hedge asset"]],
+  ETHUSDT: [["BTCUSDT", "Leads the crypto market"], ["ETH/BTC", "Cross pair — ETH's strength relative to BTC"], ["DXY", "US dollar index — broad risk driver"], ["SOLUSDT", "High-beta peer — shows crypto risk appetite"], ["NASDAQ", "Tech stocks — shared risk swings"]],
+  XAUUSD: [["DXY", "US dollar — gold is priced in it"], ["US10Y", "Real yields — the classic gold driver"], ["XAGUSD", "Silver — closest metal peer"], ["EURUSD", "Largest dollar cross"], ["BTCUSDT", "Competing hedge asset"]],
+  EURUSD: [["DXY", "Dollar index — EUR is its largest part"], ["GBPUSD", "Closest major cross"], ["US10Y", "Rate differential driver"], ["EURGBP", "Cross pair — euro vs sterling"], ["XAUUSD", "Dollar-sensitive hedge"]],
+};
+let asset = "BTCUSDT";
+$("assetPick").innerHTML = Object.keys(RELATED).map((a) => `<button class="tag" aria-pressed="${a === asset}" data-a="${a}">${a}</button>`).join("");
+$("assetPick").onclick = (e) => { const b = e.target.closest("[data-a]"); if (!b) return; asset = b.dataset.a; $("assetPick").querySelectorAll(".tag").forEach((t) => t.setAttribute("aria-pressed", String(t === b))); related(); };
+function related() {
+  $("relIntro").textContent = `For ${asset}, the AI added these because they tend to move with it or drive it. Their actual correlation is measured when you run.`;
+  $("rel").innerHTML = RELATED[asset].map(([s, why]) => `<label class="rel"><input type="checkbox" checked><b class="mono">${s}</b><span class="muted">${why}</span><span class="mono faint" style="text-align:right">measured on run</span></label>`).join("");
+}
+related();
+$("relAddBtn").onclick = () => { const v = $("relAdd").value.trim().toUpperCase(); if (!v) return; $("rel").insertAdjacentHTML("beforeend", `<label class="rel"><input type="checkbox" checked><b class="mono">${esc(v)}</b><span class="muted">Added by you</span><span class="mono faint" style="text-align:right">measured on run</span></label>`); $("relAdd").value = ""; };
+tags($("feats"), ["Price action", "ATR / volatility", "Sessions", "Related assets", "Open interest", "Funding", "Regime"], ["Price action", "ATR / volatility", "Sessions", "Related assets", "Regime"], true);
+tags($("models"), ["Simulated paths (baseline)", "Calibrated paths", "LightGBM quantile", "Temporal Fusion Transformer"], ["Simulated paths (baseline)", "Calibrated paths", "LightGBM quantile"], true);
+$("folds").oninput = () => { $("foldsOut").textContent = $("folds").value; };
+$("runR").onclick = () => { $("rOut").innerHTML = `<div class="kv"><span>Status</span><b class="ai">queued on the quant service</b></div><div class="kv"><span>Asset</span><b>${asset}</b></div><div class="kv"><span>Related assets included</span><b>${$("rel").querySelectorAll("input:checked").length}</b></div><div class="kv"><span>Test rounds</span><b>${$("folds").value}</b></div><p class="note" style="margin:10px 0 0">When it finishes, the AI explains in plain words which model won, whether the related assets helped, and whether any result is strong enough for you to promote. Numbers appear only once they're measured.</p>`; };
+
+/* STRATEGY */
+const R0 = [["ai", "Setup: break of structure on 1h, in the trend's direction"], ["ai", "Entry: pullback into the untested gap"], ["ai", "Stop: beyond the level the break came from"], ["ai", "Target: 1.5 R, move stop to entry at 1 R"], ["you", "Skip if major news within 30 minutes"]];
+let rules = R0.slice();
+function drawRules() { $("rules").innerHTML = rules.map(([by, t], i) => `<div class="rule"><div><div class="by ${by === "ai" ? "ai" : ""}" style="color:${by === "ai" ? "var(--ai)" : "var(--acc)"}">${by === "ai" ? "AI drafted" : "Your rule"}</div><input value="${esc(t)}" data-i="${i}" aria-label="Rule ${i + 1}"></div><button class="btn sm" data-x="${i}" aria-label="Remove rule">✕</button></div>`).join(""); }
+drawRules();
+$("rules").oninput = (e) => { const i = e.target.dataset.i; if (i !== undefined) { rules[i] = ["you", e.target.value]; e.target.previousElementSibling.textContent = "Edited by you"; e.target.previousElementSibling.style.color = "var(--acc)"; } };
+$("rules").onclick = (e) => { const b = e.target.closest("[data-x]"); if (b) { rules.splice(Number(b.dataset.x), 1); drawRules(); critique(); } };
+$("addRule").onclick = () => { rules.push(["you", "Your rule"]); drawRules(); };
+say($("sChat"), "you", "I want to buy pullbacks after a break of structure, in the trend's direction.");
+say($("sChat"), "ai", "I've drafted that as 4 rules on the right. Before simulating: this setup is reported live more often than it leaves history, so the sample may be thin. I've added your news rule from Review.");
+$("sGo").onclick = () => { const v = $("sIn").value.trim(); if (!v) return; say($("sChat"), "you", v); rules.push(["you", v]); drawRules(); say($("sChat"), "ai", "Added as a rule. I'll re-run the simulation with it and tell you what it changed."); $("sIn").value = ""; critique(); };
+function critique() {
+  const n = rules.length;
+  $("critique").innerHTML = [
+    `${n} rules. Each extra rule is another chance to fit the past instead of the future.`,
+    "Selection of this kind has failed on new data about 9 times in 10 (PBO 89%) — the simulation will be deflated for how many versions you try.",
+    "Costs from your broker are included; a strategy that only works without them is rejected.",
+  ].map((t) => `<div style="padding:5px 0">• ${t}</div>`).join("");
+}
+critique();
+$("simRun").onclick = () => { const pts = []; let v = 120; for (let i = 0; i <= 40; i++) { v -= (Math.sin(i / 3) * 3 + 1.1); pts.push(`${i * 11},${Math.max(10, Math.min(140, v))}`); } $("curve").setAttribute("points", pts.join(" ")); $("simNote").textContent = "Illustrative shape — the real run uses your archive, walk-forward, after costs."; };
+document.querySelectorAll("[data-sd]").forEach((b) => b.onclick = () => { $("sDec").innerHTML = `<span class="pos">Recorded:</span> ${b.dataset.sd}.`; });
+
+/* REVIEW */
+const FINDS = [["Your two EURUSD trades both followed the plan — one hit target, one hit the stop. Execution was clean; the result was the market.", "confirmed"], ["The gold trade had no plan attached, so it can't be graded. Unplanned trades are where records get noisy.", ""], ["Only 3 trades — too few for any pattern to be real yet. I'll keep watching.", ""]];
+$("finds").innerHTML = FINDS.map(([t], i) => `<div class="step"><span class="n" style="background:rgba(157,184,255,.14);color:var(--ai)">${i + 1}</span><div style="flex:1"><div class="muted" style="font-size:13px;line-height:1.55">${t}</div><div style="display:flex;gap:6px;margin-top:8px" data-f="${i}"><button class="btn sm">Agree</button><button class="btn sm">Disagree</button><button class="btn sm">Add note</button></div></div></div>`).join("");
+$("finds").onclick = (e) => { const b = e.target.closest("[data-f] button"); if (!b) return; b.parentElement.querySelectorAll("button").forEach((x) => x.style.boxShadow = x === b ? "inset 0 0 0 1px var(--acc)" : ""); };
+$("commitRule").onclick = () => { $("ruleDone").innerHTML = '<span class="pos">Committed.</span> The AI will check new trades against it and add it to Strategy drafts.'; };
+</script>
+</body>
+</html>

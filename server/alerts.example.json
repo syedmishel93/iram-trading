@@ -1,0 +1,18 @@
+{
+  "version": 40,
+  "exportedAt": 1788128000000,
+  "alerts": [
+    {
+      "id": "smoke1",
+      "symbol": "BTCUSDT",
+      "timeframe": "1h",
+      "anchor": { "kind": "price", "price": 80000 },
+      "condition": "cross-above",
+      "once": false,
+      "cooldownBars": 0,
+      "enabled": true,
+      "createdAt": 1788128000000,
+      "note": "smoke test"
+    }
+  ]
+}

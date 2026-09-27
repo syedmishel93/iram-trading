@@ -1,0 +1,252 @@
+/* ============================================================================
+   THE DRAWER UNDER THE CHART  (ui/chartdrawer.ts)
+
+   Every class is prefixed `cd-`. The tabs are `.seg-btn` inside a `.seg`, and
+   every button is a `.ghost-btn`, so press feedback and hover come from
+   components.css and press.css — this file declares NO `transition`, because
+   a partial shorthand here would silently subtract theirs.
+
+   Collapsed it is one row (~32px). Expanded, the body is `--cd-h` tall and
+   scrolls inside itself. Open/close does not animate: it is met many times a
+   day, and frequency decides whether something moves at all.
+   ============================================================================ */
+
+.cd {
+  --cd-h: 220px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  color: var(--text);
+  font-size: var(--fs-2);
+}
+
+/* --- the bar -------------------------------------------------------------- */
+.cd-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  height: 32px;
+  padding: 0 var(--sp-4);
+  min-width: 0;
+}
+.cd-seg {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+.cd-seg .seg-btn {
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-4);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  white-space: nowrap;
+  font-size: var(--fs-1);
+}
+.cd-n {
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+}
+.cd-n:empty { display: none; }
+.cd-tab[aria-pressed="true"] .cd-n { color: inherit; }
+.cd-spacer { flex: 1 1 auto; }
+.cd-toggle {
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-1);
+  flex: none;
+}
+
+/* --- the body ------------------------------------------------------------- */
+.cd-body {
+  height: var(--cd-h);
+  overflow: auto;
+  overscroll-behavior: contain;
+  border-top: 1px solid var(--border);
+  background: var(--surface-inset);
+  padding: var(--sp-4) var(--sp-5);
+}
+/* `hidden` must win over any display a pane or the body is given here. */
+.cd-body[hidden],
+.cd-pane[hidden] { display: none; }
+
+/* --- shared rows ---------------------------------------------------------- */
+.cd-rows { display: flex; flex-direction: column; }
+.cd-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-height: 24px;
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  min-width: 0;
+}
+.cd-row:last-child { border-bottom: 0; }
+
+/* The source tag. The AI variant is the inspector's `.card-who[data-who="ai"]`
+   exactly: accent text, a faint accent border, a pill. */
+.cd-who {
+  flex: none;
+  padding: 1px 6px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  font-size: var(--fs-0);
+  line-height: 1.4;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.cd-who[data-who="ai"] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+[data-tone="pos"].cd-what, .cd-table [data-tone="pos"] { color: var(--pos); }
+[data-tone="neg"].cd-what, .cd-table [data-tone="neg"] { color: var(--neg); }
+.cd-table [data-tone="attn"] { color: var(--attn); }
+
+.cd-btn {
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-4);
+  font-size: var(--fs-1);
+  flex: none;
+}
+.cd-note {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  margin: 0 0 var(--sp-4);
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+}
+.cd-note[data-tone="attn"] { color: var(--attn); }
+.cd-refused { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); }
+
+/* --- Objects -------------------------------------------------------------- */
+.cd-objects {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-6);
+}
+@media (max-width: 720px) {
+  .cd-objects { grid-template-columns: minmax(0, 1fr); }
+}
+.cd-col { min-width: 0; }
+.cd-col-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.cd-col-title {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  color: var(--text-muted);
+}
+.cd-fam { margin-bottom: var(--sp-3); }
+.cd-fam-head {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  margin: var(--sp-2) 0 var(--sp-1);
+}
+.cd-det {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: 22px;
+  cursor: pointer;
+  min-width: 0;
+}
+.cd-check { margin: 0; flex: none; accent-color: var(--accent); }
+.cd-det-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-det-n { flex: none; color: var(--text); }
+.cd-det-n[data-off="true"] { color: var(--text-faint); }
+.cd-draw-kind { flex: none; color: var(--text); }
+.cd-draw-where {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.cd-del { height: var(--h-ctl-xs); padding: 0 var(--sp-3); font-size: var(--fs-1); flex: none; }
+
+/* --- Ask ------------------------------------------------------------------ */
+.cd-ask { display: flex; flex-direction: column; gap: var(--sp-4); max-width: 820px; }
+.cd-chips { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.cd-chip { height: var(--h-ctl-xs); padding: 0 var(--sp-4); font-size: var(--fs-1); border-radius: var(--r-full); }
+.cd-askrow { display: flex; gap: var(--sp-3); min-width: 0; }
+.cd-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-2);
+}
+.cd-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.cd-askrow .cd-btn { height: var(--h-ctl-sm); }
+.cd-qa { display: flex; flex-direction: column; gap: var(--sp-2); }
+.cd-q { margin: 0; color: var(--text-muted); font-weight: var(--fw-med); }
+.cd-a { margin: 0; white-space: pre-wrap; line-height: 1.5; color: var(--text); }
+.cd-a[data-pending="true"] { color: var(--text-muted); }
+.cd-a[data-tone="neg"] { color: var(--neg); }
+.cd-by { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }
+.cd-link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: var(--fs-1);
+  cursor: pointer;
+}
+@media (hover: hover) {
+  .cd-link:hover { text-decoration: underline; }
+}
+.cd-link:focus-visible { text-decoration: underline; outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* --- Positions ------------------------------------------------------------ */
+.cd-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--fs-2);
+}
+.cd-table th {
+  text-align: left;
+  font-weight: var(--fw-med);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  padding: 0 var(--sp-4) var(--sp-2) 0;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.cd-table td {
+  padding: var(--sp-2) var(--sp-4) var(--sp-2) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+  white-space: nowrap;
+}
+.cd-table .num { text-align: right; }
+
+/* --- Alerts log ----------------------------------------------------------- */
+.cd-alerts { display: flex; flex-direction: column; gap: var(--sp-4); }
+.cd-time { flex: none; color: var(--text-faint); }
+.cd-what {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

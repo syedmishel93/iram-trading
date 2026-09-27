@@ -1,0 +1,2458 @@
+/* ============================================================================
+   COMPONENTS — everything reads semantic roles from tokens.css. No literals.
+   ============================================================================ */
+
+/* --- topbar controls ------------------------------------------------------ */
+
+/* `relative` so the dropdown can hang off it; the picker positions nothing
+   itself. */
+.sym-picker { display: flex; align-items: center; position: relative; }
+
+/* --- the symbol dropdown -------------------------------------------------- */
+
+/* A browser, not a dropdown: fixed overall height with ONE scrolling region in
+   the middle, so the currency tabs and the count line stay put while three
+   thousand rows move underneath them. Scrolling the whole panel instead would
+   take the tabs off screen the moment you started looking. */
+/* FIXED, not absolute. `.topbar` scrolls its control groups (`overflow-x:
+   auto`) and `.shell > *` clips everything to its grid track, so an absolutely
+   positioned panel here is cut to a 48px sliver — which is exactly what "the
+   pair selector is not working" was. Placed by `place()` in symbolpicker.ts. */
+.sym-menu {
+  position: fixed;
+  width: 320px;
+  max-height: 460px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--sp-2);
+  background: var(--surface-overlay);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-3);
+  box-shadow: var(--elev-pop), var(--sheen);
+  backdrop-filter: var(--blur-pop);
+  /* Above the topbar it hangs from, below modals. */
+  z-index: var(--z-popover);
+}
+
+.sym-menu[hidden] { display: none; }
+
+.sym-tabs {
+  display: flex;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding-bottom: var(--sp-2);
+  border-bottom: 1px solid var(--border-hair);
+  margin-bottom: var(--sp-2);
+}
+
+.sym-tab {
+  flex: 1 1 auto;
+  padding: 3px var(--sp-2);
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .sym-tab:hover { background: var(--surface-hover); color: var(--text); } }
+.sym-tab[data-on="true"] { background: var(--accent-wash); color: var(--accent); }
+
+.sym-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Scrolling this list must not chain into the chart behind it — a flick past
+     the end otherwise pans the price axis, which is alarming. */
+  overscroll-behavior: contain;
+}
+
+.sym-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  margin-top: var(--sp-2);
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+.sym-foot-count { color: var(--text-muted); }
+.sym-foot-keys {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.sym-opt {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  cursor: pointer;
+}
+
+.sym-opt[data-active="true"] { background: var(--accent-wash); }
+@media (hover: hover) { .sym-opt:hover { background: var(--surface-hover); } }
+
+.sym-opt-name {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  color: var(--text);
+}
+
+.sym-opt-detail {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.sym-input {
+  width: 148px;
+  /* --h-ctl (32px), not --h-ctl-lg (38px). This was the one control holding
+     the context row six pixels taller than the command bar above it, and
+     "anything that leads a row" is a weak reason for a symbol box to be the
+     only 38px control in the chrome when every other input in the terminal is
+     32. The row is now 42px like its neighbour and this keeps the same 5px of
+     air it had at 48. See --h-topbar in tokens.css. */
+  height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  letter-spacing: 0.02em;
+  transition: border-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .sym-input:hover { border-color: var(--border-hi); } }
+.sym-input:focus-visible { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+
+/* Segmented controls: one shared skin for timeframe and chart style. */
+.tf-group, .seg {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+}
+
+.tf-btn, .seg-btn {
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-1);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  color: var(--text-muted);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+.tf-btn { font-family: var(--font-mono); }
+@media (hover: hover) { .tf-btn:hover, .seg-btn:hover { color: var(--text); } }
+/* A WASH, not a fill. Every active toggle in the chart toolbar was a solid
+   brand chip - timeframe, chart type, each average - so the brand colour was
+   the loudest thing above the chart and meant nothing more than "on".
+   `.tool-btn` already answered a press this way; the three now agree. */
+.tf-btn[aria-pressed="true"], .seg-btn[aria-pressed="true"] {
+  background: var(--accent-wash);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.icon-btn {
+  display: grid;
+  place-items: center;
+  width: var(--h-ctl); height: var(--h-ctl);
+  border-radius: var(--r-2);
+  color: var(--text-muted);
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .icon-btn:hover { background: var(--surface-hover); color: var(--text); } }
+
+.ghost-btn {
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface-overlay);
+  backdrop-filter: blur(6px);
+  color: var(--text-muted);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .ghost-btn:hover { color: var(--text); border-color: var(--border-hi); } }
+
+.theme-select {
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-2);
+}
+
+/* --- feed badge -----------------------------------------------------------
+   The visual half of the freshness contract. Colour AND word both change, so
+   the state survives a colour-blind reader and a greyscale screenshot alike. */
+
+.feed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-wide);
+  color: var(--text-muted);
+}
+.feed-badge[data-feed="live"]    { color: var(--feed-live);    border-color: color-mix(in srgb, var(--feed-live) 40%, transparent); }
+.feed-badge[data-feed="delayed"] { color: var(--feed-delayed); border-color: color-mix(in srgb, var(--feed-delayed) 40%, transparent); }
+.feed-badge[data-feed="stale"]   { color: var(--feed-stale);   border-color: color-mix(in srgb, var(--feed-stale) 40%, transparent); }
+.feed-badge[data-feed="demo"]    { color: var(--alt);          border-color: color-mix(in srgb, var(--alt) 45%, transparent); }
+.feed-badge[data-feed="closed"]  { color: var(--feed-closed);  border-color: var(--border); }
+
+.feed-note {
+  font-weight: var(--fw-normal);
+  letter-spacing: 0;
+  color: var(--text-faint);
+  text-transform: none;
+}
+
+/* --- chart area ----------------------------------------------------------- */
+
+.chart-wrap {
+  /* A ROW: tool rail down the left, then a body that owns the positioning
+     context for the canvas. (This was a column, with the tools in a strip
+     above the chart. Previously it was the positioning context itself, so the
+     absolutely-positioned canvas painted over the toolbar — hence the separate
+     `.chart-body`, which is still doing that job.)
+
+     WHY THE TOOLS MOVED TO THE SIDE
+     Measured at 1600px: 24 controls using 659px of a 1240px strip, so 581px of
+     that row was empty — and the row cost 37px of chart height across the full
+     width to hold it. A horizontal strip charges every pixel of the chart's
+     height for a control set that only ever fills half its width. Vertically
+     the same 24 controls charge 44px of width, which is the one dimension a
+     price chart has to spare, and the empty space goes back to the candles.
+
+     It is also where every professional chart puts them, which matters here
+     for a reason beyond familiarity: a tool rail on the left is out of the
+     path between the price axis on the right and the legend on the top-left,
+     the two things you actually read while drawing. */
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: row;
+  min-height: 0;
+}
+
+.chart-body {
+  position: relative;
+  flex: 1;
+  /* Both, now that the wrap is a row. `min-width: 0` is what lets the body
+     shrink instead of forcing the rail off screen on a narrow window — a flex
+     item's default `min-width: auto` refuses to go below its content, and the
+     canvas reports its own width as content. */
+  min-height: 0;
+  min-width: 0;
+}
+.chart-host { position: absolute; inset: 0; }
+/* v59.2: the chart body over the drawer (ui/chartdrawer.ts). The body keeps
+   `flex: 1` and stays the canvas's positioning context; the drawer takes its
+   own height, one 32px row while collapsed. */
+.chart-col { display: flex; flex-direction: column; flex: 1; min-width: 0; min-height: 0; }
+.chart-col > .chart-body { flex: 1 1 auto; }
+.chart-col > .cd { flex: none; }
+
+.legend {
+  position: absolute;
+  top: var(--sp-4);
+  left: var(--sp-5);
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  z-index: var(--z-chart-ui);
+  pointer-events: none;
+  font-size: var(--fs-2);
+  /* Stays clear of the action buttons at the top right, and WRAPS rather than
+     truncates. The first attempt clipped with an ellipsis, which on a narrow
+     pane ate the change — the one figure in the row that is a judgement rather
+     than a fact, and the last one that should be dropped to save space. Two
+     short lines beat one line missing its conclusion. */
+  max-width: calc(100% - 150px);
+  flex-wrap: wrap;
+  row-gap: 2px;
+
+  /* A plate under the text.
+     The legend floats over candles, moving averages and structure labels, and
+     on a short chart its second line lands squarely on them. Terminals that
+     skip this get away with it only because their plots are tall enough that
+     the top-left corner is usually empty. A wash rather than a solid: the
+     candles behind stay visible, the glyphs stop competing with them. */
+  padding: 2px var(--sp-2);
+  margin: -2px calc(var(--sp-2) * -1);
+  border-radius: var(--r-1);
+  background: color-mix(in srgb, var(--surface-base) 72%, transparent);
+  backdrop-filter: blur(2px);
+}
+.legend-sym, .legend-hint { font-weight: var(--fw-semi); color: var(--text); }
+.legend-hint { color: var(--text-muted); }
+
+/* The venue. Quiet, and set apart from the symbol by a middot rather than by
+   another gap — it qualifies the symbol, it is not a peer of it. */
+.legend-venue { color: var(--text-faint); font-size: var(--fs-1); text-transform: capitalize; }
+.legend-venue::before { content: "· "; }
+
+/* O/H/L/C. The keys are markers, not data: they carry no information that
+   changes, so they are set faint and one step down, and the eye lands on the
+   numbers. Tightened against their values so each key+value reads as one
+   token rather than eight things in a row. */
+.legend-key { color: var(--text-faint); font-size: var(--fs-1); margin-left: var(--sp-2); }
+.legend-val { font-variant-numeric: tabular-nums; }
+.legend-val[data-dir="up"]   { color: var(--pos); }
+.legend-val[data-dir="down"] { color: var(--neg); }
+
+/* The change. The one figure here that is a judgement rather than a fact, so
+   it gets the weight — it is what the chart is usually being asked. */
+.legend-chg {
+  font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums;
+  margin-left: var(--sp-2);
+}
+.legend-chg[data-dir="up"]   { color: var(--pos); }
+.legend-chg[data-dir="down"] { color: var(--neg); }
+
+.chart-actions {
+  position: absolute;
+  right: var(--sp-6);
+  bottom: var(--sp-5);
+  display: flex;
+  gap: var(--sp-3);
+  z-index: var(--z-chart-ui);
+}
+
+.chart-empty {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  color: var(--text-faint);
+  font-size: var(--fs-3);
+  pointer-events: none;
+}
+.chart-empty[data-show="true"] { display: grid; }
+
+/* --- dock ----------------------------------------------------------------- */
+
+.dock-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  /* 32px, and the row now holds IDENTITY ONLY — the word and the symbol.
+     The Column/Stack toggle moved down to `.dock-summary`, which is where the
+     rest of the panel's controls already live, and that move is what makes 32
+     safe. The comment this replaces recorded a measured bug: at the dock's
+     260px minimum the head's content came to 279px, so the toggle ran 20px
+     past the dock edge and the shell clipped it. Two shrinkable items and a
+     spacer cannot overflow 260px; three items one of which refuses to shrink
+     could, and did.
+
+     The split is also the right one to read. Row one says what you are
+     looking at. Row two says what you have built and how it is laid out. */
+  height: var(--h-ctl);
+  padding: 0 var(--sp-4);
+  /* The SEAM, at hairline weight — same vocabulary as the command bar's
+     bottom edge in shell.css. The strong --border line now sits under
+     `.dock-summary`, at the one place in the panel that is a boundary: where
+     the dock's chrome ends and its content begins. Two full-weight rules 38px
+     apart made the top of a 360px panel read as two headers. */
+  border-bottom: 1px solid var(--border-hair);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+/* Identity, and the only things here allowed to give up room. */
+.dock-head > .label,
+.dock-head > .chip {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* The label goes first: "INSPECTOR" is the least informative text in the row,
+   and the panel it names is the one you are looking at. */
+.dock-head > .label { flex-shrink: 3; }
+
+.dock-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface-inset);
+  padding: var(--sp-4) var(--sp-5) var(--sp-5);
+}
+.panel > .label { display: block; margin-bottom: var(--sp-4); }
+
+/* Key/value grid — the terminal's most repeated pattern. Values are right
+   aligned and tabular so a column of numbers reads as a column.            */
+.kv {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--sp-2) var(--sp-5);
+  margin: 0;
+  font-size: var(--fs-2);
+}
+.kv dt { color: var(--text-muted); }
+.kv dd { margin: 0; text-align: right; color: var(--text); }
+
+.demo-banner {
+  display: none;
+  padding: var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid color-mix(in srgb, var(--alt) 45%, transparent);
+  background: var(--alt-wash);
+  color: var(--alt);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-wide);
+  text-align: center;
+}
+.demo-banner[data-show="true"] { display: block; }
+
+/* Tone applied to a value cell — used by study readouts to flag an extreme. */
+.kv dd[data-tone="pos"] { color: var(--pos); }
+.kv dd[data-tone="neg"] { color: var(--neg); }
+
+/* Socket health in the status bar. Reconnecting is amber, not silent: an
+   unstable connection is information, not an implementation detail. */
+.status-item[data-stream="reconnecting"],
+.status-item[data-stream="connecting"] { color: var(--feed-delayed); }
+.status-item[data-stream="closed"] { color: var(--text-faint); }
+.status-warn:not(:empty) { color: var(--feed-delayed); margin-left: var(--sp-2); }
+
+/* --- view routing ---------------------------------------------------------
+   `data-hidden` rather than unmounting: the chart keeps its canvas context and
+   its loaded history, so switching back is instant. */
+.chart-wrap[data-hidden="true"],
+.view-slot[data-hidden="true"] { display: none; }
+
+/**
+ * The desk container.
+ *
+ * `place-items: center` sizes a grid item to MAX-CONTENT, which is right for a
+ * small centred placeholder and wrong for every full-width desk. It bit the
+ * Data desk in v41, the Analyst desk in v42 and the Risk desk in v43, each time
+ * fixed by adding `justify-self: stretch` to that one desk. Three is enough:
+ * the container now stretches by default and the ONE thing that wanted
+ * centring — the not-ported placeholder — asks for it with `margin: auto`.
+ */
+.view-slot {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: stretch;
+  padding: var(--sp-8);
+  overflow-y: auto;
+}
+
+/* Anything that genuinely wants to be centred says so. */
+.view-pending { margin: auto; }
+
+/**
+ * Desks must be allowed to SHRINK.
+ *
+ * A grid item defaults to `min-width: auto`, which resolves to min-content — so
+ * a desk containing a wide table refuses to go narrower than that table and
+ * pushes its container instead. MEASURED: the screener rendered 655px inside a
+ * 629px slot and put a horizontal scrollbar on the whole shell.
+ *
+ * This is the third form of the same trap (v41: `overflow-x:auto` doing nothing
+ * without it; v43: `place-items:center` sizing to max-content). Setting it here,
+ * on every desk at once, is what stops there being a fourth. Wide content then
+ * scrolls inside its OWN container rather than widening the app.
+ */
+.view-slot > * { min-width: 0; }
+
+/**
+ * A DESK IS READING MATTER, AND THE SLOT IS WHERE THAT IS DECIDED.
+ *
+ * `.dd` carried this cap for one release, which covered ONE of the six root
+ * classes desks actually use — `.dd`, `.desk`, `.view`, `.screener`, `.flow`,
+ * `.journal-desk`. The Journal is `.desk journal-desk`, so it went on
+ * stretching: MEASURED at 1796px, with its three price fields at 591px EACH
+ * and a three-way "Followed the plan?" control at 1676px.
+ *
+ * So it goes on the slot, for the same reason `min-width: 0` above does and in
+ * that rule's own words: setting it here, on every desk at once, is what stops
+ * there being a seventh root class that misses it.
+ *
+ * 1480 because past roughly there the eye loses a table row between its first
+ * column and its last. Centred, because 420px of slack on ONE side reads as a
+ * layout that failed while the same amount on both reads as one that stopped.
+ * A ceiling, not a width: Flow keeps its 1100 and Opportunities its 1180.
+ *
+ * The chart is unaffected: `.view-slot` carries `data-hidden` while the chart
+ * is showing, and the chart mounts outside it.
+ */
+.view-slot > * {
+  max-width: 1480px;
+  margin-inline: auto;
+}
+
+.view-pending {
+  max-width: 46ch;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.view-pending-title {
+  font-family: var(--font-disp);
+  font-size: var(--fs-6);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+.view-pending-body { font-size: var(--fs-3); line-height: var(--lh-body); color: var(--text-muted); }
+.view-pending-note {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--attn);
+}
+
+/* --- screener -------------------------------------------------------------- */
+
+.screener {
+  width: 100%;
+  max-width: 1180px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-self: start;
+}
+
+.scr-head { display: flex; align-items: center; gap: var(--sp-5); flex: 0 0 auto; }
+.scr-title {
+  font-family: var(--font-disp);
+  font-size: var(--fs-6);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+}
+.scr-sub { font-size: var(--fs-2); color: var(--text-muted); }
+
+.scr-status {
+  display: none;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  flex: 0 0 auto;
+}
+.scr-status[data-show="true"] { display: block; }
+
+.scr-table {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface-inset);
+}
+
+/* One grid template shared by the header and every row, so columns cannot
+   drift apart the way two separate tables always eventually do. */
+.scr-row {
+  display: grid;
+  /* symbol, price, 24h, volume, bias, confidence | setup, risk, edge, age | open.
+     The setup column is the widest flexible one: it is what the desk is for. */
+  grid-template-columns: 116px minmax(84px, 1fr) 68px 76px 124px 84px minmax(190px, 1.6fr) 62px 78px 48px 60px;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-5);
+  min-height: 34px;
+  font-size: var(--fs-2);
+  border-bottom: 1px solid var(--border-hair);
+}
+.scr-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface);
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+}
+.scr-row-wrap:nth-child(even) .scr-row { background: color-mix(in srgb, var(--surface) 40%, transparent); }
+@media (hover: hover) { .scr-row:hover { background: var(--surface-hover); } }
+.scr-row[data-open="true"] { background: var(--accent-wash); }
+
+.scr-cell { text-align: right; }
+.scr-cell[data-dir="up"] { color: var(--pos); }
+.scr-cell[data-dir="down"] { color: var(--neg); }
+
+.scr-sym {
+  text-align: left;
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  padding: 0;
+}
+@media (hover: hover) { .scr-sym:hover { color: var(--accent); } }
+
+.scr-bias {
+  display: inline-block;
+  min-width: 88px;
+  padding: 1px var(--sp-3);
+  border-radius: var(--r-1);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  text-align: center;
+}
+.scr-bias[data-bias="long"]    { color: var(--pos); background: var(--pos-wash); }
+.scr-bias[data-bias="short"]   { color: var(--neg); background: var(--neg-wash); }
+.scr-bias[data-bias="neutral"] { color: var(--text-faint); }
+
+.scr-na { color: var(--text-faint); font-size: var(--fs-1); }
+
+.scr-meter {
+  position: relative;
+  display: block;
+  height: 14px;
+  border-radius: var(--r-1);
+  background: var(--surface);
+  overflow: hidden;
+}
+.scr-meter-fill { position: absolute; inset: 0 auto 0 0; background: var(--accent-wash); }
+.scr-meter-text {
+  position: relative;
+  display: block;
+  text-align: right;
+  padding-right: var(--sp-2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  line-height: 14px;
+  color: var(--text-muted);
+}
+
+.scr-open {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  height: 20px;
+}
+@media (hover: hover) { .scr-open:hover { color: var(--accent); border-color: var(--accent); } }
+
+/* --- setup columns -------------------------------------------------------- */
+.scr-setup {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+  white-space: nowrap;
+}
+.scr-setup-dir {
+  flex: 0 0 auto;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-1);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+}
+.scr-setup-dir[data-dir="long"]  { color: var(--pos); background: var(--pos-wash); }
+.scr-setup-dir[data-dir="short"] { color: var(--neg); background: var(--neg-wash); }
+.scr-setup-kind {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+/* "New since the last scan" wears the brand, not a market hue: it is a fact
+   about the desk's own memory, never about price. */
+.scr-new {
+  flex: 0 0 auto;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-full);
+  font-size: var(--fs-1);
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+/* A row whose setup is new since the last scan arrives lit, and settles to a
+   faint wash that STAYS — the fade is the arrival, the wash is the fact.
+   Opacity only, on an overlay, so the row's own background is never animated.
+   Once per scan, a few times a day: frequency allows it where a price tick
+   does not. Under reduced motion --dur-note is 0ms, so the row simply starts
+   at the settled wash: the movement goes, the acknowledgement stays. */
+.scr-row { position: relative; }
+.scr-row:has(.scr-new)::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent-wash);
+  pointer-events: none;
+  opacity: 0.45;
+  animation: scr-new-arrive var(--dur-note) var(--ease-out);
+}
+@keyframes scr-new-arrive {
+  from { opacity: 1; }
+  to   { opacity: 0.45; }
+}
+
+.scr-edge[data-tone="pos"]     { color: var(--pos); }
+.scr-edge[data-tone="neg"]     { color: var(--text-muted); }
+.scr-edge[data-tone="thin"]    { color: var(--text-faint); }
+.scr-edge[data-tone="adverse"] { color: var(--neg); }
+
+.scr-only { border: 1px solid var(--border); border-radius: var(--r-2); }
+
+/* "Watch for new setups". The state reads as a status, not a control: muted,
+   tabular so the countdown time does not jitter the header, accent only while
+   a scan is actually running. No hover rule - the buttons carry their own. */
+.scr-watch-btn { border: 1px solid var(--border); border-radius: var(--r-2); }
+.scr-watch-state {
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.scr-watch-state[data-phase="scanning"] { color: var(--accent); }
+.scr-watch-state[data-phase="refused"] { color: var(--neg); }
+.scr-watch {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  flex: 0 0 auto;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.scr-watch[data-show="false"] { display: none; }
+.scr-watch-rule { flex: 1 1 320px; min-width: 0; }
+.scr-watch .ghost-btn[data-show="false"],
+.scr-watch-note[data-show="false"] { display: none; }
+.scr-watch-note { color: var(--text-faint); }
+
+/* --- the plan inside an opened row ---------------------------------------- */
+.scr-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  margin-bottom: var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  border-left: 2px solid var(--border-hi);
+}
+.scr-plan[data-dir="long"]  { border-left-color: var(--pos); }
+.scr-plan[data-dir="short"] { border-left-color: var(--neg); }
+.scr-plan-head { display: flex; align-items: baseline; gap: var(--sp-5); flex-wrap: wrap; }
+.scr-plan-title { font-size: var(--fs-3); font-weight: var(--fw-semi); color: var(--text); }
+.scr-plan-meta { font-size: var(--fs-1); color: var(--text-faint); }
+.scr-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: var(--sp-3) var(--sp-6);
+}
+.scr-plan-cell { display: flex; flex-direction: column; gap: var(--sp-1); }
+.scr-plan-k { font-size: var(--fs-1); color: var(--text-faint); }
+.scr-plan-v { font-size: var(--fs-3); color: var(--text); }
+.scr-plan-cell[data-tone="pos"] .scr-plan-v { color: var(--pos); }
+.scr-plan-cell[data-tone="neg"] .scr-plan-v { color: var(--neg); }
+.scr-plan-reason { font-size: var(--fs-1); color: var(--text-faint); line-height: var(--lh-body); max-width: 90ch; }
+
+/* --- the reasoning panel: the reason the screener exists ------------------- */
+.scr-detail {
+  padding: var(--sp-4) var(--sp-5) var(--sp-5) calc(var(--sp-5) + 130px);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.scr-why-head {
+  display: flex;
+  gap: var(--sp-5);
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  margin-bottom: var(--sp-2);
+}
+.scr-why { font-size: var(--fs-2); color: var(--text-muted); }
+/* The correlation section wears this class too, and it said "Correlation"
+   over an empty list before any scan: a data-show nobody honoured. */
+.scr-why[data-show="false"] { display: none; }
+
+.scr-signal {
+  display: grid;
+  grid-template-columns: 150px 1fr 110px;
+  gap: var(--sp-4);
+  align-items: baseline;
+  font-size: var(--fs-2);
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--border);
+}
+.scr-signal[data-dir="long"]  { border-left-color: var(--pos); }
+.scr-signal[data-dir="short"] { border-left-color: var(--neg); }
+.scr-signal-name { font-weight: var(--fw-med); color: var(--text); }
+.scr-signal-reason { color: var(--text-muted); line-height: var(--lh-body); }
+.scr-signal-w {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.scr-empty {
+  display: none;
+  max-width: 70ch;
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+.scr-empty[data-show="true"] { display: block; }
+
+.scr-disclaimer {
+  flex: 0 0 auto;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+@media (max-width: 1000px) {
+  .scr-row { grid-template-columns: 104px 84px 60px 64px 112px 72px 180px 48px 72px 44px 56px; }
+  .scr-detail { padding-left: var(--sp-5); }
+  .scr-signal { grid-template-columns: 1fr; gap: var(--sp-1); }
+}
+
+/* --- auto-detect panel ----------------------------------------------------- */
+
+.det-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-4);
+}
+
+.det-toggle {
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-1);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-med);
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease),
+    background var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .det-toggle:hover { color: var(--text); border-color: var(--border-hi); } }
+.det-toggle[aria-pressed="true"] {
+  background: var(--accent-wash);
+  border-color: color-mix(in srgb, var(--accent) 50%, transparent);
+  color: var(--accent);
+}
+
+.det-count {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  margin-bottom: var(--sp-3);
+}
+
+/* Capped so a busy chart cannot push the rest of the dock off screen. */
+.det-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.det-item {
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--border);
+}
+.det-item[data-dir="long"]  { border-left-color: var(--pos); }
+.det-item[data-dir="short"] { border-left-color: var(--neg); }
+
+.det-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.det-item-label { font-size: var(--fs-2); font-weight: var(--fw-med); color: var(--text); }
+.det-item-conf { font-size: var(--fs-1); color: var(--text-faint); }
+.det-item-reason {
+  font-size: var(--fs-1);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+/* --- flow desk ------------------------------------------------------------- */
+
+.flow {
+  width: 100%;
+  max-width: 1100px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  align-self: start;
+}
+
+.flow-head { display: flex; align-items: center; gap: var(--sp-5); flex: 0 0 auto; }
+.flow-title {
+  font-family: var(--font-disp);
+  font-size: var(--fs-6);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+}
+.flow-sub { font-size: var(--fs-2); color: var(--text-muted); }
+.flow-status { font-size: var(--fs-2); color: var(--text-faint); }
+.flow-source { font-size: var(--fs-1); color: var(--text-faint); flex: 0 0 auto; }
+
+.flow-signals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: var(--sp-4);
+  flex: 0 0 auto;
+}
+
+.flow-card {
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-hi);
+  border-radius: var(--r-3);
+  background: var(--surface-inset);
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.flow-card[data-dir="long"]  { border-left-color: var(--pos); }
+.flow-card[data-dir="short"] { border-left-color: var(--neg); }
+
+.flow-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+.flow-card-name {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+.flow-card-value { font-size: var(--fs-4); font-weight: var(--fw-semi); color: var(--text); }
+.flow-card-reason { font-size: var(--fs-2); line-height: var(--lh-body); color: var(--text-muted); }
+
+.flow-empty-note { font-size: var(--fs-2); color: var(--text-faint); padding: var(--sp-4); }
+
+/* --- liquidation tape ------------------------------------------------------ */
+
+.liq {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+
+.liq-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+
+.liq-dot {
+  width: 6px; height: 6px;
+  border-radius: var(--r-full);
+  background: var(--feed-off);
+}
+.liq-dot[data-stream="open"] { background: var(--feed-live); }
+.liq-dot[data-stream="connecting"],
+.liq-dot[data-stream="reconnecting"] { background: var(--feed-delayed); }
+
+.liq-body { flex: 1; overflow-y: auto; }
+
+.liq-row {
+  display: grid;
+  grid-template-columns: 90px 120px 1fr 120px 100px;
+  gap: var(--sp-4);
+  align-items: center;
+  padding: 0 var(--sp-5);
+  min-height: 26px;
+  font-size: var(--fs-2);
+  border-bottom: 1px solid var(--border-hair);
+}
+.liq-time, .liq-px { color: var(--text-muted); }
+.liq-sym { font-family: var(--font-mono); font-weight: var(--fw-semi); }
+.liq-val { text-align: right; font-weight: var(--fw-semi); }
+
+/* A long being liquidated is a forced SELL — coloured by the position wiped
+   out, which is what a reader actually cares about. */
+.liq-row[data-side="long"]  .liq-side, .liq-row[data-side="long"]  .liq-val { color: var(--neg); }
+.liq-row[data-side="short"] .liq-side, .liq-row[data-side="short"] .liq-val { color: var(--pos); }
+
+.flow-disclaimer { flex: 0 0 auto; font-size: var(--fs-1); color: var(--text-faint); }
+
+@media (max-width: 900px) {
+  .liq-row { grid-template-columns: 70px 90px 1fr 90px; }
+  .liq-px { display: none; }
+}
+
+/* ===========================================================================
+   AUTO-DETECT POPOVER
+
+   Hangs off the chart toolbar's ⌖ button. Positioned in JS against the
+   viewport, because both hosts scroll (the tool rail vertically, the context
+   bar horizontally) and an overflow container clips absolutely-positioned
+   children — see `anchoredPopover`.
+   ========================================================================= */
+
+.tool-pop-wrap { display: inline-flex; flex: 0 0 auto; }
+
+.detect-pop {
+  position: fixed;
+  z-index: var(--z-popover);
+  width: 268px;
+  max-height: calc(100dvh - 160px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  background: var(--surface-overlay);
+  backdrop-filter: var(--blur-pop);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-3);
+  box-shadow: var(--elev-pop), var(--sheen);
+}
+.detect-pop[hidden] { display: none; }
+
+.detect-row { display: flex; align-items: center; gap: var(--sp-2); }
+
+.detect-title {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  margin-right: auto;
+}
+
+.detect-mini {
+  padding: 1px var(--sp-3);
+  border-radius: var(--r-1);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+@media (hover: hover) { .detect-mini:hover { background: var(--surface-hover); color: var(--text); } }
+
+/* Family heading, added at v54 when the list went from thirteen toggles to
+   twenty-nine. A flat grid of twenty-nine similar-length buttons is a wall;
+   six headings turn "where is the toggle called X" into "what do I have for
+   liquidity", which is the question actually being asked. Sticky, because the
+   popup scrolls and a heading that scrolls away takes the grouping with it. */
+.detect-family {
+  position: sticky;
+  top: calc(var(--sp-4) * -1);
+  z-index: 1;
+  padding: var(--sp-2) 0 1px;
+  background: var(--surface-overlay);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Two columns: six detector names do not fit on one line at a readable size,
+   and a single column makes the panel twice as tall as the chart controls it
+   hangs off. */
+.detect-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-2); }
+.detect-grid .det-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  text-align: left;
+  cursor: pointer;
+}
+.det-toggle-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.det-toggle-n {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.det-toggle[aria-pressed="false"] .det-toggle-n { display: none; }
+
+.detect-note { font-size: var(--fs-1); color: var(--text-muted); line-height: var(--lh-snug); }
+.detect-sep { height: 1px; background: var(--border-hair); margin: var(--sp-2) 0; }
+
+.detect-pin {
+  width: 100%;
+  padding: var(--sp-3);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border-hi);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  cursor: pointer;
+  transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .detect-pin:hover:not(:disabled) { background: var(--accent-wash); border-color: var(--accent); color: var(--accent); } }
+.detect-pin:disabled { color: var(--text-faint); cursor: default; }
+
+.detect-fine { margin: 0; font-size: var(--fs-1); color: var(--text-faint); line-height: var(--lh-snug); }
+
+/* Lit when anything is being looked for, so the toolbar answers "are the
+   detectors on" without opening the panel. */
+.tool-btn[data-on="true"] { color: var(--accent); }
+
+/* ===========================================================================
+   INDICATOR SETTINGS
+
+   The panel used to refuse period boxes. It now has them, and the safeguard
+   that refusal was reaching for is kept in a form that works: anything running
+   non-published settings is MARKED, at three levels — the input, the gear
+   beside the indicator, and the toolbar button itself. Tuning is allowed;
+   tuning and forgetting is not.
+   ========================================================================= */
+
+/* A dot on the toolbar button when any indicator is off its definition. */
+.tool-btn[data-tuned="true"] { position: relative; }
+.tool-btn[data-tuned="true"]::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: var(--r-full);
+  background: var(--attn);
+}
+
+/* Toggle and gear as one grid cell. `min-width: 0` on both, or the toggle's
+   label refuses to ellipsis and widens the two-column grid instead. */
+.study-item { display: flex; align-items: stretch; gap: 1px; min-width: 0; }
+.study-item .det-toggle { flex: 1 1 auto; min-width: 0; }
+
+.study-gear {
+  flex: 0 0 auto;
+  width: 20px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-1);
+  color: var(--text-faint);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  position: relative;
+}
+@media (hover: hover) { .study-gear:hover { background: var(--surface-hover); color: var(--text); } }
+.study-gear[aria-expanded="true"] { background: var(--surface-active); color: var(--accent); }
+.study-gear[data-tuned="true"] { color: var(--attn); }
+
+/* The editor sits between the grid and the next group, so it must not collapse
+   the gap when nothing is open. */
+.study-params-off { display: none; }
+.study-params-body {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.study-param {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.study-param-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.study-param-input {
+  flex: 0 0 auto;
+  width: 68px;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-2);
+  text-align: right;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--text);
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+}
+.study-param-input:focus-visible {
+  border-color: var(--accent);
+  box-shadow: var(--ring);
+  outline: none;
+}
+/* The one that is off its published value, not the whole row: it says WHICH
+   number was changed, which is the question you have when you come back to a
+   chart you tuned last week. */
+.study-param-input[data-tuned="true"] { border-color: var(--attn); color: var(--attn); }
+
+.detect-mini.study-tuned { color: var(--attn); }
+.detect-mini.study-tuned[hidden] { display: none; }
+
+/* ===========================================================================
+   VOLUME PANE RESIZER
+
+   Parked on the boundary the ENGINE reports (`volumeTop()`), not at a constant
+   offset — two places deriving one boundary is how the band and the time axis
+   collided the first time this was built.
+   ========================================================================= */
+
+.vol-resizer {
+  position: absolute;
+  left: 0;
+  right: var(--w-price-axis, 64px);
+  height: 9px;
+  /* Centred ON the line, so the grab area straddles it rather than sitting
+     below it — a handle you have to aim under the edge reads as broken. */
+  margin-top: -4px;
+  cursor: ns-resize;
+  z-index: var(--z-chart-ui);
+  touch-action: none;
+}
+.vol-resizer[hidden] { display: none; }
+
+.vol-resizer::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; top: 4px;
+  height: 1px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease);
+}
+.shell[data-resizing="volume"] .vol-resizer::after { opacity: 1; }
+@media (hover: hover) { .vol-resizer:hover::after { opacity: 1; } }
+
+/* While dragging, nothing else should take the pointer or show a text caret. */
+.shell[data-resizing="volume"] { cursor: ns-resize; user-select: none; }
+.shell[data-resizing="volume"] .chart-host { pointer-events: none; }
+
+/* --- detect panel filters -------------------------------------------------- */
+
+.detect-seg-row { display: flex; align-items: center; gap: var(--sp-3); }
+/* SCOPED TO THE ROW IT WAS WRITTEN FOR. `flex: 0 0 62px` sizes the MAIN axis,
+   which is width here and height in a column — and `.study-group` is a column.
+   Unscoped, this rule gave every group heading in the Indicators panel a
+   62px-tall box around 15px of text: 47px of dead space per heading, eight
+   headings, ~376px of gap in a 292px-wide panel. It read as a broken layout
+   because it was one. */
+.detect-seg-row > .detect-seg-label {
+  flex: 0 0 62px;
+}
+.detect-seg-label {
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.detect-seg {
+  display: flex;
+  flex: 1 1 auto;
+  padding: 2px;
+  gap: 2px;
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+}
+.detect-seg-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-1);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .detect-seg-btn:hover { color: var(--text); } }
+.detect-seg-btn[data-on="true"] { background: var(--accent); color: var(--text-on-accent); }
+
+.detect-clear { width: 100%; text-align: center; padding: var(--sp-2); }
+.detect-clear:disabled { color: var(--text-faint); cursor: default; }
+@media (hover: hover) { .detect-clear:disabled:hover { background: none; } }
+
+/* ── studies panel ────────────────────────────────────────────────────────
+   Shares .detect-pop wholesale: it is the same control answering the same
+   question about a different kind of mark, and giving it its own idiom would
+   mean learning the popover twice. Only the parts that differ live here. */
+
+.study-pop { width: 292px; }
+
+.study-group { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+/* A profile level is a number you might type into an order ticket, so it is
+   printed as well as drawn. Tabular figures because three prices stacked in a
+   column that do not align read as three unrelated numbers. */
+.study-profile { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.study-prof-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.study-prof-label {
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+
+.study-prof-val {
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-1);
+  color: var(--text);
+}
+
+/* ── setup card: open position ──────────────────────────────────────
+   Distinct from the plan block above it on purpose: a plan is what to do if
+   you are flat, and this is what to do because you are not. Reading as one
+   surface is how somebody doubles into a trade they meant to be managing. */
+
+.setup-exit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--text-muted);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+
+/* Only an invalidation earns the alarm colour. A partial being due is
+   housekeeping, and colouring both the same teaches you to ignore the one
+   that matters. */
+.setup-exit[data-kind="invalidation"] { border-left-color: var(--neg); }
+.setup-exit[data-kind="time"] { border-left-color: var(--attn); }
+.setup-exit[data-kind="stop"],
+.setup-exit[data-kind="target"] { border-left-color: var(--pos); }
+
+.setup-exit-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.setup-exit-tag {
+  font-size: var(--fs-1);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.setup-exit-r { font-variant-numeric: tabular-nums; font-weight: 600; }
+.setup-exit-r[data-sign="pos"] { color: var(--pos); }
+.setup-exit-r[data-sign="neg"] { color: var(--neg); }
+
+.setup-exit-held { font-size: var(--fs-1); color: var(--text-faint); margin-left: auto; }
+
+.setup-exit-headline {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+
+.setup-exit-line {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+
+/* ── Journal desk ─────────────────────────────────────────────────────────
+   Three panels: record, measure, list. In that order because it is the order
+   of the work — you file a trade, then you ask what the file says, then you
+   look for the one you half-remember. */
+
+.journal-desk { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.jr-panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface);
+}
+
+.jr-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.jr-panel-title { font-weight: 600; }
+
+.jr-context {
+  margin-left: auto;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.jr-fine { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }
+
+/* The refusal below the sample floor. Amber rather than red: nothing is
+   broken, there is simply not enough of it yet. */
+.jr-warn {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--attn);
+}
+
+.jr-error {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 3px solid var(--neg);
+  background: var(--neg-wash);
+  font-size: var(--fs-1);
+  color: var(--text);
+}
+
+/* ── the form ── */
+
+/* A PRICE FIELD IS AS WIDE AS A PRICE.
+   `repeat(auto-fit, minmax(120px, 1fr))` MEASURED at 591px PER FIELD on a
+   1786px row — three inputs holding "4267.00" stretched across the desk. The
+   `1fr` is the fault this file already records twice; bounding the track at
+   168px keeps the auto-fit wrap and stops the stretch, and `justify-content:
+   start` keeps them left instead of spreading. */
+.jr-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 168px));
+  justify-content: start;
+  gap: var(--sp-3);
+}
+
+.jr-field { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.jr-input,
+.jr-note {
+  width: 100%;
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-base);
+  color: var(--text);
+  font: inherit;
+}
+
+.jr-input { font-variant-numeric: tabular-nums; }
+
+.jr-input:focus-visible,
+.jr-note:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.jr-adherence { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+/* `.detect-seg` is `flex: 1 1 auto`, which is right in the inspector it was
+   written for — a narrow column where the segment should fill. In this row it
+   MEASURED 1676px for three buttons reading "As planned / Modified / Off
+   plan". A three-way choice has a width; it is not the width of whatever row
+   it happens to sit in. Scoped, so the inspector keeps its own behaviour. */
+.jr-adherence .detect-seg { flex: 0 0 auto; }
+.jr-adherence .detect-seg-btn { flex: 1 1 0; min-width: 108px; }
+
+.jr-actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+/* ── statistics ── */
+
+.jr-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.jr-stat { display: flex; flex-direction: column; gap: 2px; }
+
+.jr-stat-label {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-muted);
+}
+
+.jr-stat-value {
+  font-size: var(--fs-4);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.jr-breakdown { display: flex; flex-direction: column; gap: var(--sp-1); margin-top: var(--sp-3); }
+
+.jr-bd-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: var(--sp-3);
+  align-items: baseline;
+  font-size: var(--fs-1);
+}
+
+.jr-bd-key { color: var(--text); }
+.jr-bd-n { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.jr-bd-r { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+/* ── the rows ── */
+
+.jr-rows { display: flex; flex-direction: column; gap: 2px; }
+
+.jr-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) auto minmax(120px, 1.2fr) 70px minmax(90px, 1fr) auto auto;
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: var(--sp-2);
+  border-radius: var(--r-2);
+  font-size: var(--fs-1);
+}
+
+.jr-row:nth-child(odd) { background: var(--surface-base); }
+
+.jr-row-sym { font-weight: 500; }
+
+.jr-row-dir { text-transform: uppercase; font-size: var(--fs-1); letter-spacing: .05em; }
+.jr-row-dir[data-dir="long"] { color: var(--pos); }
+.jr-row-dir[data-dir="short"] { color: var(--neg); }
+
+.jr-row-px { font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+.jr-row-r { font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; }
+.jr-row-r[data-outcome="win"] { color: var(--pos); }
+.jr-row-r[data-outcome="loss"] { color: var(--neg); }
+.jr-row-r[data-outcome="open"] { color: var(--text-faint); }
+.jr-row-r[data-outcome="breakeven"] { color: var(--text-muted); }
+
+.jr-row-kind,
+.jr-row-adh { color: var(--text-faint); }
+
+.jr-row-btn { padding: 2px var(--sp-2); font-size: var(--fs-1); }
+
+@media (max-width: 720px) {
+  /* The row is a table on a wide screen and a stack on a narrow one. Squeezing
+     seven columns into 360px produces seven unreadable slivers. */
+  .jr-row { grid-template-columns: 1fr auto; row-gap: 2px; }
+}
+
+/* ── strategy desk: the out-of-sample gate ────────────────────────────────
+   Deliberately plain. A gate that looked celebratory when it passed would be
+   the thing people optimise against, which is how PBO reached 89% in the
+   first place. Passing is a tick, not a trophy. */
+
+.gate-checks { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.gate-check {
+  display: grid;
+  grid-template-columns: 1.1em 1fr;
+  gap: var(--sp-2);
+  align-items: start;
+  font-size: var(--fs-1);
+}
+
+.gate-mark { font-weight: 700; line-height: 1.4; }
+.gate-check[data-passed="true"] .gate-mark { color: var(--pos); }
+.gate-check[data-passed="false"] .gate-mark { color: var(--neg); }
+
+.gate-check[data-passed="true"] .gate-text { color: var(--text-muted); }
+.gate-check[data-passed="false"] .gate-text { color: var(--text); }
+
+.chip[data-standing="good"] { color: var(--pos); border-color: var(--pos); }
+.chip[data-standing="bad"] { color: var(--neg); border-color: var(--neg); }
+
+/* ── strategy desk: by market condition ── */
+
+.regime-rows { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.regime-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto 5.5em;
+  gap: var(--sp-3);
+  align-items: baseline;
+  font-size: var(--fs-1);
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+
+.regime-row:last-child { border-bottom: 0; }
+
+.regime-name { color: var(--text); }
+.regime-exp,
+.regime-n { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+.regime-r {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+/* Below the sample floor the figure is not printed at all, so the column
+   carries the refusal rather than a number nobody should read. */
+.regime-r[data-usable="false"] {
+  color: var(--text-faint);
+  font-weight: 400;
+  font-style: italic;
+}
+
+/* ── Decision desk: forecast and macro ────────────────────────────────────
+   Both panels are about things the terminal is NOT claiming as much as things
+   it is, so both lead with prose and put the figures underneath. */
+
+.dc-forecast-line {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-2);
+  color: var(--text);
+  max-width: 68ch;
+}
+
+.dc-calib { display: flex; flex-direction: column; gap: var(--sp-1); }
+
+.dc-calib-row {
+  display: grid;
+  grid-template-columns: 7em 1fr 8em 4em;
+  gap: var(--sp-2);
+  align-items: center;
+  font-size: var(--fs-1);
+}
+
+.dc-calib-nom { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.dc-calib-real,
+.dc-calib-n { color: var(--text-muted); font-variant-numeric: tabular-nums; }
+
+.dc-calib-bar {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-base);
+  overflow: hidden;
+}
+
+.dc-calib-fill { display: block; height: 100%; background: var(--text-faint); }
+
+/* Green only when the interval delivered what it claimed, within 5 points.
+   A bar that looks healthy at 63% delivered against 80% claimed would be the
+   panel undoing its own purpose. */
+.dc-calib-row[data-ok="true"] .dc-calib-fill { background: var(--pos); }
+.dc-calib-row[data-ok="false"] .dc-calib-fill { background: var(--attn); }
+.dc-calib-row[data-ok="true"] .dc-calib-real { color: var(--pos); }
+.dc-calib-row[data-ok="false"] .dc-calib-real { color: var(--attn); }
+
+/* ── macro lane ── */
+
+.dc-macro-row {
+  display: grid;
+  grid-template-columns: 1fr 5em 4em 6em;
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-1);
+}
+
+.dc-macro-row:last-of-type { border-bottom: 0; }
+
+.dc-macro-label { color: var(--text); }
+.dc-macro-move,
+.dc-macro-n { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+.dc-macro-r {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+  color: var(--text-faint);
+}
+
+/* Only a relationship strong enough to act on is drawn at full strength. The
+   rest stay legible and quiet — they are measurements, and a measurement of
+   "not much" is still worth being able to read. */
+.dc-macro-row[data-meaningful="true"] .dc-macro-r { color: var(--text); }
+.dc-macro-row[data-meaningful="true"] .dc-macro-label { font-weight: 500; }
+
+/* The two v49 panels reuse `.dc-panel` from risk.css and need a head, a body
+   and a note class, none of which existed — the desk's other panels are laid
+   out with `.label` and bare divs. Added here rather than in risk.css so the
+   Decision desk's own additions stay together. */
+
+.dc-panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.dc-panel-title {
+  margin: 0;
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+}
+
+.dc-panel-head .ghost-btn { margin-left: auto; }
+
+.dc-panel-body { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.dc-note {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  max-width: 68ch;
+}
+
+/* ── Quant desk ────────────────────────────────────────────────────────────
+   Panels that mostly say "no". The verdict sentence is the largest text in
+   each one, because a refusal is the result as often as a number is, and a
+   layout that put the figures first would make the refusals easy to skip. */
+
+/* A COLUMN OF PANELS IS NOT A READING MEASURE, AND CAPPING IT AS ONE COST
+   HALF THE DESK.
+
+   `max-width: 78ch` is the right rule for prose and the wrong one here.
+   Measured at 1600px: the desk rendered 689px wide inside a 1240px slot — 551
+   pixels, 44% of the available width, permanently empty — while nine
+   independent panels queued up into 1,221px of vertical scroll. Nothing was
+   gained by it: the panels are stat grids and tables, not paragraphs.
+
+   So the measure moves DOWN, to the elements that are actually prose. The
+   blurb, the verdict and the caveat keep their own caps (62–66ch, already
+   there); the container stops imposing one on the tables. */
+.qd {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(30rem, 1fr));
+  /* Panels differ in height by a factor of five. Stretching them to a common
+     row height would put a stat grid's worth of content inside a table's worth
+     of box and fill the difference with nothing. */
+  align-items: start;
+  gap: var(--sp-4);
+  padding: var(--sp-4);
+}
+
+/* The service row and the script editor span every column: one is the state
+   everything below it depends on, the other is a code editor. */
+.qd-service,
+.qd-wide { grid-column: 1 / -1; }
+
+.qd-service {
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  padding: var(--sp-3);
+  background: var(--surface-raised);
+}
+
+.qd-service-row { display: flex; align-items: center; gap: var(--sp-2); }
+
+.qd-service-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--neg);
+  flex: none;
+}
+.qd-service[data-online="true"] .qd-service-dot { background: var(--pos); }
+
+.qd-service-text { flex: 1; font-size: var(--fs-1); color: var(--text); }
+
+.qd-recheck,
+.qd-run {
+  font: inherit;
+  font-size: var(--fs-0);
+  padding: var(--sp-1) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface-base);
+  color: var(--text);
+  cursor: pointer;
+}
+.qd-run { min-width: 6.5em; }
+@media (hover: hover) { .qd-recheck:hover:not(:disabled), .qd-run:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); } }
+.qd-recheck:disabled,
+.qd-run:disabled { opacity: .45; cursor: not-allowed; }
+
+.qd-missing { display: flex; flex-direction: column; gap: 2px; }
+.qd-missing:not(:empty) { margin-top: var(--sp-2); }
+.qd-missing-row { margin: 0; font-size: var(--fs-0); color: var(--attn); }
+.qd-missing-row code { color: var(--text); }
+
+/* ── a panel ── */
+
+.qd-panel {
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  padding: var(--sp-3);
+  background: var(--surface-raised);
+}
+
+.qd-head { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.qd-head-text { flex: 1; min-width: 0; }
+
+.qd-title { margin: 0; font-size: var(--fs-2); font-weight: 600; color: var(--text); }
+.qd-blurb {
+  margin: 2px 0 0;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.qd-status {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+}
+/* A refusal is a finding, so it is coloured like one rather than like an
+   error. Offline is the only state that is genuinely a fault. */
+.qd-status[data-state="refused"] { color: var(--attn); }
+/* THE SCRIPT RESULT'S REFUSAL, which had NO rule and so read as an answer. The
+   line above already says what a refusal looks like on this desk; a reason the
+   eye cannot separate from output is the "colour follows the standing" rule
+   broken in the one place it matters most. Found by
+   `scratchpad/classundeclared.py`. */
+.qd-refused { color: var(--attn); }
+.qd-status[data-state="offline"] { color: var(--neg); }
+.qd-status[data-state="busy"] { color: var(--accent); }
+
+.qd-body:not(:empty) { margin-top: var(--sp-3); }
+.qd-empty { display: none; }
+
+.qd-verdict {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-2);
+  line-height: 1.5;
+  color: var(--text);
+  max-width: 64ch;
+}
+
+.qd-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+}
+
+.qd-stat { display: flex; flex-direction: column; gap: 1px; }
+.qd-stat-label {
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+  letter-spacing: var(--track-micro);
+}
+.qd-stat-value { font-size: var(--fs-2); color: var(--text); font-variant-numeric: tabular-nums; }
+.qd-stat[data-tone="pos"] .qd-stat-value { color: var(--pos); }
+.qd-stat[data-tone="neg"] .qd-stat-value { color: var(--neg); }
+.qd-stat[data-tone="mute"] .qd-stat-value { color: var(--text-muted); }
+
+.qd-note {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  max-width: 64ch;
+}
+.qd-note[data-on="true"] { color: var(--text); }
+.qd-fine { color: var(--text-faint); font-variant-numeric: tabular-nums; }
+
+.qd-caveat {
+  margin: var(--sp-3) 0 0;
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+  max-width: 66ch;
+}
+
+/* ── model comparison table ── */
+
+.qd-table { width: 100%; border-collapse: collapse; font-size: var(--fs-1); }
+.qd-table th {
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-faint);
+  font-size: var(--fs-0);
+  padding: 0 var(--sp-2) var(--sp-1) 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.qd-table th.num, .qd-table td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.qd-table td { padding: var(--sp-1) var(--sp-2) var(--sp-1) 0; color: var(--text-muted); }
+.qd-table tr[data-best="true"] td { color: var(--text); font-weight: 500; }
+/* Only a model that actually cleared its own noise floor is coloured. */
+.qd-table tr[data-real="true"] td.num:nth-child(2) { color: var(--pos); }
+.qd-table tr[data-real="false"] td.num:nth-child(2) { color: var(--text-faint); }
+
+/* ── seasonality clock ── */
+
+.qd-hours { display: flex; gap: 2px; align-items: flex-end; height: 54px; margin-top: var(--sp-2); }
+.qd-hour { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; gap: 2px; height: 100%; }
+.qd-hour i {
+  display: block;
+  height: calc(6px + (100% - 18px) * var(--f));
+  background: var(--accent);
+  opacity: calc(.35 + .65 * var(--f));
+  border-radius: 1px;
+}
+.qd-hour em {
+  font-style: normal;
+  font-size: 9px;
+  color: var(--text-faint);
+  text-align: center;
+  height: 12px;
+}
+
+/* ── refutation chips ── */
+
+.qd-refutes { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-top: var(--sp-2); }
+.qd-refute {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+.qd-refute[data-passed="true"] { border-color: var(--pos); color: var(--pos); }
+.qd-refute[data-passed="false"] { border-color: var(--neg); color: var(--neg); }
+.qd-refute-mark { font-weight: 700; }
+
+/* ── Inspector dock: collapsible column, or a card stack ────────────────────
+
+   THE MEASUREMENT THIS ANSWERS
+   Nine fixed panels came to 3,828px of content in an 842px viewport — four and
+   a half screens, with nothing collapsible. Every rule below is scoped under
+   `.dock` on purpose: `.panel`, `.panel-head` and `.panel-body` are shared
+   with the strategy, alerts and playbook desks, and none of those should move
+   because the inspector changed.                                             */
+
+.dock-spacer { flex: 1; }
+
+/* Never shrinks and never wraps: a control you cannot reach is worse than a
+   truncated word. */
+.dock-modes { display: flex; gap: 2px; flex: none; }
+
+.dock-mode {
+  font: inherit;
+  font-size: var(--fs-1);
+  line-height: 1;
+  padding: 4px var(--sp-3);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.dock-mode:first-child { border-radius: var(--r-2) 0 0 var(--r-2); }
+.dock-mode:last-child  { border-radius: 0 var(--r-2) var(--r-2) 0; }
+@media (hover: hover) { .dock-mode:hover { color: var(--text); } }
+.dock-mode[aria-pressed="true"] {
+  background: var(--surface-inset);
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+/* --- the summary line: what you have actually built --------------------- */
+
+.dock-summary {
+  display: flex;
+  /* `center`, not `baseline`. The row gained the mode toggle, and a 21px
+     bordered control aligned by the baseline of its own text sits two pixels
+     low against a plain sentence beside it. */
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  /* The boundary: chrome above, content below. See the head. */
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+/* The count gives up room before the controls do — a sentence can be clipped
+   and still read; a control that leaves the panel cannot be used. */
+.dock-summary > .dock-count {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: auto;
+}
+
+.dock-mini {
+  font: inherit;
+  font-size: var(--fs-0);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+@media (hover: hover) { .dock-mini:hover { color: var(--accent); border-color: var(--accent); } }
+
+/* --- the card switcher, stack mode only --------------------------------- */
+
+.dock-stackbar { display: none; }
+
+.dock[data-mode="stack"] .dock-stackbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border-hair);
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.dock-step {
+  font: inherit;
+  font-size: var(--fs-3);
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+@media (hover: hover) { .dock-step:hover { color: var(--accent); border-color: var(--accent); } }
+
+/* Scrolls horizontally rather than wrapping: wrapping to a second row steals
+   height from the card, which is the one thing the stack exists to protect. */
+.dock-cards {
+  display: flex;
+  gap: var(--sp-1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
+  flex: 1;
+}
+.dock-cards::-webkit-scrollbar { display: none; }
+
+.dock-card-tab {
+  font: inherit;
+  font-size: var(--fs-1);
+  line-height: 1;
+  white-space: nowrap;
+  padding: 4px var(--sp-3);
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+@media (hover: hover) { .dock-card-tab:hover { color: var(--text); } }
+.dock-card-tab[aria-selected="true"] {
+  background: var(--surface-inset);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* --- panels in the dock ------------------------------------------------- */
+
+/* `overflow: CLIP`, not `hidden`, and the difference is the whole reason the
+   sticky headers below work.
+   `hidden` makes the element a scroll container, which means a sticky child
+   sticks relative to the PANEL — a box with no scrollable overflow — so it
+   does nothing and scrolls away with the card. Measured: header top −180px,
+   `elementFromPoint` returning nothing. `clip` clips identically and does NOT
+   create a scroll container, so the header sticks against `.dock-body`, which
+   is the thing actually scrolling.
+
+   `flex: none` is load-bearing too. `.dock-body` is a flex column, so its
+   children shrink by default once the content exceeds the height — collapsed
+   panels were being squeezed from 28px to 17px, which made the dock report
+   that it "fits without scrolling" when what had actually happened is that
+   every header got crushed. A layout that fits by deforming is not a fit.   */
+.dock .panel { padding: 0; overflow: clip; flex: 0 0 auto; }
+
+.dock .panel-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  margin: 0;                    /* the shared .panel-head has a bottom margin */
+  padding: var(--sp-3) var(--sp-4);
+  /* A collapsed panel is nothing BUT this header, so it is the click target
+     for the whole panel and 28px of it is mean. */
+  min-height: 32px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+@media (hover: hover) { .dock .panel-head:hover { background: var(--surface-hover, rgba(127,127,127,.06)); } }
+.dock .panel-head .label { margin: 0; }
+
+/* The caret encodes state and nothing else, so it is drawn rather than
+   lettered — a glyph would inherit the label's font metrics and sit wrong. */
+.dock .panel-caret {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-right: 1.5px solid var(--text-faint);
+  border-bottom: 1.5px solid var(--text-faint);
+  transform: rotate(-45deg);
+  /* TOKENS, not `120ms ease`. A hardcoded duration cannot be re-pointed, so
+     tokens.css sending every --dur-* to 0ms under prefers-reduced-motion did
+     not reach this rule: the glyph turned for people who had asked the whole
+     terminal to stop moving. Both of the inspector's two animations had the
+     same literal — the other is the Setup card's evidence caret at
+     setup.css:262, fixed in the same pass. */
+  transition: transform var(--dur-2) var(--ease);
+}
+.dock .panel[data-open="true"] > .card-head > .panel-head .panel-caret { transform: rotate(45deg); }
+
+/* STICKY, and this is the fix for "where is the sniper card".
+   The Setup panel is first and the tallest thing that stays open, so the moment
+   the column scrolls at all its header leaves the screen and what is left on
+   view is a strip of buttons with no title attached to them. A screenshot of
+   exactly that is why this rule exists. `.panel` already establishes its own
+   overflow context, so each header sticks within its OWN panel and hands over
+   to the next one rather than stacking up. */
+/* v59.2: STICKY ON THE CARD HEAD, not on `.panel-head`. The collapse button
+   now sits inside `.card-head` beside the pin and remove controls, and a
+   sticky element cannot leave its parent — on `.panel-head` it would stick
+   within a 32px box, which is not sticking at all. */
+.dock .card-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--surface-inset);
+}
+.dock .panel[data-open="false"] > .card-head { background: transparent; }
+
+.dock .panel-body { padding: 0 var(--sp-4) var(--sp-4); gap: var(--sp-4); }
+.dock .panel[data-open="false"] > .panel-body { display: none; }
+
+/* ── A SHUT PANEL IS A ROW IN A LIST, NOT AN EMPTY CARD ─────────────────────
+
+   MEASURED, on the default open set at 360px: ten panels, four open, and six
+   collapsed to 33px — each one still carrying a full card's border, an inset
+   background, an 8px radius and a 12px gap on both sides. So two thirds of the
+   inspector was bordered boxes with nothing in them, and the four cards that
+   held the actual answer had to compete with six that held none.
+
+   A card is a promise of content. A shut panel has none to make: it is a name
+   and a way to open it. So it gives up the card and keeps the name, and the
+   dock reads as four cards plus a short list of what else is available.
+
+   THE GAP IS DONE WITH MARGINS ON THE OPEN PANELS, NOT WITH A SIBLING
+   SELECTOR, and that is not a style preference. `.dock-body` applies visual
+   order through the CSS `order` property — see the renderEffect in shell.ts —
+   so DOM adjacency is NOT visual adjacency, and `.panel + .panel` would
+   collapse the space between two panels that are nowhere near each other on
+   screen. Margins belong to the element and travel with it wherever `order`
+   puts it.
+
+   Arithmetic: body gap 4px, open cards +8px top and bottom. Two shut rows sit
+   4px apart, a shut row next to a card 12px (unchanged), two cards 20px.
+
+   The click target does NOT shrink. `min-height: 32px` above stays exactly as
+   it is, for the reason stated there: a collapsed panel is nothing but its
+   header, so the header is the whole control.                               */
+.dock-body { gap: var(--sp-2); }
+.dock .panel[data-open="true"] { margin: var(--sp-4) 0; }
+
+.dock .panel[data-open="false"] {
+  border-color: transparent;
+  background: transparent;
+  border-radius: 0;
+}
+.dock .panel[data-open="false"] > .card-head > .panel-head {
+  background: transparent;
+  /* So the hover answer reads as a row being highlighted rather than as a
+     rectangle appearing where a card used to be. */
+  border-radius: var(--r-2);
+}
+/* TWO ROLES, TWO WEIGHTS — and the first version of this rule had them the
+   wrong way round, which is worth recording because the measurement is what
+   caught it. Every panel title in the dock inherited --text-faint (86,96,114),
+   the dimmest text role in the palette, INCLUDING the heading of the tallest
+   card in the terminal. Setting the shut rows to --text-muted (122,132,148) to
+   "quieten them" made them brighter than the open cards they were supposed to
+   defer to.
+
+   So the hierarchy is stated explicitly rather than inherited. An open card's
+   title is a heading with content under it and takes --text-muted. A shut row
+   is a name in a list and stays at --text-faint, brightening on hover to say
+   it is a target. */
+.dock .panel[data-open="true"] > .card-head > .panel-head .label { color: var(--text-muted); }
+.dock .panel[data-open="false"] > .card-head > .panel-head .label { color: var(--text-faint); }
+@media (hover: hover) {
+  .dock .panel[data-open="false"] > .card-head > .panel-head:hover .label { color: var(--text-muted); }
+}
+
+/* --- stack mode: one card, full height ---------------------------------- */
+
+.dock[data-mode="stack"] .dock-body { padding: var(--sp-4); }
+
+.dock[data-mode="stack"] .panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  /* The deck edge below is drawn at negative offsets, and `.dock .panel` sets
+     `overflow: hidden` — which clips it to nothing. The card does not need the
+     clip in this mode anyway: `.panel-body` scrolls itself. */
+  overflow: visible;
+}
+
+/* The `hidden` attribute hides an element through the UA rule `[hidden] {
+   display: none }`, and ANY author `display` beats it. The rule above set
+   `display: flex` on every panel including the eight the stack is hiding, so
+   all nine stayed in flow — the dock body still reported 7,002px of scroll
+   with one card on screen. Restated here at higher specificity rather than
+   with `!important`. */
+.dock[data-mode="stack"] .panel[hidden] { display: none; }
+
+/* The deck edge. Two hairlines peeking out behind the top of the active card,
+   so a single card still reads as one of several rather than as the whole
+   dock. Purely decorative and hidden from assistive tech by being a
+   pseudo-element. */
+.dock[data-mode="stack"] .panel::before,
+.dock[data-mode="stack"] .panel::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 4px;
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--r-3) var(--r-3) 0 0;
+  background: var(--surface-inset);
+}
+.dock[data-mode="stack"] .panel::before { top: -4px; }
+.dock[data-mode="stack"] .panel::after  { top: -8px; left: 12px; right: 12px; opacity: .55; }
+
+/* The card is always open in stack mode — you chose it from the strip, and a
+   card that opens collapsed would make switching take two clicks. Beats the
+   collapse rule above on specificity rather than with !important. */
+.dock[data-mode="stack"] .panel[data-open="false"] > .panel-body,
+.dock[data-mode="stack"] .panel[data-open="true"] > .panel-body {
+  display: flex;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.dock[data-mode="stack"] .panel > .card-head > .panel-head { cursor: default; }
+@media (hover: hover) { .dock[data-mode="stack"] .panel > .card-head > .panel-head:hover { background: transparent; } }
+.dock[data-mode="stack"] .panel-caret { display: none; }
+
+/* --- custom indicator editor ---------------------------------------------- */
+.qd-code {
+  width: 100%;
+  min-height: 160px;
+  resize: vertical;
+  padding: var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  line-height: 1.5;
+  tab-size: 4;
+}
+.qd-code:focus-visible { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+
+/* Anything the script printed. Kept, because `print` is how you debug one. */
+.qd-stdout {
+  margin: var(--sp-3) 0 0;
+  padding: var(--sp-3);
+  max-height: 180px;
+  overflow: auto;
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  white-space: pre-wrap;
+}
+
+/* The next-bar range, named in the legend.
+   Muted-but-present when the model failed its calibration replay: absent would
+   hide a finding, and identical would launder one. */
+.legend-fc {
+  font-size: var(--fs-1);
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+.legend-fc[data-ok="false"] { color: var(--text-faint); }
+
+/* --- the price-scale switch.
+       Sits in the price gutter, bottom-right, over the axis it governs. Small
+       and quiet until it is on: `log` is a mode you must be able to SEE you are
+       in, because a log chart and a linear one of the same data are both
+       plausible and only one of them is what you think you are reading. */
+.scale-toggle {
+  position: absolute;
+  right: var(--sp-2);
+  /* Hard against the bottom of the price gutter. An earlier offset by the
+     status-bar height pushed it up into the last pane's axis, where it sat on
+     top of that pane's value tag — the gutter is empty down here and the tags
+     are not. */
+  bottom: var(--sp-1);
+  z-index: var(--z-chart-ui);
+  padding: 1px var(--sp-2);
+  min-width: 28px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--text-faint);
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  line-height: 1.6;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .scale-toggle:hover { color: var(--text); border-color: var(--border-hi); } }
+.scale-toggle[data-on="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+/* --- the older-history indicator.
+       Pinned to the LEFT edge of the plot, because that is the edge being
+       extended and the direction the operator is looking. Fades rather than
+       appears: a fetch from the archive can complete in under a frame, and a
+       label that blinks on and off is read as a glitch rather than as work. */
+.history-pending {
+  position: absolute;
+  left: var(--sp-5);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: var(--z-chart-ui);
+  pointer-events: none;
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-1);
+  background: color-mix(in srgb, var(--surface-raised) 88%, transparent);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  font-family: var(--font-mono);
+  opacity: 0;
+  transition: opacity var(--dur-2) var(--ease);
+}
+.history-pending[data-on="true"] { opacity: 1; }
+
+
+/* ============================================================== v61.5 ==== */
+/*  THE PANE, AND THE LABEL.
+    -------------------------------------------------------------------------
+    Two classes, because the same two faults appeared on every desk the owner
+    pointed at.
+
+    `.pane` replaces `background: var(--surface); border: 1px solid ...`. The
+    border went: an outline on every element gives them all the same edge, and
+    then nothing has a position. See `--pane-shadow` in tokens.css.
+
+    `.label` replaces the tracked-out ALL-CAPS mono eyebrow that had grown to
+    sit above almost every block on this product. That pattern is the single
+    commonest tell of a generated interface, and it was doing no work here
+    that an ordinary caption could not — the terminal already owns a serif
+    for lines it says on its own account, and an italic of it reads as a
+    caption in a printed table instead of as a system label.                  */
+
+.pane {
+  background: var(--pane-bg);
+  border-radius: var(--r-card);
+  box-shadow: var(--pane-shadow);
+}
+
+.label {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: var(--fs-3);
+  font-weight: 400;
+  line-height: var(--lh-tight);
+  color: var(--text-faint);
+}
+
+/* A rule that FADES at its far end. A hairline that stops dead reads as a
+   drawn line; one that falls away reads as light across an edge, and it is
+   what lets the rail be one surface instead of four stacked boxes. */
+.pane-div {
+  height: 1px;
+  border: 0;
+  margin: 0;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--p-fg) 9%, transparent),
+    color-mix(in srgb, var(--p-fg) 2%, transparent) 82%,
+    transparent
+  );
+}
+
+/* THE GRAIN, over the whole window and under every pointer.
+   `mix-blend-mode: overlay` so it darkens and lightens rather than greying
+   everything down, and `--grain` is 0 on the light theme. */
+.grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: var(--grain);
+  mix-blend-mode: overlay;
+}
+
+/*
+  THE SYMBOL FIELD'S WRAPPER GENERATES NO BOX.
+
+  `symbolField` returns a span holding the input and its `<datalist>`, because
+  a datalist has to live in the document to be bound by id. Left as a normal
+  element that span becomes the flex item, and the input's own `flex: 1` or
+  `width: 120px` stops applying — the field then collapses to its content
+  width inside a row that still looks correctly laid out. That is the
+  `.sym-picker`/`.dd-input` trap this project records twice, from a third
+  direction: there a wrapper could not constrain its child, here it would
+  replace it.
+
+  `display: contents` removes the span from the layout entirely, so the input
+  is a direct flex or grid child of whatever the caller put it in, and every
+  existing `.risk-add .field-input` style still reaches it. The datalist is
+  `display: none` by the browser's own stylesheet and takes no slot.
+*/
+.symfield { display: contents; }

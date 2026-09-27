@@ -1,0 +1,8 @@
+# v26.1 H4: exact pins — install with: pip install -r requirements.lock.txt
+# regenerate on your machine: pip freeze > requirements.lock.txt (filter to these packages)
+flask==3.1.3
+flask-cors==6.0.5
+requests==2.33.1
+# yfinance==<pin on your machine: pip freeze | grep -i yfinance>
+scikit-learn==1.8.0
+numpy==2.4.4

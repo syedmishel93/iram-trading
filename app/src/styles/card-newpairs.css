@@ -1,0 +1,93 @@
+/* ========================================== NEW TOKEN PAIRS ===
+   And the scored wallet list beside it. Two cards, one sheet, because
+   they share a row shape and a set of refusals.
+
+   THE WARNING IS PART OF THE CARD, not a fold. This is a feed of
+   things that have just been listed, and what happens to most of them
+   is the single most important fact about the population. It takes the
+   attention tone — never the negative one, which in this terminal
+   means a loss — because it is a caution about a whole list rather
+   than a verdict on any row in it.
+   ============================================================== */
+.np-state {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+
+.np-warn {
+  margin: 0 0 var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--attn);
+  font-size: var(--fs-0);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+
+.np-rows { display: flex; flex-direction: column; gap: 1px; }
+
+.np-row {
+  display: grid;
+  /* Capped, not `1fr` on every track: `auto-fit` with `1fr` spends every
+     pixel whether or not there is anything to put in it, which this
+     project has measured costing 878px of empty grid. The address gets
+     the flexible track because it is the row. */
+  grid-template-columns: 62px minmax(0, 1fr) 58px;
+  gap: var(--sp-2);
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: var(--fs-0);
+  border-bottom: 1px solid var(--border);
+}
+.np-row:last-child { border-bottom: 0; }
+
+.np-chain {
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.np-addr {
+  font-family: var(--font-mono);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+a.np-addr { text-decoration: none; border-bottom: 1px solid var(--border); }
+/* Gated, like every other :hover in this product since v53.1, or it
+   sticks after a tap on touch. */
+@media (hover: hover) {
+  a.np-addr:hover { border-bottom-color: var(--text-muted); }
+}
+/* `--ring` is what the other cards use for a focus ring, and `--focus` does
+   not exist — `tokens.test.ts` caught it, which is the second time this
+   session it has caught a custom property I invented. */
+a.np-addr:focus-visible { outline: none; box-shadow: var(--ring); }
+
+.np-when {
+  color: var(--text-faint);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- the scored wallets ------------------------------------------- */
+.np-wal { grid-template-columns: 34px minmax(0, 1fr) 52px; }
+
+.np-tier {
+  font-family: var(--font-mono);
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+}
+/* A wallet the loop will message you about is the one you care which it
+   is. The rail says so without a second colour in the row. */
+.np-wal[data-alert="true"] .np-tier { color: var(--attn); }
+
+.np-score {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}

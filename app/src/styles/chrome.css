@@ -1,0 +1,889 @@
+/* ============================================================================
+   CHROME — overlays, menus, palette, toasts, workspace, agent.
+   ----------------------------------------------------------------------------
+   Everything the v42 shell added. Same rules as the rest of the sheet: roles
+   only, no literal colours, no `!important`, and every layout mode is an
+   attribute rather than a competing rule.
+
+   The visual language here is deliberately NOT "flat panels on flat panels".
+   A terminal is a stack of surfaces at different distances from the eye, and
+   the thing that makes floating chrome read as floating is three properties
+   used together: a blur behind it, a one-pixel top highlight (--sheen), and a
+   shadow sized to the distance. Any one alone looks pasted on.
+   ============================================================================ */
+
+/* --------------------------------------------------------------- LAYER --- */
+
+.overlay-layer {
+  position: fixed;
+  inset: 0;
+  /* The layer itself must not eat clicks: only its children do. Without this,
+     an invisible full-screen div sits over the chart and the crosshair dies. */
+  pointer-events: none;
+  z-index: var(--z-popover);
+}
+
+.overlay {
+  position: fixed;
+  pointer-events: auto;
+  max-height: calc(100dvh - 2 * var(--sp-6));
+}
+
+.overlay[data-placement="center"] {
+  left: 50%;
+  /* Not vertically centred: a palette pinned to the middle jumps as its result
+     count changes. Anchored near the top, the input stays still and only the
+     list below it grows. */
+  top: 12vh;
+  transform: translateX(-50%);
+}
+
+.overlay-scrim {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+  background: var(--scrim);
+  backdrop-filter: blur(2px);
+  animation: overlay-fade var(--dur-2) var(--ease) both;
+}
+
+@keyframes overlay-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes overlay-rise {
+  from { opacity: 0; transform: translateY(-4px) scale(0.985); }
+  to   { opacity: 1; transform: none; }
+}
+
+.overlay-menu { animation: overlay-rise var(--dur-2) var(--ease-out) both; }
+
+/* The centred palette already carries a translateX, so it needs its own
+   keyframes — animating `transform` would otherwise wipe the centring. */
+@keyframes palette-rise {
+  from { opacity: 0; transform: translateX(-50%) translateY(-8px) scale(0.99); }
+  to   { opacity: 1; transform: translateX(-50%); }
+}
+
+.overlay-palette { animation: palette-rise var(--dur-3) var(--ease-out) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay-menu, .overlay-palette, .overlay-scrim { animation: none; }
+}
+
+/* -------------------------------------------------------------- MENUBAR --- */
+
+.menubar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  /* v45 let this shrink and scroll, because it was competing with two 100px
+     native selects that no longer exist. Shrinking it was always the wrong
+     absorber: a menu that scrolls under a hidden scrollbar is a menu the user
+     cannot see, with nothing on screen saying so. The DESK BAR is the
+     designated absorber now — it spills visibly into a counted "More" button —
+     so this row keeps its full width and every menu name stays readable.     */
+  flex: 0 0 auto;
+}
+.menubar::-webkit-scrollbar { height: 0; }
+
+.menubar-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 0 var(--sp-4);
+  height: var(--h-ctl-sm);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: background var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+@media (hover: hover) { .menubar-btn:hover { background: var(--surface-hover); color: var(--text); } }
+.menubar-btn[aria-expanded="true"] { background: var(--accent-wash); color: var(--accent); }
+
+/* ---------------------------------------------------------------- MENU --- */
+
+.menu {
+  min-width: 216px;
+  max-width: 340px;
+  padding: var(--sp-2);
+  border-radius: var(--r-3);
+  border: 1px solid var(--border-hi);
+  background: var(--surface-overlay);
+  backdrop-filter: var(--blur-pop);
+  box-shadow: var(--elev-pop), var(--sheen);
+  max-height: calc(100dvh - 2 * var(--sp-6));
+  overflow-y: auto;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-2);
+  font-size: var(--fs-3);
+  color: var(--text);
+  text-align: left;
+  transition: background var(--dur-1) var(--ease);
+}
+.menu-item[data-active="true"]:not(:disabled) { background: var(--surface-hover); }
+@media (hover: hover) { .menu-item:hover:not(:disabled) { background: var(--surface-hover); } }
+.menu-item:disabled { color: var(--text-faint); }
+.menu-item[data-danger="true"] { color: var(--neg); }
+@media (hover: hover) { .menu-item[data-danger="true"]:hover:not(:disabled) { background: var(--neg-wash); } }
+
+/* The check column is reserved whether or not this row is a toggle, so labels
+   in one menu align even when only some rows are checkable. */
+.menu-check {
+  flex: 0 0 12px;
+  font-size: var(--fs-2);
+  color: var(--accent);
+  text-align: center;
+}
+.menu-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.menu-spacer { flex: 1; min-width: var(--sp-5); }
+.menu-kbd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+.menu-arrow { color: var(--text-faint); }
+
+.menu-sep {
+  height: 1px;
+  margin: var(--sp-2) var(--sp-3);
+  background: var(--border);
+}
+.menu-header {
+  padding: var(--sp-3) var(--sp-3) var(--sp-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+.menu-empty {
+  padding: var(--sp-4);
+  font-size: var(--fs-2);
+  color: var(--text-faint);
+}
+
+/* ------------------------------------------------------------- PALETTE --- */
+
+.pal {
+  width: min(680px, calc(100vw - 2 * var(--sp-6)));
+  display: flex;
+  flex-direction: column;
+  max-height: 66vh;
+  border-radius: var(--r-4);
+  border: 1px solid var(--border-hi);
+  background: var(--surface-overlay);
+  backdrop-filter: var(--blur-pop);
+  box-shadow: var(--elev-modal), var(--sheen);
+  overflow: hidden;
+}
+
+.pal-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-5);
+  height: 52px;
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.pal-glyph { color: var(--text-faint); font-size: var(--fs-5); }
+
+.pal-mode {
+  display: none;
+  padding: 0 var(--sp-3);
+  height: 21px;
+  align-items: center;
+  border-radius: var(--r-1);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  white-space: nowrap;
+}
+.pal-mode[data-on="true"] { display: inline-flex; }
+
+.pal-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  font-size: var(--fs-5);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+.pal-input::placeholder { color: var(--text-faint); }
+
+.pal-list { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-2); }
+
+.pal-group {
+  padding: var(--sp-4) var(--sp-3) var(--sp-2);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+
+.pal-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--h-row);
+  padding: 0 var(--sp-3);
+  border-radius: var(--r-2);
+  cursor: pointer;
+  /* No transition on the selection background. The selection follows the arrow
+     keys, and a fade makes fast scanning look like the list is lagging you. */
+}
+.pal-row[data-selected="true"] { background: var(--accent-wash); }
+.pal-row[data-danger="true"] .pal-title { color: var(--neg); }
+
+.pal-check { flex: 0 0 12px; text-align: center; color: var(--accent); font-size: var(--fs-2); }
+
+.pal-title {
+  font-size: var(--fs-3);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+}
+
+/* The matched characters. This is the palette explaining itself: without it a
+   fuzzy hit is indistinguishable from a guess. */
+.pal-mark {
+  background: none;
+  color: var(--accent);
+  font-weight: var(--fw-bold);
+}
+.pal-row[data-selected="true"] .pal-mark { color: var(--text); }
+
+.pal-detail {
+  font-size: var(--fs-2);
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.pal-spacer { flex: 1 0 var(--sp-5); }
+.pal-kbd {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  white-space: nowrap;
+  padding: 1px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+}
+
+.pal-empty { display: none; padding: var(--sp-7); text-align: center; color: var(--text-faint); font-size: var(--fs-3); }
+.pal-empty[data-show="true"] { display: block; }
+
+.pal-footer {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: 0 var(--sp-5);
+  height: var(--h-ctl);
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface-inset);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+.pal-hint { flex: 1; }
+.pal-count { font-family: var(--font-mono); }
+
+/* -------------------------------------------------------------- TOASTS --- */
+
+.toasts {
+  position: fixed;
+  right: var(--sp-6);
+  bottom: calc(var(--h-status) + var(--sp-5));
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  width: min(360px, calc(100vw - 2 * var(--sp-6)));
+  z-index: var(--z-toast-layer);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-4);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-3);
+  border: 1px solid var(--border-hi);
+  border-left-width: 3px;
+  background: var(--surface-overlay);
+  backdrop-filter: var(--blur-pop);
+  box-shadow: var(--elev-pop), var(--sheen);
+  pointer-events: auto;
+  animation: toast-in var(--dur-3) var(--ease-out) both;
+}
+.toast[data-leaving="true"] { animation: toast-out var(--dur-2) var(--ease) both; }
+
+.toast[data-level="info"]    { border-left-color: var(--accent); }
+.toast[data-level="success"] { border-left-color: var(--pos); }
+.toast[data-level="warn"]    { border-left-color: var(--attn); }
+.toast[data-level="error"]   { border-left-color: var(--neg); }
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes toast-out {
+  from { opacity: 1; }
+  to   { opacity: 0; transform: translateX(12px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast[data-leaving="true"] { animation: none; }
+}
+
+.toast-main { flex: 1; min-width: 0; }
+.toast-title { font-size: var(--fs-3); font-weight: var(--fw-semi); color: var(--text); }
+.toast-body { margin-top: var(--sp-1); font-size: var(--fs-2); color: var(--text-muted); line-height: var(--lh-snug); }
+.toast-action {
+  flex: 0 0 auto;
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border-hi);
+  font-size: var(--fs-1);
+  color: var(--text);
+}
+@media (hover: hover) { .toast-action:hover { background: var(--surface-hover); } }
+.toast-close { flex: 0 0 auto; color: var(--text-faint); font-size: var(--fs-2); line-height: 1; }
+@media (hover: hover) { .toast-close:hover { color: var(--text); } }
+
+/* ------------------------------------------------- NOTIFICATION CENTRE --- */
+
+.notif { width: 380px; max-height: 60vh; display: flex; flex-direction: column; }
+.notif-head { display: flex; align-items: center; gap: var(--sp-4); padding: var(--sp-4) var(--sp-5); border-bottom: 1px solid var(--border); }
+.notif-list { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-2); }
+.notif-empty { padding: var(--sp-7); text-align: center; color: var(--text-faint); font-size: var(--fs-2); }
+.notif-row { display: flex; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-3); border-radius: var(--r-2); }
+@media (hover: hover) { .notif-row:hover { background: var(--surface-hover); } }
+.notif-dot { flex: 0 0 6px; width: 6px; height: 6px; margin-top: 5px; border-radius: var(--r-full); background: var(--text-faint); }
+.notif-dot[data-level="info"]    { background: var(--accent); }
+.notif-dot[data-level="success"] { background: var(--pos); }
+.notif-dot[data-level="warn"]    { background: var(--attn); }
+.notif-dot[data-level="error"]   { background: var(--neg); }
+.notif-text { flex: 1; min-width: 0; }
+.notif-title { font-size: var(--fs-2); color: var(--text); }
+.notif-body { font-size: var(--fs-1); color: var(--text-muted); line-height: var(--lh-snug); }
+.notif-time { flex: 0 0 auto; font-size: var(--fs-1); color: var(--text-faint); white-space: nowrap; }
+
+/* The unread badge on the status-bar bell. */
+.bell { position: relative; display: inline-flex; align-items: center; gap: var(--sp-2); }
+.bell-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--r-full);
+  background: var(--accent);
+  color: var(--text-on-accent);
+  /* Was a hard-coded 9.5px — the only literal font-size in the stylesheet,
+     and smaller than the smallest token, so it sat outside the ramp entirely
+     and outside the density control with it. */
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  display: inline-grid;
+  place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.bell-count[data-zero="true"] { display: none; }
+
+/* ------------------------------------------------------ SHORTCUT SHEET --- */
+
+.keys {
+  width: min(720px, calc(100vw - 2 * var(--sp-6)));
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: var(--sp-6);
+  border-radius: var(--r-4);
+  border: 1px solid var(--border-hi);
+  background: var(--surface-overlay);
+  backdrop-filter: var(--blur-pop);
+  box-shadow: var(--elev-modal), var(--sheen);
+}
+.keys-title { font-family: var(--font-disp); font-size: var(--fs-6); font-weight: var(--fw-bold); letter-spacing: var(--track-tight); margin-bottom: var(--sp-5); }
+.keys-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-6); }
+.keys-group-name { font-size: var(--fs-1); font-weight: var(--fw-semi); letter-spacing: var(--track-micro);color: var(--text-faint); margin-bottom: var(--sp-3); }
+.keys-row { display: flex; align-items: baseline; gap: var(--sp-4); padding: var(--sp-2) 0; }
+.keys-label { flex: 1; font-size: var(--fs-2); color: var(--text-muted); }
+.keys-kbd { font-family: var(--font-mono); font-size: var(--fs-1); color: var(--text); padding: 1px var(--sp-3); border: 1px solid var(--border); border-radius: var(--r-1); white-space: nowrap; }
+
+/* Pending chord indicator in the status bar — a mode you cannot see is a mode
+   you are stuck in. */
+.chord-pending {
+  font-family: var(--font-mono);
+  color: var(--accent);
+  padding: 0 var(--sp-3);
+  border: 1px solid var(--accent);
+  border-radius: var(--r-1);
+}
+.chord-pending[data-on="false"] { display: none; }
+
+/* ----------------------------------------------------------- WORKSPACE --- */
+
+.ws { position: absolute; inset: 0; overflow: hidden; }
+.ws[data-hidden="true"] { display: none; }
+
+.ws-pane {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  background: var(--surface-base);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  overflow: hidden;
+  /* Panes are placed by the geometry function in percentages, so no transition
+     on position: a splitter drag must track the cursor exactly. */
+}
+/* The active pane is what the topbar drives. Making that invisible is how you
+   end up changing the symbol on a chart you were not looking at. */
+.ws-pane[data-active="true"] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent-wash); }
+
+.ws-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  height: var(--w-pane-head);
+  padding: 0 var(--sp-3);
+  flex: 0 0 auto;
+  background: var(--surface-inset);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--fs-2);
+}
+.ws-link {
+  flex: 0 0 auto;
+  width: 9px; height: 9px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--border-hi);
+  background: var(--link-none);
+  cursor: pointer;
+}
+.ws-link[data-link="amber"]  { background: var(--link-amber);  border-color: var(--link-amber); }
+.ws-link[data-link="cyan"]   { background: var(--link-cyan);   border-color: var(--link-cyan); }
+.ws-link[data-link="violet"] { background: var(--link-violet); border-color: var(--link-violet); }
+.ws-link[data-link="rose"]   { background: var(--link-rose);   border-color: var(--link-rose); }
+
+.ws-sym {
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  letter-spacing: var(--track-dense);
+  white-space: nowrap;
+}
+/* The pane's own timeframe. A control, so it has to LOOK like one — the
+   caption it replaced was the reason nobody knew a pane could be retimed. */
+.ws-tf-wrap { position: relative; flex: 0 0 auto; display: flex; }
+.ws-tf {
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  padding: 1px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface-sunk);
+  cursor: pointer;
+  line-height: 1.5;
+}
+@media (hover: hover) { .ws-tf:hover { color: var(--text); border-color: var(--border-hi); } }
+.ws-tf[aria-expanded="true"] { color: var(--accent); border-color: var(--accent); }
+
+.ws-tf-pop {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  z-index: var(--z-popover);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px;
+  padding: 3px;
+  min-width: 132px;
+  background: var(--surface-overlay);
+  backdrop-filter: var(--blur-pop);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-2);
+  box-shadow: var(--elev-pop), var(--sheen);
+}
+.ws-tf-pop[hidden] { display: none; }
+.ws-tf-opt {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  padding: 3px var(--sp-3);
+  border-radius: var(--r-1);
+  color: var(--text-muted);
+  cursor: pointer;
+  text-align: center;
+}
+@media (hover: hover) { .ws-tf-opt:hover { background: var(--surface-hover); color: var(--text); } }
+.ws-tf-opt[data-on="true"] { background: var(--accent-wash); color: var(--accent); }
+.ws-feed { width: 6px; height: 6px; border-radius: var(--r-full); background: var(--feed-off); flex: 0 0 auto; }
+.ws-feed[data-feed="live"]    { background: var(--feed-live); }
+.ws-feed[data-feed="delayed"] { background: var(--feed-delayed); }
+.ws-feed[data-feed="stale"]   { background: var(--feed-stale); }
+.ws-feed[data-feed="demo"]    { background: var(--attn); }
+.ws-feed[data-feed="closed"]  { background: var(--feed-closed); }
+.ws-last { font-family: var(--font-mono); color: var(--text); font-variant-numeric: tabular-nums; }
+.ws-head-spacer { flex: 1; min-width: var(--sp-2); }
+.ws-btn {
+  flex: 0 0 auto;
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: var(--r-1);
+  color: var(--text-faint);
+  font-size: var(--fs-2);
+  line-height: 1;
+}
+@media (hover: hover) { .ws-btn:hover { background: var(--surface-hover); color: var(--text); } }
+
+.ws-body { position: relative; flex: 1; min-height: 0; }
+.ws-canvas { position: absolute; inset: 0; }
+.ws-empty {
+  position: absolute; inset: 0;
+  display: none;
+  place-items: center;
+  color: var(--text-faint);
+  font-size: var(--fs-2);
+}
+.ws-empty[data-show="true"] { display: grid; }
+
+.ws-splitter { position: absolute; z-index: var(--z-chart-ui); }
+.ws-splitter[data-dir="row"] { cursor: col-resize; width: var(--splitter); transform: translateX(calc(var(--splitter) / -2)); }
+.ws-splitter[data-dir="col"] { cursor: row-resize; height: var(--splitter); transform: translateY(calc(var(--splitter) / -2)); }
+.ws-splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity var(--dur-1) var(--ease);
+}
+.ws-splitter[data-dragging="true"]::after { opacity: 0.85; }
+@media (hover: hover) { .ws-splitter:hover::after { opacity: 0.85; } }
+/* While dragging, the whole document takes the resize cursor — otherwise the
+   cursor flickers back to a crosshair every time it crosses a chart. */
+.ws[data-dragging="true"] * { user-select: none; }
+
+/* --------------------------------------------------------------- AGENT --- */
+
+.agent { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+
+.agent-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--border);
+  flex: 0 0 auto;
+}
+.agent-provider {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Stretch now comes from `.view-slot` itself — see components.css. */
+.agent { width: 100%; max-width: 100%; }
+
+.agent-log { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-4); }
+
+/* MEASURED: a 26px tool row was rendering 1.85px tall.
+   `.agent-tool` sets `overflow: hidden` for its rounded corners, and on a flex
+   item that makes `min-height: auto` resolve to 0 instead of to min-content —
+   so the column happily crushed every row to nothing. Pinning the children to
+   `flex: 0 0 auto` is the fix, and it belongs on ALL of them: the same collapse
+   was one long answer away from hitting the message bubbles too. */
+.agent-log > * { flex: 0 0 auto; }
+
+.agent-intro { color: var(--text-muted); font-size: var(--fs-2); line-height: var(--lh-body); }
+.agent-intro strong { color: var(--text); font-weight: var(--fw-semi); }
+
+.agent-chips { display: flex; flex-wrap: wrap; gap: var(--sp-3); margin-top: var(--sp-4); }
+.agent-chip {
+  padding: var(--sp-2) var(--sp-4);
+  border-radius: var(--r-full);
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  text-align: left;
+}
+@media (hover: hover) { .agent-chip:hover { border-color: var(--accent); color: var(--text); } }
+
+.agent-msg { display: flex; flex-direction: column; gap: var(--sp-2); }
+.agent-msg[data-kind="user"] { align-items: flex-end; }
+.agent-bubble {
+  max-width: 92%;
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-3);
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.agent-msg[data-kind="user"] .agent-bubble { background: var(--accent-wash); color: var(--text); border: 1px solid var(--accent); }
+.agent-msg[data-kind="assistant"] .agent-bubble { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+.agent-msg[data-kind="error"] .agent-bubble { background: var(--neg-wash); border: 1px solid var(--neg); color: var(--text); }
+.agent-msg[data-kind="note"] .agent-bubble { background: var(--surface-inset); border: 1px dashed var(--border-hi); color: var(--text-muted); font-size: var(--fs-2); }
+.agent-by { font-size: var(--fs-1); color: var(--text-faint); }
+
+/* The tool row is the audit trail. It is deliberately dense, monospaced and
+   visually SUBORDINATE to the answer — you should be able to ignore it while
+   reading and drop into it the moment you want to check a number. */
+.agent-tool {
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  overflow: hidden;
+}
+.agent-tool[data-ok="false"] { border-color: var(--neg); }
+.agent-tool[data-mutates="true"] { border-color: var(--attn); }
+
+.agent-tool-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  padding: var(--sp-3) var(--sp-4);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  text-align: left;
+}
+@media (hover: hover) { .agent-tool-head:hover { background: var(--surface-hover); } }
+.agent-tool-name { color: var(--text); }
+.agent-tool-arrow { color: var(--text-faint); }
+.agent-tool-sum { flex: 1; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agent-tool[data-ok="false"] .agent-tool-sum { color: var(--neg); }
+.agent-tool-caret { color: var(--text-faint); transition: transform var(--dur-1) var(--ease); }
+.agent-tool[data-open="true"] .agent-tool-caret { transform: rotate(90deg); }
+
+.agent-tool-body { display: none; padding: var(--sp-4); border-top: 1px solid var(--border); }
+.agent-tool[data-open="true"] .agent-tool-body { display: block; }
+.agent-tool-json {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+/* A streaming answer must not look finished. */
+.agent-live { display: none; }
+.agent-live[data-on="true"] { display: flex; }
+.agent-live .agent-bubble {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.agent-busy { display: flex; align-items: center; gap: var(--sp-3); color: var(--text-faint); font-size: var(--fs-2); }
+.agent-busy[data-on="false"] { display: none; }
+.agent-dot {
+  width: 5px; height: 5px; border-radius: var(--r-full); background: var(--accent);
+  animation: agent-pulse 1.1s var(--ease) infinite;
+}
+@keyframes agent-pulse { 0%, 100% { opacity: 0.25; } 50% { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .agent-dot { animation: none; opacity: 0.7; } }
+
+.agent-compose {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-top: 1px solid var(--border);
+  flex: 0 0 auto;
+  background: var(--surface-inset);
+}
+.agent-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  max-height: 140px;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: var(--fs-3);
+  line-height: var(--lh-snug);
+  resize: none;
+  color: var(--text);
+}
+.agent-input:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+
+.agent-note {
+  padding: var(--sp-3) var(--sp-5);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  border-top: 1px solid var(--border-hair);
+  line-height: var(--lh-snug);
+}
+
+/* Agent settings, shown in the dock rather than a modal so you can read the
+   privacy line while the conversation is still on screen. */
+.agent-cfg { display: flex; flex-direction: column; gap: var(--sp-4); padding: var(--sp-5); }
+.agent-cfg-row { display: flex; flex-direction: column; gap: var(--sp-2); }
+.agent-privacy {
+  padding: var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+/* ---------------------------------------------------------------------------
+   STANDING BRIEFS
+
+   Rendered quietly and deliberately small: this sits under a conversation and
+   must not compete with it. The two things given visual weight are the ones
+   that cost something to hide — the armed state, and the check count, which is
+   the operator's bill.
+--------------------------------------------------------------------------- */
+
+.briefs {
+  border-top: 1px solid var(--border);
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  max-height: 34%;
+  overflow-y: auto;
+  flex: 0 0 auto;
+}
+
+.brief-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.brief-note {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.brief-add {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.brief-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 4px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: var(--surface-sunk);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-2);
+}
+
+.brief-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.brief-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.brief-empty,
+.brief-blocked {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+/* A watcher that will not start says so where the arm button is. */
+.brief-blocked {
+  padding: var(--sp-2);
+  border-left: 2px solid var(--attn);
+  background: var(--attn-wash);
+  color: var(--text);
+}
+
+.brief {
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-1);
+  padding: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brief[data-state="armed"] { border-color: var(--accent); }
+.brief[data-state="fired"] { border-color: var(--pos); background: var(--pos-wash); }
+.brief[data-state="expired"] { opacity: 0.6; }
+
+.brief-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.brief-text {
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+
+.brief-where,
+.brief-meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  white-space: nowrap;
+}
+
+.brief-meta {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.brief-state { text-transform: uppercase; letter-spacing: var(--track-wide); }
+.brief[data-state="armed"] .brief-state { color: var(--accent); }
+.brief[data-state="fired"] .brief-state { color: var(--pos); }
+
+/* The bill. Never hidden — see renderBriefs. */
+.brief-checks { color: var(--text-muted); cursor: help; }
+
+.brief-answer {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+.brief-actions { display: flex; gap: var(--sp-2); }

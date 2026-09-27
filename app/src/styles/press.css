@@ -1,0 +1,380 @@
+/* ============================================================================
+   PRESS FEEDBACK
+   ============================================================================
+
+   WHAT WAS MISSING, AND WHAT WAS ALREADY THERE
+   An audit found sixty-five interactive selectors carrying a `:hover` rule and
+   exactly one file carrying `:active` — and the first reading of that was
+   wrong. `risk.css` is not a desk stylesheet that happened to style its own
+   buttons; its header says "RISK DESK, DRAWING TOOLS, AND THE MOTION PASS", and
+   it held an APP-WIDE press block covering the six most-pressed classes:
+   `.primary-btn`, `.ghost-btn`, `.icon-btn`, `.tf-btn`, `.seg-btn`, `.draw-btn`.
+
+   So press feedback was not absent. It was present on six classes and missing
+   on twenty-six — the settings controls, the learning desk, the dock chrome,
+   the detector strip, the news bar, the survey tabs.
+
+   Moving it here rather than adding a second block, because the first attempt
+   at this file DID add a second block and produced the exact defect a pass like
+   this exists to remove: `.primary-btn` pressed to 0.97 over 160ms while
+   `.tf-btn` beside it pressed to 0.985 over 90ms. Two depths in one toolbar is
+   worse than one shallow depth everywhere. One owner, one value.
+
+   WHY THIS IS ONE FILE AND NOT SIXTY-FIVE EDITS
+   Spread across nine stylesheets it would be sixty-five near-identical rules to
+   keep in step, and the next control added would silently not have one. Here
+   the list IS the decision, reviewable in one place: adding a control means
+   adding it to a line, and the rule that governs "what does a press look like"
+   has a single home.
+
+   ---------------------------------------------------------------------------
+   WHAT IS DELIBERATELY EXCLUDED, AND WHY
+
+   Scale is right for a DISCRETE control — something with its own edges that
+   reads as a physical button. It is wrong for three shapes, and applying it
+   blanket-fashion would look like a bug:
+
+     * FULL-WIDTH ROWS (`.menu-item`, `.nb-row`, `.notif-row`) — scaling a row
+       that spans a panel makes the whole panel appear to flex. Rows already
+       answer a press with a background change, which is the correct affordance
+       for a list.
+     * TAB STRIPS (`.desk-tab`, `.ld-tab`, `.dock-card-tab`) — tabs sit in a
+       shared rail against their neighbours, and one shrinking mid-row reads as
+       a layout glitch rather than as feedback.
+     * DRAG HANDLES (`.dock-resizer`) — the press IS the start of a drag. A
+       handle that jumped when grabbed would fight the gesture.
+
+   ========================================================================= */
+
+/*
+  `--dur-1` (90ms) and `--ease`, the terminal's own motion vocabulary.
+
+  Kept rather than replaced with a curve of my own: these are the values the six
+  classes that already had press feedback were using, and a pass whose purpose
+  is consistency does not get to introduce a twenty-seventh opinion. `--ease` is
+  `cubic-bezier(0.2, 0, 0, 1)` — a strong deceleration, which is what a press
+  wants: present on the frame the finger lands, settled immediately after.
+
+  THE LIST IS A SUPERSET, AND IT HAS TO BE.
+
+  `transition` is a SHORTHAND: two rules cannot each contribute a property to it,
+  the later one replaces it whole. The first version of this file declared
+  `transition: transform` and loaded last — which silently deleted the colour
+  transitions eight of these classes already had, so every hover in the terminal
+  went from eased to instant. Nothing failed; the interface just got slightly
+  worse everywhere at once.
+
+  So this declares everything these controls animate — background, border, colour
+  and transform — and is the single owner of their transition. Audited: no
+  control in the list transitions anything outside those four. Adding one that
+  needs a fifth means adding it HERE, not in a second rule that will quietly win.
+
+  Still never `all`: a property list that grows by accident is how a cheap rule
+  becomes an expensive one, and `transform` is the only member that is free.
+*/
+/*
+  TWO CONTROLS THE ORIGINAL AUDIT MISSED, both in the top chrome.
+
+  `.tool-btn` is six buttons in the context row — the detector, the studies
+  popover, Replay, Live edge, Reload and export — plus the whole chart
+  toolbar, and it had a `:hover` and no `:active` anywhere. It is a 28px
+  bordered control that already sits beside `.tf-btn` and `.seg-btn` in the
+  same row, both of which HAVE press feedback, so the row answered a press on
+  one button and ignored it on the next. Its own `transition` declaration in
+  `risk.css` is gone: the list below is the single owner, exactly as the header
+  of this file says, and a second declaration in a file that loads earlier is
+  the shorthand trap waiting to happen.
+
+  `.omnibox` is the widest control in the terminal and had no press state
+  either. It is in this list for its transition and NOT in the scale list —
+  see the note beside its own `:active` rule at the bottom.
+*/
+.primary-btn,
+.ghost-btn,
+.icon-btn,
+.tf-btn,
+.seg-btn,
+.tool-btn,
+.omnibox,
+.draw-btn,
+.menubar-btn,
+.appmenu-btn,
+.nb-btn,
+.nb-health,
+.set-action,
+.set-toggle,
+.set-swatch,
+.ld-btn,
+.ld-btn-danger,
+.ld-mini,
+.ld-mini-danger,
+.ld-claim,
+.ld-forget,
+.qd-run,
+.qd-recheck,
+.det-toggle,
+.detect-pin,
+.detect-seg-btn,
+.kindtable-deepen,
+.lb-health,
+.scale-toggle,
+.dock-mini,
+.dock-mode,
+.dock-step,
+.desk-more,
+.survey-tab,
+.acct-chip,
+.tools-btn,
+.sitem,
+.agent-chip,
+.dv-open-primary,
+.alert-pill,
+.lib-chip,
+.lib-caret {
+  transition:
+    background var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),
+    color var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}
+
+/*
+  `:not(:disabled)` on the pressed state rather than a separate override below.
+
+  Inherited from the block this replaces, and it is the better shape: the press
+  simply never applies to a dead control, instead of applying and then being
+  cancelled by a rule somebody has to remember to extend.
+*/
+.primary-btn:active:not(:disabled),
+.ghost-btn:active:not(:disabled),
+.icon-btn:active:not(:disabled),
+.tf-btn:active:not(:disabled),
+.seg-btn:active:not(:disabled),
+.tool-btn:active:not(:disabled),
+.draw-btn:active:not(:disabled),
+.menubar-btn:active:not(:disabled),
+.appmenu-btn:active:not(:disabled),
+.nb-btn:active:not(:disabled),
+.nb-health:active:not(:disabled),
+.set-action:active:not(:disabled),
+.set-swatch:active:not(:disabled),
+.ld-btn:active:not(:disabled),
+.ld-btn-danger:active:not(:disabled),
+.ld-mini:active:not(:disabled),
+.ld-mini-danger:active:not(:disabled),
+.ld-claim:active:not(:disabled),
+.ld-forget:active:not(:disabled),
+.qd-run:active:not(:disabled),
+.qd-recheck:active:not(:disabled),
+.det-toggle:active:not(:disabled),
+.detect-pin:active:not(:disabled),
+.detect-seg-btn:active:not(:disabled),
+.kindtable-deepen:active:not(:disabled),
+.lb-health:active:not(:disabled),
+.scale-toggle:active:not(:disabled),
+.dock-mini:active:not(:disabled),
+.dock-mode:active:not(:disabled),
+.dock-step:active:not(:disabled),
+.desk-more:active:not(:disabled),
+.survey-tab:active:not(:disabled),
+.acct-chip:active:not(:disabled),
+.tools-btn:active:not(:disabled),
+.sitem:active:not(:disabled),
+.agent-chip:active:not(:disabled),
+.dv-open-primary:active:not(:disabled),
+.wr-row:active:not(:disabled),
+.alert-pill:active:not(:disabled),
+.lib-chip:active:not(:disabled) {
+  /*
+    `translateY(0.5px) scale(0.985)`, inherited from the block this replaces.
+
+    Subtler than the 0.97 the first draft used, and better: the half-pixel
+    downward nudge reads as the control being pushed INTO the surface rather
+    than merely shrinking, and 0.985 is deep enough to feel on a 22px icon
+    button without becoming visible movement on a wide one.
+  */
+  transform: translateY(0.5px) scale(0.985);
+}
+
+/*
+  A switch is pressed at its track, so the track takes the press — but WITHOUT
+  the downward nudge: the knob already travels, and two movements at once on a
+  38px control read as a wobble rather than as a press.
+*/
+.set-toggle:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+/*
+  THE ONE CONTROL TOO WIDE TO SCALE.
+
+  `scale(0.985)` was chosen, in the note above, to be "deep enough to feel on a
+  22px icon button without becoming visible movement on a wide one". The
+  omnibox is 460px at full width. 1.5% of 460 is seven pixels of travel, three
+  and a half at each end — which is not press feedback, it is the row twitching.
+
+  So it answers the way the full-width rows do, in colour: the accent border it
+  is about to take when the palette opens. That makes the press a preview of
+  the state it leads to rather than a decoration, and it is the same
+  acknowledgement reduced-motion users get everywhere else in this file.
+*/
+.omnibox:active {
+  background: var(--surface-inset);
+  border-color: var(--accent);
+}
+
+/*
+  A DISABLED CONTROL MUST NOT ANSWER.
+
+  `:disabled` is already handled by the `:not(:disabled)` above. This covers the
+  other kind: controls that stay focusable and carry `aria-disabled` so they can
+  still explain WHY they are off — the settings rows do this deliberately.
+  Otherwise a press animates, the operator concludes the click landed, and
+  nothing happens, which is worse than silence because it actively misleads.
+*/
+[aria-disabled="true"]:active {
+  transform: none;
+}
+
+/*
+  REDUCED MOTION KEEPS THE FEEDBACK AND DROPS THE MOVEMENT.
+
+  "Reduce motion" is a request about movement, not about being told less. A
+  press still has to be acknowledged, so the transform goes and the control
+  answers with its own hover/active colours instead — which every one of these
+  already defines. Removing the acknowledgement entirely would make the
+  interface feel broken for exactly the people who asked for calm.
+*/
+@media (prefers-reduced-motion: reduce) {
+  .primary-btn,
+  .ghost-btn,
+  .icon-btn,
+  .tf-btn,
+  .seg-btn,
+  .draw-btn,
+  .menubar-btn,
+  .appmenu-btn,
+  .nb-btn,
+  .nb-health,
+  .set-action,
+  .set-toggle,
+  .set-swatch,
+  .ld-btn,
+  .ld-btn-danger,
+  .ld-mini,
+  .ld-mini-danger,
+  .ld-claim,
+  .ld-forget,
+  .qd-run,
+  .qd-recheck,
+  .det-toggle,
+  .detect-pin,
+  .detect-seg-btn,
+  .kindtable-deepen,
+  .lb-health,
+  .scale-toggle,
+  .dock-mini,
+  .dock-mode,
+  .dock-step,
+  .desk-more,
+  .survey-tab,
+  .acct-chip,
+  .tools-btn,
+  .sitem,
+  .agent-chip,
+  .alert-pill {
+    transition: none;
+  }
+  .primary-btn:active,
+  .ghost-btn:active,
+  .icon-btn:active,
+  .tf-btn:active,
+  .seg-btn:active,
+  .tool-btn:active,
+  .draw-btn:active,
+  .menubar-btn:active,
+  .appmenu-btn:active,
+  .nb-btn:active,
+  .nb-health:active,
+  .set-action:active,
+  .set-toggle:active,
+  .set-swatch:active,
+  .ld-btn:active,
+  .ld-btn-danger:active,
+  .ld-mini:active,
+  .ld-mini-danger:active,
+  .ld-claim:active,
+  .ld-forget:active,
+  .qd-run:active,
+  .qd-recheck:active,
+  .det-toggle:active,
+  .detect-pin:active,
+  .detect-seg-btn:active,
+  .kindtable-deepen:active,
+  .lb-health:active,
+  .scale-toggle:active,
+  .dock-mini:active,
+  .dock-mode:active,
+  .dock-step:active,
+  .desk-more:active,
+  .survey-tab:active,
+  .acct-chip:active,
+  .tools-btn:active,
+  .sitem:active,
+  .agent-chip:active,
+  .alert-pill:active {
+    transform: none;
+  }
+}
+
+/*
+  TOUCH: NO PRESS ANIMATION, AND NO STICKY HOVER EITHER.
+
+  A tap fires `:hover` on a touch screen and leaves it stuck until something
+  else is tapped, so a control the operator merely brushed past goes on looking
+  live. It is the reason the terminal's own hovers should be gated — 76 of them
+  are not, which is recorded in the handover as outstanding rather than claimed
+  as done here, because it is a mechanical edit across nine files and not
+  something to slip in beside a press rule.
+
+  What this block CAN fix cheaply is its own contribution: on a coarse pointer
+  the scale is dropped, because the finger is already covering the control and
+  the animation is felt as lag on the one input where latency is most visible.
+*/
+@media (hover: none), (pointer: coarse) {
+  .primary-btn,
+  .ghost-btn,
+  .icon-btn,
+  .tf-btn,
+  .seg-btn,
+  .draw-btn,
+  .menubar-btn,
+  .set-action,
+  .survey-tab {
+    transition: none;
+  }
+  .primary-btn:active,
+  .ghost-btn:active,
+  .icon-btn:active,
+  .tf-btn:active,
+  .seg-btn:active,
+  .tool-btn:active,
+  .draw-btn:active,
+  .menubar-btn:active,
+  .set-action:active,
+  .survey-tab:active {
+    transform: none;
+  }
+}
+
+/* The watchlist rail's rows (v55) animate their active marker, an inset
+   box-shadow, as well as their background — so they get their OWN complete
+   transition here. Putting them in the shared list above would replace the
+   rail's `box-shadow` transition with a list that lacks it: a shorthand is
+   replaced whole, never merged (see the header of this file). */
+.wr-row {
+  transition:
+    background-color var(--dur-1) var(--ease),
+    box-shadow var(--dur-1) var(--ease),
+    transform var(--dur-1) var(--ease);
+}

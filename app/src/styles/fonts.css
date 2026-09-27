@@ -1,0 +1,125 @@
+/* ===========================================================================
+   THE TWO TYPEFACES THIS TERMINAL SHIPS.
+   ---------------------------------------------------------------------------
+   WHY SHIP THEM AT ALL, WHEN THE PREVIOUS RULE WAS "NAME ONLY WHAT IS PRESENT"
+
+   Because measurement showed that rule could not be satisfied by naming. On the
+   Windows 10 target, rendered-width probing against a known-missing family says
+   `Segoe UI Variable Text`, `Segoe UI Variable Display`, `Inter` and
+   `JetBrains Mono` are ALL absent — so both the UI stack and the display stack
+   collapsed onto plain Segoe UI, and the heading/body distinction the design
+   assumes silently did not exist. (`document.fonts.check()` is no use for this:
+   it returned true for all eleven families probed, fictional ones included.)
+
+   A font you do not ship is a wish. So these two are shipped.
+
+   WHY THE BYTES ARE ACCEPTABLE
+   Latin subsets only, variable weight axis, one file each:
+
+       Inter Variable          48,256 bytes  (weight 100-900)
+       JetBrains Mono Variable 40,404 bytes  (weight 100-800)
+
+   88 kB raw, about 118 kB once base64 puts them inline. `assetsInlineLimit` is
+   MAX_SAFE_INTEGER in vite.config.ts, so both are embedded as data URIs and the
+   build keeps its zero-external-reference guarantee — which is a hard product
+   requirement, not a preference. One variable file per family is what makes
+   this affordable: the static equivalent would be six weights each.
+
+   Vendored rather than imported from the package, deliberately. The fontsource
+   CSS entrypoint carries seven @font-face blocks (Cyrillic, Cyrillic-ext,
+   Greek, Greek-ext, Vietnamese, Latin-ext, Latin) and importing it would inline
+   every one of them for an interface that is entirely Latin.
+
+       Inter Variable          @fontsource-variable/inter@5.3.0
+       JetBrains Mono Variable @fontsource-variable/jetbrains-mono@5.3.0
+       both SIL Open Font License 1.1
+
+   LIGATURES ARE OFF, AND THAT IS NOT A STYLE CHOICE.
+   JetBrains Mono ships programming ligatures. A terminal that fuses `->` or
+   `!=` inside a price expression is actively misleading, and a `-` that has
+   merged into its neighbour is a minus sign you cannot see. They are switched
+   off in base.css for every element, and the mono face must never be used with
+   them on.
+   ========================================================================= */
+
+@font-face {
+  font-family: "Inter Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  /* `block` rather than `swap`: the file is a data URI, so there is no network
+     to wait for and no reason to paint a fallback face first. A swap would
+     reflow the whole terminal one frame after boot for nothing. */
+  font-display: block;
+  src: url("./fonts/inter-latin-var.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* THE INTERFACE FACE, v59.2: GEIST, THE v5 DESIGN'S FACE.
+   The mono has been Geist Mono since v53, so the words and the figures now
+   come from one family and share their proportions — the label beside a
+   price no longer reads as a different voice from the price.
+       Geist Variable  @fontsource-variable/geist@5.3.0  (SIL OFL 1.1)
+       latin, weight 100-900: 29,400 bytes
+   Inter stays vendored and second in `--font-ui`, so going back is one name. */
+@font-face {
+  font-family: "Geist Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("./fonts/geist-latin-var.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* THE ANSWER FACE, v59.2: INSTRUMENT SERIF — for the handful of lines that
+   ARE an answer (the verdict, "Can I trade now?", the day's brief), never for
+   a label, a number or a control. One weight exists (400), so it is never set
+   bold; its contrast with the sans is the emphasis.
+       Instrument Serif  @fontsource/instrument-serif@5.3.0  (SIL OFL 1.1)
+       latin 400: 21,032 bytes; italic: 22,128 bytes */
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url("./fonts/instrument-serif-latin-400.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Instrument Serif";
+  font-style: italic;
+  font-weight: 400;
+  font-display: block;
+  src: url("./fonts/instrument-serif-latin-400-italic.woff2") format("woff2");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* THE FIGURE FACE, v53: GEIST MONO, REPLACING JETBRAINS MONO.
+   Prices, R values and percentages are what this terminal is FOR, and they
+   were set in a face chosen for source code. Geist Mono is drawn for
+   interfaces: rounder figures, a quieter zero, tighter spacing at 12px, and it
+   is the face the brass identity reads through on every readout.
+       Geist Mono Variable  @fontsource-variable/geist-mono@5.3.0  (SIL OFL 1.1)
+       latin, weight 100-900: 23,128 bytes  (JetBrains Mono was 40,404)
+   REPLACED, not added: two monospace faces would be a redundancy rather than
+   an identity. The JetBrains file stays vendored and unreferenced, so going
+   back is this one block and one name in tokens.css; an unreferenced file is
+   not bundled. Ligatures stay off in type.css for every face, this one
+   included — the rule above does not depend on which mono ships. */
+@font-face {
+  font-family: "Geist Mono Variable";
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: block;
+  src: url("./fonts/geist-mono-latin-var.woff2") format("woff2-variations");
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA,
+    U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193,
+    U+2212, U+2215, U+FEFF, U+FFFD;
+}

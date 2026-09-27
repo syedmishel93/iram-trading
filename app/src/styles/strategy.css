@@ -1,0 +1,492 @@
+/* ===========================================================================
+   STRATEGY — "built together" (v59.2)
+   ---------------------------------------------------------------------------
+   Every class is prefixed `strat-`. The flow is ui/strategy/flow.ts; the
+   family lab below it keeps the shared desk primitives in desks.css.
+
+   The AI / You / Both tags are `.card-who` from inspector.css, used as-is, so
+   a tag looks the same on this page as on every card in the inspector.
+
+   No transitions are declared here: nothing on this page is met often enough
+   to earn motion, and press feedback comes from press.css through the shared
+   button classes (.primary-btn, .ghost-btn).
+   ========================================================================= */
+
+/* Elements that report their own visibility. Scoped to the desk. */
+.view-strategy [data-show="false"] { display: none; }
+
+.strat-flow-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+.strat-head {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+/* The headline answer: serif, regular weight, as the design sets it. */
+.strat-title {
+  margin: 0;
+  max-width: 44ch;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+
+/* Conversation on the left, the steps stacked on the right; one column when
+   the desk is narrow. Explicit min() so the left track never forces a
+   horizontal scroll at phone width. */
+.strat-flow {
+  display: grid;
+  grid-template-columns: minmax(0, min(420px, 38%)) minmax(0, 1fr);
+  gap: var(--sp-5);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .strat-flow { grid-template-columns: minmax(0, 1fr); }
+}
+
+.strat-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.strat-card { min-width: 0; }
+
+.strat-hint {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.strat-sub-head {
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: var(--fw-med);
+}
+
+.strat-warn { color: var(--attn); margin: 0; }
+.strat-empty { margin: 0; color: var(--text-muted); font-size: var(--fs-3); }
+.strat-refused { margin: 0; color: var(--text-muted); font-size: var(--fs-3); }
+
+/* --- conversation ------------------------------------------------------ */
+
+.strat-chat-card { position: sticky; top: 0; }
+
+.strat-chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  max-height: 420px;
+  overflow-y: auto;
+  min-height: 120px;
+}
+
+.strat-msg {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  border-radius: var(--r-2);
+  background: var(--surface);
+}
+.strat-msg[data-who="note"] { background: transparent; padding: 0 var(--sp-3); }
+.strat-msg[data-who="note"] .strat-msg-text { color: var(--text-faint); }
+
+.strat-msg-text {
+  margin: 0;
+  min-width: 0;
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.strat-send {
+  display: flex;
+  gap: var(--sp-3);
+}
+.strat-idea { flex: 1; }
+
+/* --- rules -------------------------------------------------------------- */
+
+.strat-rules {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.strat-rule {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+/* The tag column is fixed so every line's controls start at the same x. */
+.strat-rule > .card-who { width: 34px; text-align: center; }
+
+.strat-rule-ctl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  flex: 1;
+  min-width: 0;
+}
+.strat-sel { max-width: 180px; }
+.strat-operand { width: 110px; }
+.strat-num { width: 80px; }
+
+.strat-rule-kind {
+  min-width: 52px;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+
+.strat-problems {
+  margin: 0;
+  padding-left: var(--sp-6);
+  font-size: var(--fs-2);
+  color: var(--attn);
+}
+
+.strat-add,
+.strat-actions,
+.strat-decide {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-3);
+}
+
+/* --- backtest ---------------------------------------------------------- */
+
+.strat-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.strat-result p { margin: 0; }
+
+.strat-answer {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-5);
+  color: var(--text);
+}
+
+.strat-similar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.strat-similar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) auto auto auto auto;
+  gap: var(--sp-4);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.strat-similar-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+@media (max-width: 700px) {
+  .strat-similar-row { grid-template-columns: minmax(0, 1fr) auto; }
+}
+
+/* --- simulation + critique -------------------------------------------- */
+
+.strat-sim-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: var(--sp-5);
+}
+@media (max-width: 1100px) {
+  .strat-sim-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.strat-sim {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+}
+.strat-sim p { margin: 0; }
+
+.strat-critique-card { background: var(--surface); }
+
+.strat-critique {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.strat-critique-head { margin: 0; font-size: var(--fs-3); color: var(--text); }
+
+.strat-findings {
+  margin: 0;
+  padding-left: var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+.strat-checks summary {
+  cursor: pointer;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.strat-check {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-1) 0;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.strat-check-mark { width: 1em; flex: none; }
+/* The mark carries the standing; the sentence stays readable text. */
+.strat-check[data-passed="true"] .strat-check-mark { color: var(--pos); }
+.strat-check[data-passed="false"] .strat-check-mark { color: var(--neg); }
+.strat-check[data-passed="na"] .strat-check-mark { color: var(--text-faint); }
+
+/* --- decision ---------------------------------------------------------- */
+
+.strat-decide > button { flex: 1 1 0; min-width: 120px; }
+
+.strat-discard {
+  display: flex;
+  gap: var(--sp-3);
+}
+.strat-discard .field-input { flex: 1; }
+
+.strat-dropped {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.strat-drop summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: var(--sp-4);
+  cursor: pointer;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.strat-drop-name { color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.strat-drop-why { overflow-wrap: anywhere; }
+.strat-drop-lines {
+  margin: var(--sp-2) 0 0;
+  padding-left: var(--sp-6);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+
+/* --- the family lab, below the flow ----------------------------------- */
+
+.strat-lab {
+  border-top: 1px solid var(--border);
+  padding-top: var(--sp-4);
+}
+.strat-lab-sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--sp-4);
+  cursor: pointer;
+  margin-bottom: var(--sp-4);
+}
+.strat-lab-title {
+  font-size: var(--fs-4);
+  font-weight: var(--fw-med);
+  color: var(--text);
+}
+.strat-lab > .view-grid { margin-bottom: var(--sp-5); }
+
+/* ===========================================================================
+   AUTONOMOUS MODE (v60)
+   ---------------------------------------------------------------------------
+   The desk's second half: the terminal searches its whole library, and the
+   shelf of what it kept. Prefixes: `auto-` for the run, `shelf-` for the
+   shelf. The mode switch is the shared `.seg` / `.seg-btn` from
+   components.css, deliberately — a control invented here would be the next
+   one missing from `press.css`'s list.
+
+   No transitions and no `:hover` rules are declared in this block. Nothing
+   here is met often enough to earn motion, and every interactive element is
+   one of the shared button classes, which already answer a press.
+   ========================================================================= */
+
+.strat-modes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.strat-auto-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+/* --- before it runs ---------------------------------------------------- */
+
+.auto-arms {
+  margin: 0 0 var(--sp-2);
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-5);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+.auto-card .panel-body > p { margin: 0 0 var(--sp-3); }
+.auto-progress {
+  font-size: var(--fs-2);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+/* --- what survived ------------------------------------------------------ */
+
+.auto-line {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-4);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+.auto-rows { display: flex; flex-direction: column; gap: var(--sp-4); }
+.auto-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  padding: var(--sp-4);
+  border-radius: 10px;
+  background: var(--surface-inset);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+/* The terminal wrote this one itself, so it carries the AI edge. */
+.auto-row[data-origin="hybrid"] { box-shadow: inset 0 0 0 1px var(--ai-line); }
+.auto-row-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3); }
+.auto-name { font-size: var(--fs-4); font-weight: var(--fw-med); color: var(--text); }
+.auto-origin {
+  font-size: var(--fs-1);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.auto-origin[data-origin="hybrid"] { color: var(--ai); }
+.auto-parents { margin: 0; font-size: var(--fs-2); color: var(--text-muted); overflow-wrap: anywhere; }
+.auto-parent { color: var(--text); }
+.auto-figs { display: flex; flex-wrap: wrap; gap: var(--sp-5); }
+.auto-fig { display: flex; flex-direction: column; gap: 1px; }
+.auto-fig-k { font-size: var(--fs-1); color: var(--text-faint); }
+.auto-fig-v { font-size: var(--fs-3); color: var(--text); font-variant-numeric: tabular-nums; }
+.auto-saved { margin: var(--sp-4) 0 0; font-size: var(--fs-2); color: var(--text-muted); }
+
+/* --- the refusal, at the size of a result ------------------------------ */
+/* `beaten-by-noise` is the most valuable answer this desk gives, so it is
+   rendered as a finding rather than as an error. No red, no warning glyph:
+   nothing failed. */
+.auto-refusal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4);
+  border-radius: 10px;
+  background: var(--surface-inset);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.auto-refusal[data-kind="beaten-by-noise"] { box-shadow: inset 0 0 0 1px var(--ai-line); }
+.auto-refusal-head {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-5);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+.auto-refusal-why { margin: 0; font-size: var(--fs-3); line-height: var(--lh-body); color: var(--text-muted); }
+.auto-refusal p { margin: 0; }
+
+.auto-refused { margin-top: var(--sp-5); }
+.auto-refused > summary { cursor: pointer; font-size: var(--fs-2); color: var(--text-muted); }
+.auto-reject {
+  display: grid;
+  grid-template-columns: minmax(0, 12rem) minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding: 2px 0;
+  font-size: var(--fs-2);
+}
+.auto-reject-name { color: var(--text); overflow-wrap: anywhere; }
+.auto-reject-why { color: var(--text-muted); overflow-wrap: anywhere; }
+
+/* --- the shelf ---------------------------------------------------------- */
+
+.shelf-list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.shelf-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  align-items: flex-start;
+  padding: var(--sp-4);
+  border-radius: 10px;
+  background: var(--surface-inset);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+.shelf-row[data-status="retired"] { opacity: 0.72; }
+.shelf-row-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-3); }
+.shelf-name { font-size: var(--fs-4); font-weight: var(--fw-med); color: var(--text); }
+.shelf-market { font-size: var(--fs-2); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+/* Colour follows the STANDING, never the number: promoted is in use, retired
+   is out, unproven is neither — so unproven is the quiet one, not the bad one. */
+.shelf-status {
+  font-size: var(--fs-1);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.shelf-status[data-status="promoted"] { color: var(--ai); }
+.shelf-status[data-status="retired"] { color: var(--text-faint); }
+.shelf-origin { font-size: var(--fs-1); text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); }
+.shelf-figs { display: flex; flex-wrap: wrap; gap: var(--sp-4); font-size: var(--fs-2); color: var(--text); }
+.shelf-prov, .shelf-forward, .shelf-retired, .shelf-armed { margin: 0; overflow-wrap: anywhere; }
+.shelf-forward { color: var(--text-muted); }
+.shelf-retired { color: var(--text-muted); }
+.shelf-armed { color: var(--text-muted); }
+.shelf-lines {
+  margin: 0;
+  padding-left: var(--sp-6);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.shelf-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.shelf-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--ai-line);
+}
+.shelf-confirm p { margin: 0 0 var(--sp-2); flex: 1 0 100%; color: var(--text-muted); }
+.shelf-retire { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; width: 100%; }
+.shelf-retire .field-input { flex: 1 1 16rem; min-width: 0; }

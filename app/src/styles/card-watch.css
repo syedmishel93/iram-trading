@@ -1,0 +1,71 @@
+/* Watchlist card (ui/cards/watchcard.ts). Every class is wc-.
+
+   `.wc-row` and `.wc-more` are not on press.css's list, so this file owns
+   their COMPLETE transition set in one declaration each. The active symbol is
+   an accent inset bar, as in the rail, so the change colour stays readable.
+   Change is coloured by its SIGN, the same rule the rail uses. */
+
+.wc-card { display: flex; flex-direction: column; gap: var(--sp-3); font-size: var(--fs-2); }
+.wc-body { display: flex; flex-direction: column; gap: var(--sp-2); }
+.wc-list { display: flex; flex-direction: column; }
+
+.wc-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 5.5em;
+  align-items: baseline;
+  column-gap: var(--sp-4);
+  width: 100%;
+  padding: var(--sp-2) var(--sp-3);
+  border: 0;
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease), box-shadow var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.wc-row:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.wc-row:active { transform: translateY(0.5px) scale(0.985); }
+@media (hover: hover) {
+  .wc-row:hover { background: var(--surface-hover); }
+}
+.wc-row[data-active="true"] {
+  background: var(--accent-wash);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.wc-sym { font-weight: var(--fw-med); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wc-px,
+.wc-chg { font-variant-numeric: tabular-nums; text-align: right; }
+.wc-chg { color: var(--text-muted); }
+.wc-row[data-tone="pos"] .wc-chg { color: var(--candle-up); }
+.wc-row[data-tone="neg"] .wc-chg { color: var(--candle-down); }
+
+.wc-empty { margin: 0; color: var(--text-muted); }
+.wc-open { align-self: flex-start; }
+.wc-warn { margin: 0; font-size: var(--fs-1); color: var(--attn); }
+
+.wc-foot { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.wc-asof { font-size: var(--fs-1); color: var(--text-faint); }
+.wc-more {
+  border: 0;
+  background: transparent;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-1);
+  font: inherit;
+  font-size: var(--fs-1);
+  color: var(--accent);
+  cursor: pointer;
+  transition: background-color var(--dur-1) var(--ease), transform var(--dur-1) var(--ease);
+}
+.wc-more:focus-visible { outline: 1px solid var(--accent); }
+.wc-more:active { transform: translateY(0.5px) scale(0.985); }
+@media (hover: hover) {
+  .wc-more:hover { background: var(--surface-hover); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wc-row:active,
+  .wc-more:active { transform: none; background: var(--surface-active); }
+}

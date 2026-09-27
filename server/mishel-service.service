@@ -1,0 +1,12 @@
+# systemd unit — persistent background service (Linux)
+# install:  sudo cp mishel-service.service /etc/systemd/system/ && sudo systemctl enable --now mishel-service
+[Unit]
+Description=Mishel Intelligence background service (alerts + ledger)
+After=network-online.target
+[Service]
+WorkingDirectory=%h/mishel-intelligence-trading/server
+ExecStart=/usr/bin/python3 mishel_service.py
+Restart=always
+RestartSec=5
+[Install]
+WantedBy=default.target

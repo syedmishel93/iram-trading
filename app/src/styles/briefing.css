@@ -1,0 +1,451 @@
+/* ===========================================================================
+   THE BRIEFING DESK
+   ---------------------------------------------------------------------------
+   Six cards, each answering one question, in ONE declaration order that the
+   grid then wraps. At the two-column width this desk is normally read at, the
+   row-major flow puts the three cards about YOU down the left — what is at
+   risk, what changed, what fired — and the three about the MARKET down the
+   right: this chart, where else to look, what kind of market it is. That
+   pairing is the reason the declaration order is what it is.
+
+   It is not enforced, and deliberately not: at one column the same order
+   still reads top to bottom as a sequence, and at three it still reads as
+   rows. A layout that had to be pinned with explicit placement would break
+   at every width it was not pinned for.
+
+   NO CARD IS TALLER THAN ITS CONTENT. `align-items: start` rather than the
+   grid default of `stretch`: a card with one row of content stretched to match
+   a card with six leaves a box of empty surface, which reads as a panel that
+   failed to load. The Data desk's own grid made that mistake and its comment
+   records it.
+
+   COLOUR FOLLOWS THE STANDING. A verdict chip is toned by its KIND, an event
+   by its severity, an opportunity row by whether the read is live. No figure
+   on this desk is coloured for being large or negative — a price that fell is
+   not bad news, and `panelkit.css` says the same thing about `pk-v`.
+   ========================================================================= */
+
+.bf {
+  /* Inherits `.dd`: stretched to the slot, one scroller, no sideways pan. */
+  gap: var(--sp-5);
+}
+
+/*
+ * SIX CARDS, AND A GRID CANNOT PACK THEM (v60.1).
+ *
+ * It was `repeat(auto-fill, minmax(380px, 1fr))` with `align-items: start`,
+ * and MEASURED on a 1792px desk that gives four columns for six cards:
+ *
+ *     row 1   Where you stand 133   This chart 310   What changed 226   Where else 137
+ *     row 2   Alerts 109            Conditions 149   (empty)            (empty)
+ *
+ * The row is as tall as its tallest card whatever `align-items` says, so the
+ * short cards left holes of 177px, 84px and 173px under them, and the second
+ * row left 878px of empty grid beside it. Two kinds of hole, one cause: a
+ * grid places by ROW, and six cards of six different heights do not make rows.
+ *
+ * Multi-column places by COLUMN and balances, so a short card is followed
+ * immediately by the next one and there are no slots left to be empty.
+ * MEASURED on the same six cards, as column bottoms within the block:
+ *
+ *     four columns   149 / 327 / 308 / 318   block 327 tall
+ *     three          457 / 414 / 165         block 457
+ *     two            457 / 575               block 575
+ *
+ * so `columns: 4 380px` — four is the cap, and 380px (the width at which a
+ * verdict headline stops wrapping mid-phrase) is what decides how many of the
+ * four a given desk actually gets. A 1852px desk takes all four at 454px each;
+ * 1472px takes three; a narrow one takes two, then one.
+ *
+ * WHAT IS LEFT, said plainly: the browser fills each column greedily to a
+ * balanced height, so where one card is twice the height of its neighbours the
+ * last column can still end early — at three columns above, 292px early. That
+ * is a property of the data (a verdict card with an entry, a stop and two
+ * targets is simply taller than a card saying no alerts fired), not of the
+ * layout, and it is a ragged column bottom rather than the hole in the middle
+ * of a row that the grid produced.
+ *
+ * READING ORDER becomes column-major, which is what this desk wanted anyway:
+ * the paragraph above already describes the pairing it is after ("the three
+ * cards about YOU down the left ... the three about the MARKET down the
+ * right"), and that was a coincidence of the two-column width before. It is
+ * now the declared order at every width.
+ */
+.bf-grid {
+  /* 380px is the width at which a verdict headline and its read line stop
+     wrapping mid-phrase; below that it drops to one column rather than
+     squeezing, because two half-legible cards are worse than one legible one. */
+  columns: 4 380px;
+  column-gap: var(--sp-5);
+}
+
+/* A card split across a column break is a card with its head in one column
+   and its figures in the next. The margin is the row gap: multi-column has no
+   `row-gap` between siblings, only between columns. */
+.bf-grid > * {
+  break-inside: avoid;
+  margin-bottom: var(--sp-5);
+}
+.bf-grid > :last-child { margin-bottom: 0; }
+
+.bf-card { gap: var(--sp-4); }
+
+.bf-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+.bf-card-titles { min-width: 0; }
+
+.bf-card-title {
+  margin: 0;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text);
+}
+
+.bf-card-q {
+  margin: var(--sp-1) 0 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+/* The link back to the desk that owns the figures. Quiet until wanted: it is
+   on every card, six times on one screen, and six accent-coloured buttons
+   would out-shout the numbers they are annotating. */
+.bf-owner {
+  flex: none;
+  appearance: none;
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-2);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-1);
+  padding: var(--sp-1) var(--sp-3);
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+@media (hover: hover) {
+  .bf-owner:hover { color: var(--accent); border-color: var(--accent); }
+}
+.bf-owner:focus-visible { color: var(--accent); border-color: var(--accent); }
+
+.bf-scope {
+  margin: 0;
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.bf-note {
+  margin: 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+/* --- this chart's verdict */
+
+.bf-verdict { display: flex; flex-direction: column; gap: var(--sp-4); }
+
+.bf-verdict-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  min-width: 0;
+}
+
+/* The gate count, as a figure rather than as prose. It is the one number on
+   this desk that qualifies everything under it, so it is given the size the
+   Setup card's own ring gives it. */
+.bf-verdict-count {
+  flex: none;
+  font-size: var(--fs-5);
+  font-weight: var(--fw-semi);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.bf-verdict-words { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-1); }
+/* v59.2: the day's answer, in the answer face — see fonts.css. */
+.bf-verdict-line { font-family: var(--font-serif); font-size: var(--fs-5); font-weight: 400; line-height: var(--lh-tight); color: var(--text); }
+.bf-verdict-read { font-size: var(--fs-1); color: var(--text-muted); }
+
+/* --- what changed */
+
+.bf-events { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.bf-event {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  /* The severity rail. A 2px edge rather than a tinted background: six events
+     with tinted bodies turn the card into a colour chart, and the sentence is
+     the thing being read. */
+  border-left: 2px solid var(--border);
+}
+/* THE SEVERITY NAMES ARE `info` | `watch` | `act`, and the first version of
+   this block guessed `alert` and `notice` — so the rail matched nothing and
+   every event drew the neutral border. tsc cannot catch it: a `data-*`
+   attribute is a string, and a selector that matches nothing is not an error
+   anywhere. Taken from `LiveSeverity` in analysis/live.ts, and toned the same
+   way `livefeed.css` tones the same three words, so one event does not read
+   as two different degrees of urgency on two surfaces. */
+.bf-event[data-sev="act"]   { border-left-color: var(--attn); }
+.bf-event[data-sev="watch"] { border-left-color: var(--text-muted); }
+.bf-event[data-sev="info"]  { border-left-color: var(--border); }
+
+.bf-event-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.bf-event-kind {
+  font-size: var(--fs-0);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+.bf-event-when { font-size: var(--fs-0); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.bf-event-what { margin: 0; font-size: var(--fs-2); color: var(--text); }
+.bf-event-why  { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }
+
+/* --- where else to look */
+
+.bf-opps { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.bf-opp {
+  appearance: none;
+  display: grid;
+  grid-template-columns: max-content 1fr max-content;
+  align-items: baseline;
+  gap: var(--sp-3);
+  width: 100%;
+  text-align: left;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid transparent;
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-2);
+  cursor: pointer;
+  transition: border-color var(--dur-1) var(--ease), color var(--dur-1) var(--ease);
+}
+@media (hover: hover) {
+  .bf-opp:hover { border-color: var(--accent); color: var(--text); }
+}
+.bf-opp:focus-visible { border-color: var(--accent); color: var(--text); }
+
+.bf-opp-sym { font-weight: var(--fw-semi); color: var(--text); font-variant-numeric: tabular-nums; }
+.bf-opp-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bf-opp-state { font-size: var(--fs-0); letter-spacing: var(--track-wide); text-transform: uppercase; color: var(--text-faint); }
+.bf-opp[data-live="true"] .bf-opp-state { color: var(--pos); }
+
+/* --- alerts that fired */
+
+.bf-fires { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.bf-fire {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+}
+.bf-fire-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.bf-fire-when { font-size: var(--fs-0); color: var(--text-faint); }
+.bf-fire-price { font-size: var(--fs-2); color: var(--text); }
+.bf-fire-why { margin: 0; font-size: var(--fs-1); color: var(--text-muted); }
+
+/* --- conditions */
+
+.bf-cond { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+/* ===========================================================================
+   TODAY (v60) — AI briefs, you plan
+   ---------------------------------------------------------------------------
+   Kept in this file rather than a new `today.css` because the Briefing desk
+   IS the Today workspace, and this file is already imported by main.ts: a
+   second stylesheet would be one more import that could be forgotten.
+
+   The AI / You tags are `.card-who[data-who]` from inspector.css, reused so
+   the two words look the same everywhere. Nothing here is toned by a number:
+   a scan row is marked only when its read is LIVE, and a side (long/short)
+   is a direction, not a verdict, so it is not coloured at all.
+   ========================================================================= */
+
+.td-head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); margin-bottom: 0; }
+/* The day's answer, in the answer face — same rule as `.bf-verdict-line`. */
+.td-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-headline);
+  line-height: var(--lh-tight);
+  letter-spacing: var(--track-display);
+  color: var(--text);
+}
+
+/*
+ * Brief and plan side by side; one column once the plan's three fields would
+ * drop under ~260px each.
+ *
+ * `stretch`, and it is a NAMED DEVIATION from the rule at the top of this
+ * file ("no card is taller than its content"). That rule is about the six-card
+ * grid below, where one card can have a single line and its neighbour six, and
+ * a stretched box of empty surface there reads as a panel that failed to load.
+ * This band is two cards, and MEASURED at 1472px they are 203 and 359 — the
+ * plan is a FORM and will always be the taller of the two, so the hole under
+ * the brief is a permanent 156px feature of the layout rather than an artefact
+ * of today's data. That is one of the uneven spaces the owner pointed at.
+ *
+ * Stretched, the pair is one band with a straight bottom edge, and the cost —
+ * empty surface inside the brief — is paid off by the rule under this one: the
+ * brief's actions go to the bottom of the card, so both cards end in a row of
+ * controls at the same height and the space sits BETWEEN the reading and the
+ * buttons, where a card would have put it anyway.
+ */
+.td-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr));
+  gap: var(--sp-5);
+  align-items: stretch;
+}
+
+.td-card { gap: var(--sp-5); }
+.td-card-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-4); }
+.td-card-title {
+  margin: 0;
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text);
+}
+
+/* --- brief */
+.td-brief-read { display: flex; flex-direction: column; gap: var(--sp-3); }
+.td-brief-answer {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-6);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+.td-brief-line { margin: 0; font-size: var(--fs-2); line-height: var(--lh-snug); color: var(--text-muted); }
+/* The last row of the brief card, pushed to its foot — see `.td-top`. It is
+   the last child of a column flex box, so `auto` takes whatever the card was
+   stretched by. On a card that is already its content's height this computes
+   to nothing and the row does not move. */
+.td-actions { display: flex; flex-wrap: wrap; gap: var(--sp-4); margin-top: auto; }
+
+/* --- plan */
+.td-plan-edit { display: flex; flex-direction: column; gap: var(--sp-5); }
+.td-plan-edit[hidden] { display: none; }
+.td-plan-done { display: flex; flex-direction: column; gap: var(--sp-5); }
+.td-plan-done:empty { display: none; }
+.td-note { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }
+
+.td-tags { display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.td-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-2) 0 var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface-inset);
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.td-tag[data-fixed="true"] { padding-right: var(--sp-4); }
+.td-tag-sym { font-weight: var(--fw-semi); font-variant-numeric: tabular-nums; }
+.td-tag-x {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--text-faint);
+  font: inherit;
+  cursor: pointer;
+  transition: color var(--dur-1) var(--ease), background var(--dur-1) var(--ease);
+}
+@media (hover: hover) {
+  .td-tag-x:hover { color: var(--text); background: var(--border-hair); }
+}
+.td-tag-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; color: var(--text); }
+
+.td-add { display: flex; gap: var(--sp-3); align-items: center; }
+.td-add-in { flex: 1; max-width: 240px; height: var(--h-ctl-xs); font-size: var(--fs-2); }
+
+.td-limits { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-5); }
+.td-err { color: var(--neg); }
+.td-err[data-show="false"] { display: none; }
+.td-limits .field-input[aria-invalid="true"] { border-color: var(--neg); }
+
+.td-enforce { margin: 0; font-size: var(--fs-2); color: var(--text-muted); }
+.td-commit { width: 100%; height: var(--h-ctl-lg); }
+.td-block, .td-status { margin: 0; font-size: var(--fs-1); color: var(--text-faint); }
+.td-block[data-show="false"], .td-status[data-show="false"] { display: none; }
+.td-status { color: var(--attn); }
+
+.td-done-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
+.td-done-at { font-size: var(--fs-2); color: var(--text); font-variant-numeric: tabular-nums; }
+
+/* --- the scanned list. Its own scroller, like `.dd-table`: a row squeezed
+       below its columns is unreadable, not smaller. */
+.td-scan-rows { display: flex; flex-direction: column; overflow-x: auto; overscroll-behavior-x: contain; min-width: 0; }
+.td-scan-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 1fr) minmax(140px, 1.5fr) 60px 60px minmax(180px, 2fr) 72px;
+  min-width: 680px;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-2);
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.td-scan-head {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  border-bottom-color: var(--border);
+}
+.td-scan-sym { color: var(--text); font-weight: var(--fw-semi); }
+.td-scan-checks { font-variant-numeric: tabular-nums; }
+.td-scan-why { color: var(--text-faint); }
+.td-scan-row[data-live="true"] .td-scan-sees { color: var(--pos); }
+.td-scan-row[data-source="none"] .td-scan-sees,
+.td-scan-row[data-source="none"] .td-scan-side,
+.td-scan-row[data-source="none"] .td-scan-checks { color: var(--text-faint); }
+.td-scan-row[data-source="failed"] .td-scan-sees { color: var(--attn); }
+
+.td-detail-head { display: flex; flex-direction: column; gap: var(--sp-2); margin-top: var(--sp-4); }
+.td-detail-title { margin: 0; font-size: var(--fs-3); font-weight: var(--fw-semi); color: var(--text); }
+
+@media (max-width: 560px) {
+  .td-limits { grid-template-columns: minmax(0, 1fr); }
+}

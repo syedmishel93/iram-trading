@@ -1,0 +1,233 @@
+/* ============================================================================
+   THE INSPECTOR'S SHARED VOCABULARY
+
+   Nine dock panels had five different ideas of what "a label and a value"
+   looks like. Stacked in one 360px column they read as five applications
+   sharing a scrollbar. This is the one grammar all of them now speak; see
+   ui/panelkit.ts for what is deliberately NOT shared.
+
+   Every rule here is the Setup card's, which was measured rather than guessed.
+   ============================================================================ */
+
+/* --- section label: a term, then a sentence ------------------------------- */
+/* One tracked-uppercase string of 40+ characters wraps to two lines of
+   capitals in a 300px panel and shouts over the content it labels. The term
+   keeps the label treatment; the qualifier is ordinary text. */
+.pk-lbl {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0 var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  margin-bottom: var(--sp-3);
+}
+.pk-lbl-term {
+  font-family: var(--font-mono);
+  letter-spacing: var(--track-micro);
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
+}
+.pk-lbl-note {
+  font-family: var(--font-ui);
+  letter-spacing: normal;
+  color: inherit;
+  opacity: 0.85;
+  min-width: 0;
+}
+
+/* --- rows ----------------------------------------------------------------- */
+/* THE LABEL COLUMN IS SIZED TO THE LABELS. `minmax(0,1fr) auto` — the obvious
+   way round — lets one long value take its max-content width and starve every
+   label; measured at 270px of a 307px card, with labels left on 25px and
+   wrapping to three lines. */
+.pk-kv {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--sp-3) var(--sp-5);
+  font-size: var(--fs-2);
+  align-items: baseline;
+}
+.pk-k { color: var(--text-muted); white-space: nowrap; }
+.pk-v {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 0;
+  text-align: right;
+  color: var(--text);
+}
+.pk-val { font-variant-numeric: tabular-nums; }
+/* Tone is on the VALUE and never on a number that merely went down. */
+.pk-v[data-tone="pos"]  .pk-val { color: var(--pos); }
+.pk-v[data-tone="neg"]  .pk-val { color: var(--neg); }
+.pk-v[data-tone="attn"] .pk-val { color: var(--attn); }
+.pk-v[data-tone="mute"] .pk-val { color: var(--text-faint); }
+
+/* Where a number came from, under the number rather than beside it. */
+.pk-note {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  line-height: var(--lh-snug);
+}
+
+.pk-sec { padding: var(--sp-4) 0; border-bottom: 1px solid var(--border-hair); }
+.pk-sec:last-child { border-bottom: 0; }
+
+/* --- the three empty states ----------------------------------------------- */
+/* "Loading" will change on its own, "empty" is a real answer, and
+   "unavailable" means the panel could not ask. Rendering them identically is
+   how "nothing scheduled" and "the calendar failed" become one sentence. */
+.pk-empty {
+  margin: 0;
+  padding: var(--sp-4) 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+.pk-empty[data-kind="loading"] { color: var(--text-faint); font-style: italic; }
+.pk-empty[data-kind="unavailable"] { color: var(--attn); }
+
+/* --- chips ---------------------------------------------------------------- */
+.pk-chip {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  padding: 1px var(--sp-3);
+  border-radius: var(--r-full);
+  background: var(--surface-sunk);
+  color: var(--text-muted);
+}
+.pk-chip[data-tone="pos"]    { background: var(--pos-wash);    color: var(--pos); }
+.pk-chip[data-tone="neg"]    { background: var(--neg-wash);    color: var(--neg); }
+.pk-chip[data-tone="attn"]   { background: var(--attn-wash);   color: var(--attn); }
+.pk-chip[data-tone="accent"] { background: var(--accent-wash); color: var(--accent); }
+
+/* ============================================================================
+   FEED & NETWORK
+
+   Two kinds of content in one panel and they want opposite treatments. The
+   summary rows above are read as facts, so they use the shared `.pk-kv` grid
+   like every other panel. The log below is read as a SEQUENCE — you scan down
+   it looking for the moment something changed — so it is a fixed five-column
+   grid with the time in a monospace gutter, and nothing in it wraps except the
+   message. Columns that shift row to row cannot be scanned.
+   ============================================================================ */
+
+.fm-srcs { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.fm-src {
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  border-left: 2px solid transparent;
+}
+/* The one that is actually serving. A list of six sources where the live one
+   is not instantly findable is a list, not an answer. */
+.fm-src[data-active="true"] { border-left-color: var(--pos); }
+
+.fm-src-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  justify-content: space-between;
+}
+.fm-src-name { font-size: var(--fs-2); font-weight: var(--fw-med); }
+.fm-src-note {
+  margin-top: 2px;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+/* --- the log -------------------------------------------------------------- */
+.fm-log-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); }
+.fm-log-head .pk-lbl { margin-bottom: 0; }
+.fm-clear { flex: 0 0 auto; }
+
+.fm-log {
+  margin-top: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  /* Its own scroll region, capped. A live log inside a scrolling dock column
+     otherwise pushes every panel below it off the bottom of the screen every
+     time a poll lands. */
+  max-height: 320px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.fm-ev {
+  display: grid;
+  grid-template-columns: max-content max-content max-content minmax(0, 1fr) max-content;
+  gap: 0 var(--sp-3);
+  align-items: baseline;
+  padding: 3px 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  border-bottom: 1px solid var(--border-hair);
+}
+.fm-ev:last-child { border-bottom: 0; }
+
+.fm-ev-t { font-family: var(--font-mono); color: var(--text-faint); }
+.fm-ev-kind {
+  /* Kept in caps when the v53 pass moved labels to sentence case: these are
+     short DATA KEYS, several of them abbreviations (ATR, RSI), written in
+     lowercase in the code and capitalised here. "Atr" is not a word. */
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  letter-spacing: var(--track-wide);
+  color: var(--text-faint);
+  font-size: 10px;
+}
+.fm-ev-src { color: var(--text-muted); white-space: nowrap; }
+/* The message is the only thing allowed to wrap, and it wraps rather than
+   truncating: "proxy 502: yfinance is not installed" is the whole answer and
+   an ellipsis in the middle of it is worth nothing. */
+.fm-ev-text { color: var(--text); min-width: 0; overflow-wrap: anywhere; }
+.fm-ev-ms { font-family: var(--font-mono); color: var(--text-faint); }
+
+.fm-ev[data-ok="false"] .fm-ev-text { color: var(--neg); }
+.fm-ev[data-kind="switch"] .fm-ev-text { color: var(--attn); }
+.fm-ev[data-kind="switch"] .fm-ev-kind { color: var(--attn); }
+/* A poll that changed nothing is the most common line in the log and the least
+   interesting. It stays legible and stops competing. */
+.fm-ev[data-kind="poll"] .fm-ev-text { color: var(--text-muted); }
+
+/* --- the "how this is measured" disclosure (pkWhy) ------------------------- */
+/* A small top margin of its own: it often follows a control (Smart money's
+   confidence slider) and sat flush against it. Margin, not `+`, because some
+   hosts reorder children with `order` (CLAUDE.md, .dock-body). */
+.pk-why { font-size: var(--fs-1); color: var(--text-faint); margin-top: var(--sp-2); }
+.pk-why-sum {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  cursor: pointer;
+  list-style: none;
+  color: var(--text-faint);
+  border-radius: var(--r-1);
+  transition: color var(--dur-1) var(--ease);
+}
+.pk-why-sum::-webkit-details-marker { display: none; }
+/* The caret is a glyph turned by `transform`, read from a --dur token so that
+   reduced motion stops it turning and keeps the state change. */
+.pk-why-sum::before {
+  content: "›";
+  display: inline-block;
+  transition: transform var(--dur-1) var(--ease);
+}
+.pk-why[open] > .pk-why-sum::before { transform: rotate(90deg); }
+@media (hover: hover) { .pk-why-sum:hover { color: var(--text-muted); } }
+.pk-why-sum:focus-visible { outline: none; box-shadow: var(--ring); }
+.pk-fold-body { margin-top: var(--sp-3); }
+.pk-why-body {
+  margin: var(--sp-3) 0 0;
+  max-width: 72ch;
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}

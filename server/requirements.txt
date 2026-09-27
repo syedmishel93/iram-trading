@@ -1,0 +1,42 @@
+# The gateway (server/gateway) and the three services it fronts.
+#
+# The gateway itself needs only the first three. Everything below is a service
+# it hosts, and a missing one degrades that service to a 503 that says which
+# dependency is absent — it does not stop the gateway starting. See
+# gateway/legacy.py.
+
+# --- gateway -----------------------------------------------------------------
+fastapi>=0.115
+uvicorn>=0.30
+pydantic>=2.7
+
+# --- the legacy services, run in-process under the gateway -------------------
+flask>=3.0
+flask-cors>=4.0
+requests>=2.31
+
+# --- data proxy (ddt_data_server.py) -----------------------------------------
+yfinance>=0.2.40
+httpx>=0.27          # also the gateway's in-process client for /ohlc
+
+# --- streaming (gateway/stream.py) -------------------------------------------
+websockets>=12.0     # the Binance kline socket
+
+# --- model service (quant/) --------------------------------------------------
+numpy>=1.26
+scipy>=1.11
+pandas>=2.0
+scikit-learn>=1.3
+cvxpy>=1.5           # portfolio weights under constraints (quant/optimize.py).
+                     # NOT optional for the gate: three tests in
+                     # tests/test_quant_service.py exercise the optimiser, so a
+                     # checkout without it fails `verify.py` on pytest — which
+                     # is how it was found, after this machine turned out to
+                     # have no Python packages installed at all (v55.2).
+
+# The bulk archive (v60.6) — Parquet on disk, queried in place by DuckDB.
+# OPTIONAL: ~87 MB together, and `server/svc/store.py` refuses by name without
+# them rather than failing to boot. Needed only to hold tick data and deep
+# history; the terminal runs without them.
+duckdb>=1.1
+pyarrow>=17

@@ -1,0 +1,82 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# THE OPERATOR'S OWN DATA NEVER LEAVES THIS MACHINE.
+#
+# `server/mishel.db` is the live store: wallet events, the journal, the claims
+# ledger, the settings backup, MT5 deals and the bar archive. It was 157 MB at
+# the first commit, which is also above GitHub's 100 MB hard file limit — but
+# the size is the smaller reason. A published database is published personal
+# data, and it cannot be unpublished: a deleted repository stays in forks,
+# caches and clones.
+#
+# Every sibling file matters too. `-wal` holds transactions not yet folded into
+# the main file and `-shm` its shared index, so a "clean" repo carrying only
+# those still leaks recent rows. The dated `.bak-*` copies are whole databases.
+# ─────────────────────────────────────────────────────────────────────────────
+server/mishel.db
+server/mishel.db-shm
+server/mishel.db-wal
+server/mishel.db.bak-*
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Anything holding a real credential. `.env.example` is a template and IS
+# published, because a template nobody can see is a setup step nobody can take.
+.env
+.env.*
+!.env.example
+*credentials*
+*secret*.json
+!tests/test_mcp_secrets.py
+
+# ─── build output and caches ────────────────────────────────────────────────
+# Rust's target directory alone was 1.6 GB and the bundled Python venv 637 MB.
+# Neither is source, both are reproducible, and together they are 80% of the
+# tree.
+desktop/src-tauri/target/
+server/build/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.pyc
+*.pyo
+
+node_modules/
+app/node_modules/
+app/dist/
+app/.vite/
+desktop/node_modules/
+tests/node_modules/
+
+# The frozen terminal's build output. `index.html` at the root is the SOURCE of
+# frozen v39 and is kept; `dist/` is what a build made of it.
+dist/
+
+# The packaged binaries. Rebuilt by `server/build_binary.py`, ~90 MB each, and
+# a binary in a repository is a thing nobody can review.
+*.exe
+*.msi
+*.dmg
+*.AppImage
+!desktop/src-tauri/**/*.ico
+
+# Bulk market data. The archive is downloadable and measured at 141.9 bytes a
+# bar — five years of 1m across four markets is 1.49 GB.
+data/
+*.parquet
+*.feather
+
+# ─── ordinary noise ─────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+ddt_workspace.json
+scratchpad/*.output
+
+# Stale working copies. `run_tests.sh.bak` was deleted for the same reason:
+# a 300-line copy of a file that moved on is a thing people read by mistake.
+scratchpad/*.bak
+scratchpad/*.bak[0-9]

@@ -1,0 +1,149 @@
+/* Review — "AI finds · you judge", at the top of the Journal desk.
+   `ui/review/reviewpanel.ts`. From the v5 design's #ws-review: a wide AI
+   column of findings beside a narrower column for your rule.
+
+   No motion here at all: nothing in this section is met hundreds of times a
+   day, but nothing in it changes on its own either — it changes because you
+   clicked, and the click's acknowledgement is press.css's, on the buttons. */
+
+.rv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-5);
+}
+
+.rv-head { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-2); }
+
+/* The headline answer, in the answer face — see fonts.css. */
+.rv-title {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: var(--fs-5);
+  line-height: var(--lh-tight);
+  color: var(--text);
+}
+
+.rv-sub { margin: 0; font-size: var(--fs-1); color: var(--text-muted); }
+
+.rv-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 400px);
+  gap: var(--sp-4);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .rv-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.rv-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  min-width: 0;
+  padding: var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface);
+}
+.rv-card[data-who="ai"] { border-color: color-mix(in srgb, var(--accent) 28%, var(--border)); }
+
+.rv-card-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.rv-card-title { font-weight: var(--fw-semi); }
+
+.rv-note, .rv-fine, .rv-none { margin: 0; font-size: var(--fs-1); color: var(--text-muted); }
+.rv-none { color: var(--text); }
+
+/* --- findings */
+
+.rv-finds { display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.rv-find {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border-hair, var(--border));
+}
+
+.rv-n {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--r-full);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-size: var(--fs-0);
+}
+
+.rv-find-body { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+.rv-claim { margin: 0; line-height: var(--lh-body); color: var(--text); }
+
+.rv-nums { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); }
+.rv-num { display: flex; flex-direction: column; gap: 1px; }
+.rv-num-l { font-size: var(--fs-0); color: var(--text-faint); }
+.rv-num-v { font-size: var(--fs-1); color: var(--text); font-variant-numeric: tabular-nums; }
+
+.rv-judge { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.rv-judge .detect-seg { flex: none; width: 180px; }
+
+/* --- what was checked */
+
+.rv-checked-sum { cursor: pointer; font-size: var(--fs-1); color: var(--text-muted); }
+.rv-checked-list { list-style: none; margin: var(--sp-2) 0 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.rv-check {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--sp-3);
+  font-size: var(--fs-1);
+}
+.rv-check-name { color: var(--text); }
+.rv-check-state { justify-self: end; color: var(--text-muted); }
+/* Colour follows the STANDING: found is a claim waiting on you, not good news. */
+.rv-check-state[data-state="found"] { color: var(--accent); }
+.rv-check-state[data-state="cannot-check"] { color: var(--attn); }
+.rv-check-why { grid-column: 1 / -1; color: var(--text-muted); }
+.rv-check-min { grid-column: 1 / -1; color: var(--text-faint); font-size: var(--fs-0); }
+
+/* --- your rule */
+
+.rv-box {
+  width: 100%;
+  min-height: 72px;
+  resize: vertical;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+}
+.rv-box:focus-visible { outline: none; border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+
+.rv-commit { width: 100%; height: var(--h-ctl-lg); }
+
+.rv-done { margin: 0; font-size: var(--fs-1); color: var(--text-muted); }
+.rv-done:empty { display: none; }
+.rv-done[data-tone="pos"] { color: var(--pos); }
+.rv-done[data-tone="warn"] { color: var(--attn); }
+
+.rv-rules { display: flex; flex-direction: column; gap: var(--sp-2); }
+.rv-rules:empty { display: none; }
+.rv-list-label { font-size: var(--fs-0); color: var(--text-faint); text-transform: uppercase; letter-spacing: var(--track-wide); }
+
+.rv-rule {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+}
+.rv-rule-text { margin: 0; color: var(--text); }
+.rv-rule .rv-fine { grid-column: 1; }
+.rv-retire { grid-column: 2; grid-row: 1 / span 2; align-self: center; }

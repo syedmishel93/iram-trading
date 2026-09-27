@@ -1,0 +1,24 @@
+[package]
+name = "iram-terminal"
+version = "50.0.0"
+description = "IRAM Intelligence Terminal"
+edition = "2021"
+rust-version = "1.77"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-http = "2"
+tauri-plugin-window-state = "2"
+tauri-plugin-single-instance = "2"
+
+# The terminal is a chart. A debug build drops frames on a 4000-bar canvas, and
+# a release build that is not optimised is a debug build with the symbols gone.
+[profile.release]
+opt-level = "s"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

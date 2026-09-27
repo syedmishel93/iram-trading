@@ -1,0 +1,14 @@
+{
+  "name": "iram-desktop",
+  "private": true,
+  "version": "50.0.0",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "npm --prefix ../app run build && tauri build",
+    "build:quick": "tauri build --no-bundle",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.4"
+  }
+}

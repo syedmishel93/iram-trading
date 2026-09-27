@@ -1,0 +1,2170 @@
+/* ============================================================================
+   RISK DESK, DRAWING TOOLS, AND THE MOTION PASS.
+   ----------------------------------------------------------------------------
+   One rule governs everything below, inherited from tokens.css and worth
+   restating because this is the file most likely to violate it:
+
+     MOTION IS FEEDBACK, NEVER DECORATION. Nothing that delays reading a number
+     is allowed. In particular NO NUMBER ON THIS PAGE ANIMATES — not a count-up,
+     not a cross-fade, not a slide. A risk figure that is mid-transition is a
+     risk figure you can misread, and "it looked nicer" is not a defence when
+     somebody sized a position off the frame before the last one.
+
+   What DOES move: containers appearing, selection following the pointer,
+   surfaces responding to a press. Things where the motion tells you something
+   happened.
+   ============================================================================ */
+
+/* ----------------------------------------------------------- RISK DESK --- */
+
+/* The desk title block. Deliberately its own class: `.dd-head` in desks.css
+   means "uppercase table header row", and the two are not the same thing. */
+.desk-head { margin-bottom: var(--sp-6); }
+.desk-head .view-sub { margin-top: var(--sp-2); max-width: 76ch; }
+
+.risk-desk .dd-panel { margin-bottom: var(--sp-6); }
+
+.risk-inputs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--sp-5);
+  margin-bottom: var(--sp-6);
+}
+
+.risk-inline { display: flex; gap: var(--sp-2); align-items: stretch; }
+.risk-inline .field-input { flex: 1; min-width: 0; }
+.risk-inline .ghost-btn { flex: 0 0 auto; white-space: nowrap; }
+
+.risk-out {
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface-inset);
+  padding: var(--sp-6);
+}
+.risk-out[data-ok="false"] { border-color: var(--attn); }
+
+.risk-headline {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-6);
+  padding-bottom: var(--sp-5);
+  border-bottom: 1px solid var(--border);
+}
+
+/* The one big number. Tabular by inheritance, and deliberately not animated. */
+.risk-qty {
+  font-family: var(--font-mono);
+  font-size: var(--fs-7);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-display);
+  color: var(--text);
+  line-height: var(--lh-tight);
+}
+.risk-qty-label {
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  letter-spacing: var(--track-micro);
+}
+
+.risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--sp-5);
+}
+
+.risk-metric { min-width: 0; }
+.risk-metric-label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  margin-bottom: var(--sp-2);
+}
+.risk-metric-value {
+  font-family: var(--font-mono);
+  font-size: var(--fs-5);
+  color: var(--text);
+  line-height: var(--lh-tight);
+}
+.risk-metric-sub {
+  margin-top: var(--sp-1);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+/* A refusal is a RESULT, not an error state — it is the tool doing its job. */
+.risk-refuse { display: flex; flex-direction: column; gap: var(--sp-3); }
+.risk-refuse-title {
+  font-size: var(--fs-5);
+  font-weight: var(--fw-semi);
+  color: var(--attn);
+  letter-spacing: var(--track-tight);
+}
+.risk-refuse-why { font-size: var(--fs-3); color: var(--text-muted); line-height: var(--lh-body); }
+
+.risk-notes { margin-top: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.risk-warn {
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--attn);
+  background: var(--attn-wash);
+  border-radius: 0 var(--r-2) var(--r-2) 0;
+  font-size: var(--fs-2);
+  color: var(--text);
+  line-height: var(--lh-snug);
+}
+
+/* Assumptions are quieter than warnings but must never be invisible: they are
+   the things the number could not know. */
+.risk-assume {
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--border-hi);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+.risk-heat { margin-bottom: var(--sp-5); }
+
+.risk-guard {
+  margin-bottom: var(--sp-5);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+}
+.risk-guard[data-pass="false"] { border-color: var(--neg); background: var(--neg-wash); }
+.risk-guard-head {
+  font-size: var(--fs-3);
+  font-weight: var(--fw-semi);
+  margin-bottom: var(--sp-3);
+  color: var(--text);
+}
+
+.risk-book { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-5); }
+
+.risk-pos {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  font-size: var(--fs-2);
+}
+/* A position with no stop has unbounded loss. It cannot look like the others. */
+.risk-pos[data-unprotected="true"] { border-color: var(--neg); }
+.risk-pos[data-unprotected="true"] .risk-pos-risk { color: var(--neg); font-weight: var(--fw-semi); }
+
+.risk-pos-sym { font-weight: var(--fw-semi); min-width: 78px; }
+.risk-pos-dir {
+  text-transform: uppercase;
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-wide);
+  padding: 1px var(--sp-3);
+  border-radius: var(--r-1);
+}
+.risk-pos-dir[data-dir="long"] { background: var(--pos-wash); color: var(--pos); }
+.risk-pos-dir[data-dir="short"] { background: var(--neg-wash); color: var(--neg); }
+.risk-pos-qty, .risk-pos-entry { color: var(--text-muted); font-family: var(--font-mono); }
+.risk-pos-risk { margin-left: auto; font-family: var(--font-mono); color: var(--text); }
+
+.risk-add { display: flex; flex-wrap: wrap; gap: var(--sp-3); align-items: center; }
+.risk-add .field-input { width: 120px; }
+.risk-add .field-input[placeholder="symbol"] { width: 130px; }
+
+/* -------------------------------------------------------- CHART TOOLBAR --- */
+
+/*
+   Docked, not floating.
+   The previous version was an absolutely-positioned panel over the top-left of
+   the chart. It covered the price action it existed to annotate, and it was the
+   only floating surface on a screen of docked panels — so it read as something
+   that had come loose. This is a strip in the flow, above the canvas, holding
+   everything that acts on the chart.
+*/
+.chart-toolbar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  flex: 0 0 auto;
+  padding: var(--sp-2) var(--sp-1);
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  /* WRAPS INTO A SECOND COLUMN RATHER THAN SCROLLING.
+
+     Measured at 640px viewport height: 609px of controls in a 520px rail. It
+     scrolled — and the scrollbar is hidden, so the last four tools were simply
+     not there, with nothing on screen saying so. A hidden scrollbar over
+     hidden controls is the worst of the three options.
+
+     Wrapping costs 33px of width in the case where scrolling would have cost
+     four invisible buttons, and it only happens on the windows short enough to
+     need it. Above about 700px tall the rail is a single column and this rule
+     never fires.
+
+     `overflow-y: auto` stays as a backstop for a window too short for even two
+     columns, and the scrollbar is left VISIBLE in that case — see below. */
+  flex-wrap: wrap;
+  align-content: flex-start;
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
+}
+/* Thin, and only when it is actually needed. The rail hid its scrollbar
+   entirely while it was horizontal, which is defensible for a strip that
+   overflows by a few pixels and indefensible for one hiding whole controls. */
+.chart-toolbar::-webkit-scrollbar { width: 6px; }
+.chart-toolbar::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Nothing labelled is left in the rail — the two controls that carried words,
+   Indicators and Auto-detect, moved to the context bar where they belong. This
+   stays as a floor: any future control that arrives here with a label gets
+   squared off rather than stretching a 33px column to fit its text. */
+.chart-toolbar .tool-btn.wide { padding: 0; min-width: var(--h-ctl-sm); }
+.chart-toolbar .tool-btn.wide > span:not([class]) { display: none; }
+
+/* A rule ACROSS the rail, not a tick down it. Separators that stayed vertical
+   would read as one-pixel scratches beside the buttons rather than as the
+   group boundaries they are. */
+.chart-toolbar .tool-sep {
+  width: 18px;
+  height: 1px;
+  margin: var(--sp-2) 0;
+  /* A separator that wraps to the top of the next column is a stray line under
+     nothing. Zero-width there so it disappears rather than leading a group it
+     is no longer between. */
+  flex: 0 0 auto;
+}
+.chart-toolbar .tool-spacer { flex: 1; min-width: 0; min-height: var(--sp-4); }
+
+.tool-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  flex: 0 0 auto;
+  height: var(--h-ctl-sm);
+  min-width: var(--h-ctl-sm);
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-2);
+  color: var(--text-muted);
+  font-size: var(--fs-2);
+  /* No `transition` here. `press.css` owns it for every control in its list,
+     and this class is now in that list — two declarations of a SHORTHAND is
+     how the last version of that file silently deleted eight colour
+     transitions. The properties it declares there are a superset of the two
+     this rule used to name. */
+}
+.tool-btn.wide { padding: 0 var(--sp-4); }
+@media (hover: hover) { .tool-btn:hover:not(:disabled) { background: var(--surface-hover); color: var(--text); } }
+.tool-btn[aria-pressed="true"] { background: var(--accent-wash); color: var(--accent); }
+.tool-btn:disabled { opacity: 0.35; }
+
+.tool-sep {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 18px;
+  margin: 0 var(--sp-2);
+  background: var(--border);
+}
+.tool-spacer { flex: 1; min-width: var(--sp-4); }
+
+/* Handles sit above the canvas but must not block the crosshair anywhere else,
+   so the container is inert and only the handles themselves take the pointer. */
+.draw-handle {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  margin: -5px 0 0 -5px;
+  border-radius: 2px;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  pointer-events: none;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--surface-base) 70%, transparent);
+}
+
+/* --------------------------------------------------------- MOTION PASS --- */
+
+/*
+   Desk transitions. 160ms, and the movement is 6px — enough to say "this is a
+   different surface", short enough that it is over before your eye has finished
+   moving. Any longer and switching desks feels like waiting.
+*/
+@keyframes desk-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.view-slot > * { animation: desk-in 160ms var(--ease-out) both; }
+
+/*
+   Press feedback MOVED OUT, to `press.css`.
+
+   It lived here and covered six classes — `.primary-btn`, `.ghost-btn`,
+   `.icon-btn`, `.tf-btn`, `.seg-btn`, `.draw-btn`. Twenty-six other controls had
+   none, and a second block declaring the same thing for overlapping selectors
+   is how one toolbar ends up with two press depths. `press.css` is the single
+   owner now and carries these exact values; the colour transitions these
+   classes need stay with the classes themselves.
+*/
+/* The transition list moved with the press, for a reason worth recording:
+   `transition` is a shorthand, so this rule and `press.css` could not each own
+   part of it — whichever loaded last would delete the other. `press.css` now
+   declares all four properties for every control it presses. */
+
+/*
+   Rows that respond to the pointer. Background only — never a size or a border
+   width, because either reflows the row and a table of prices that twitches
+   under the cursor is unreadable.
+*/
+.scr-row, .det-item, .alert-row, .liq-row, .notif-row, .risk-pos, .dd-plan-row {
+  transition: background var(--dur-1) var(--ease);
+}
+
+/*
+   The one thing that MUST NOT transition: anything carrying a number. Colour
+   changes on a price are information — a fade makes the moment of change
+   ambiguous, and mid-fade the colour means neither thing.
+*/
+.num,
+.legend-val,
+.risk-qty,
+.risk-metric-value,
+.ws-last,
+.scr-cell {
+  transition: none;
+}
+
+/* Focus rings must not move layout. Outline, never border. */
+:focus-visible { transition: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .view-slot > * { animation: none; }
+  /* The press transforms are suppressed in `press.css`, which owns them. */
+}
+
+/* --------------------------------------------------------- SKELETONS ----- */
+
+/*
+   A shimmer instead of the word "Loading…".
+   It communicates the SHAPE of what is arriving, which is the only reason to
+   prefer it — a spinner tells you to wait, a skeleton tells you what for.
+*/
+@keyframes skel {
+  from { background-position: -240px 0; }
+  to   { background-position: 240px 0; }
+}
+
+.skel {
+  border-radius: var(--r-2);
+  background-color: var(--surface-inset);
+  background-image: linear-gradient(
+    90deg,
+    transparent,
+    color-mix(in srgb, var(--p-fg) 6%, transparent),
+    transparent
+  );
+  background-size: 240px 100%;
+  background-repeat: no-repeat;
+  animation: skel 1.1s linear infinite;
+}
+.skel-row { height: 12px; margin-bottom: var(--sp-3); }
+.skel-row:nth-child(2) { width: 82%; }
+.skel-row:nth-child(3) { width: 64%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .skel { animation: none; }
+}
+
+/* ------------------------------------------------------- FUNDAMENTALS ----- */
+
+.fund { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.fund-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.fund-name { font-size: var(--fs-3); font-weight: var(--fw-semi); color: var(--text); }
+
+.fund-row { display: flex; align-items: baseline; gap: var(--sp-4); }
+.fund-label {
+  flex: 0 0 84px;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  letter-spacing: var(--track-micro);
+}
+.fund-value { display: flex; align-items: baseline; gap: var(--sp-3); min-width: 0; flex: 1; }
+.fund-num { font-family: var(--font-mono); font-size: var(--fs-3); color: var(--text); }
+
+/* Only the price changes carry a sign that is unambiguously good or bad. A low
+   float is not "bad" and high turnover is not "good", so the derived figures
+   are deliberately left in the neutral text colour. */
+.fund-num[data-tone="pos"] { color: var(--pos); }
+.fund-num[data-tone="neg"] { color: var(--neg); }
+
+.fund-sub {
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fund-changes {
+  display: flex;
+  gap: var(--sp-5);
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hair);
+}
+.fund-changes .fund-row { flex-direction: column; gap: 0; }
+.fund-changes .fund-label { flex: none; }
+
+.fund-note {
+  margin-top: var(--sp-3);
+  padding-left: var(--sp-4);
+  border-left: 2px solid var(--border-hi);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+.fund-empty {
+  font-size: var(--fs-2);
+  color: var(--text-faint);
+  line-height: var(--lh-snug);
+  margin-bottom: var(--sp-3);
+}
+
+/* Provenance is not a footnote here: float and dilution are both computed from
+   a self-reported field, and that has to travel with the numbers. */
+.fund-source {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border-hair);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  line-height: var(--lh-snug);
+}
+
+/* ---------------------------------------------------------- DECISION ----- */
+
+.dc-body { display: flex; flex-direction: column; gap: var(--sp-6); }
+
+.dc-headline {
+  padding: var(--sp-6);
+  border-radius: var(--r-3);
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+}
+/* The border carries the bias — but ONLY when the read is supported. A neutral
+   frame on an unsupported read is the point: it must not look decided. */
+.dc-headline[data-bias="long"]  { border-color: var(--pos); }
+.dc-headline[data-bias="short"] { border-color: var(--neg); }
+.dc-headline[data-bias="none"]  { border-color: var(--border-hi); }
+
+.dc-headline-top { display: flex; align-items: center; gap: var(--sp-4); margin-bottom: var(--sp-4); }
+.dc-sym { font-family: var(--font-mono); font-size: var(--fs-2); color: var(--text-muted); }
+.dc-spacer { flex: 1; }
+
+.dc-verdict {
+  font-size: var(--fs-5);
+  line-height: var(--lh-snug);
+  color: var(--text);
+  margin-bottom: var(--sp-5);
+}
+
+.dc-bar {
+  position: relative;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  margin-bottom: var(--sp-5);
+  overflow: hidden;
+}
+.dc-bar-mid { position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--border-hi); }
+.dc-bar-fill { position: absolute; top: 0; bottom: 0; background: var(--text-faint); }
+/* Coloured only when the read is actually supported. An unsupported score
+   drawn in the bull hue would borrow authority it has not earned. */
+.dc-bar[data-live="true"] .dc-bar-fill[data-side="long"]  { background: var(--pos); }
+.dc-bar[data-live="true"] .dc-bar-fill[data-side="short"] { background: var(--neg); }
+
+.dc-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: var(--sp-5); }
+.dc-stat-label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+.dc-stat-value { font-family: var(--font-mono); font-size: var(--fs-6); color: var(--text); line-height: var(--lh-tight); }
+.dc-stat-sub { font-size: var(--fs-1); color: var(--text-muted); }
+
+.dc-panel {
+  padding: var(--sp-5);
+  border-radius: var(--r-3);
+  border: 1px solid var(--border);
+  background: var(--surface);
+}
+.dc-panel .label { display: block; margin-bottom: var(--sp-4); }
+.dc-sub { font-size: var(--fs-2); color: var(--text-muted); margin: var(--sp-4) 0 var(--sp-3); line-height: var(--lh-snug); }
+
+.dc-limit {
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-3);
+  border-left: 2px solid var(--attn);
+  background: var(--attn-wash);
+  border-radius: 0 var(--r-2) var(--r-2) 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+}
+.dc-flip {
+  padding-left: var(--sp-4);
+  margin-bottom: var(--sp-3);
+  border-left: 2px solid var(--accent);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+
+.dc-group {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  margin: var(--sp-5) 0 var(--sp-3);
+}
+
+.dc-ev {
+  padding: var(--sp-4);
+  margin-bottom: var(--sp-3);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface-inset);
+}
+/* A source that FAILED is actionable; one that is ABSENT is a property of the
+   instrument. Different responses, so they cannot look the same. */
+.dc-ev[data-state="failed"] { border-color: var(--neg); }
+.dc-ev[data-state="absent"] { opacity: 0.7; border-style: dashed; }
+.dc-ev[data-state="stale"]  { border-color: var(--attn); }
+
+.dc-ev-head { display: flex; align-items: center; gap: var(--sp-3); margin-bottom: var(--sp-2); }
+.dc-ev-label { font-size: var(--fs-3); font-weight: var(--fw-semi); color: var(--text); }
+.dc-ev-lean {
+  font-size: var(--fs-1);
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide);
+  padding: 1px var(--sp-3);
+  border-radius: var(--r-1);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.dc-ev[data-lean="long"]  .dc-ev-lean { background: var(--pos-wash); color: var(--pos); }
+.dc-ev[data-lean="short"] .dc-ev-lean { background: var(--neg-wash); color: var(--neg); }
+.dc-ev-spacer { flex: 1; }
+
+/* Shown for absent rows too: the SIZE of what is missing is part of reading
+   the coverage figure. */
+.dc-ev-weight {
+  flex: 0 0 56px;
+  height: 4px;
+  border-radius: var(--r-full);
+  background: var(--surface);
+  overflow: hidden;
+}
+.dc-ev-weight-fill { display: block; height: 100%; background: var(--text-faint); }
+
+.dc-ev-reason { font-size: var(--fs-2); color: var(--text-muted); line-height: var(--lh-snug); }
+.dc-ev-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  margin-top: var(--sp-3);
+  flex-wrap: wrap;
+}
+.dc-ev-source { font-size: var(--fs-1); color: var(--text-faint); }
+.dc-ev-flip { font-size: var(--fs-1); color: var(--accent); flex: 1; min-width: 0; }
+
+.dc-standing {
+  padding: var(--sp-5);
+  border-radius: var(--r-3);
+  border: 1px dashed var(--border-hi);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  line-height: var(--lh-body);
+}
+
+/* -------------------------------------------------- CONNECTION HEALTH ---- */
+
+/*
+   Separate from the feed badge, deliberately.
+   A live feed on a blocked venue and a dead feed on a healthy network are
+   different problems with different fixes, and one indicator for both hides
+   which one you have.
+*/
+.conn { cursor: default; }
+.conn-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--text-faint);
+  flex: 0 0 auto;
+}
+.conn[data-conn="ok"]       .conn-dot { background: var(--pos); }
+.conn[data-conn="slow"]     .conn-dot { background: var(--attn); }
+.conn[data-conn="throttled"] .conn-dot { background: var(--attn); }
+.conn[data-conn="blocked"]  .conn-dot { background: var(--neg); }
+.conn[data-conn="offline"]  .conn-dot { background: var(--neg); }
+.conn[data-conn="unknown"]  .conn-dot { background: var(--text-faint); }
+
+.conn[data-conn="offline"],
+.conn[data-conn="blocked"] { color: var(--neg); }
+
+/* A fallback is not a preference. It reads as a warning because it changed
+   what the analyst is, without being asked. */
+.agent-note[data-fallback="true"] {
+  color: var(--attn);
+  border-top-color: var(--attn);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PORTFOLIO RISK
+   ---------------------------------------------------------------------------
+   Four tables of the same shape: key, two numbers, a sentence. One grid rule
+   for all four, because the moment they get separate rules their columns stop
+   lining up and the panel reads as four unrelated widgets stacked up.
+
+   The numbers are tabular-figure and right-aligned; the sentence is not. A
+   figure you cannot compare down a column is a figure you have to read one at
+   a time, which is the whole reason risk tables exist in a monospaced world.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pf-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+}
+
+.pf-blocked {
+  display: none;
+  margin-top: var(--sp-4);
+  padding: var(--sp-4);
+  border-radius: var(--r-2);
+  border-left: 2px solid var(--attn);
+  background: var(--attn-wash);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text);
+}
+.pf-blocked[data-on="true"] { display: block; }
+
+.pf-body { display: none; }
+.pf-body[data-on="true"] { display: block; }
+
+.pf-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: var(--sp-3);
+  margin: var(--sp-5) 0 var(--sp-4);
+}
+/* A stat block that has not been computed yet must not render as a row of em
+   dashes that look like measured zeroes. Only the hedge block sets this; the
+   portfolio one has no attribute and is unaffected. */
+.pf-stats[data-on="false"] { display: none; }
+.pf-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+}
+.pf-stat-k {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+.pf-stat-v {
+  font-size: var(--fs-4);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.pf-lede:not(:empty) {
+  margin: 0 0 var(--sp-4);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+
+.pf-warnings:not(:empty) { margin-bottom: var(--sp-5); display: grid; gap: var(--sp-2); }
+.pf-warn {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--r-2);
+  border-left: 2px solid var(--attn);
+  background: var(--attn-wash);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text);
+}
+
+.pf-sub {
+  margin: var(--sp-5) 0 var(--sp-2);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+.pf-hint {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+
+.pf-table { display: grid; gap: 1px; background: var(--border); border-radius: var(--r-2); overflow: hidden; }
+
+.pf-row {
+  display: grid;
+  grid-template-columns: minmax(90px, 130px) minmax(72px, 96px) minmax(72px, 110px) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+}
+.pf-k { color: var(--text); font-weight: var(--fw-med); }
+.pf-v { color: var(--text); font-variant-numeric: tabular-nums; text-align: right; }
+.pf-note { color: var(--text-muted); font-size: var(--fs-1); line-height: var(--lh-relaxed); }
+
+/* A hedge is the most valuable row in the contributions table and the easiest
+   to misread as a small loser, so it is tinted rather than left to the sign. */
+.pf-row[data-hedge="true"] { background: var(--pos-wash); }
+.pf-row[data-hedge="true"] .pf-v { color: var(--pos); }
+
+/* A beta the factor barely explains must not read as a clean number. */
+.pf-row[data-weak="true"] .pf-v { color: var(--text-faint); }
+.pf-row[data-loss="true"] .pf-v:nth-child(3) { color: var(--neg); }
+
+.pf-asof {
+  margin: var(--sp-5) 0 0;
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+/* Below the dock width the sentence needs its own line, or three columns of
+   numbers squeeze it to two words per row. */
+@media (max-width: 720px) {
+  .pf-row {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    row-gap: var(--sp-1);
+  }
+  .pf-note { grid-column: 1 / -1; }
+}
+
+/* ---------------------------------------------------- TRADE CALCULATOR --- */
+
+/* Two columns: what you type on the left, what it means on the right. The
+   split is 380px rather than a fraction because the input column holds fields
+   of a fixed comfortable width and the results column should take whatever is
+   left — a percentage split makes the inputs grow on a wide monitor, which
+   they have no use for. Below 900px it stacks, and the inputs come first
+   because you cannot read a result you have not supplied the inputs for. */
+.calc-grid {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .calc-grid { grid-template-columns: minmax(0, 1fr); }
+}
+
+.calc-col-inputs,
+.calc-col-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.calc-spec {
+  margin-top: var(--sp-3);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The cross-rate field appears only for the instruments that need one. It is
+   display:none rather than disabled: a greyed-out box on 65 of 72 instruments
+   is a permanent question the desk cannot answer. */
+.calc-cross { display: none; }
+.calc-cross[data-need="true"] { display: flex; }
+
+.calc-dir { display: flex; gap: var(--sp-2); }
+.calc-dir-btn {
+  flex: 1;
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-2);
+  cursor: pointer;
+}
+.calc-dir-btn[data-on="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--text);
+  font-weight: var(--fw-semi);
+}
+
+/* ---- the headline pair */
+
+.calc-headline { display: none; gap: var(--sp-4); }
+.calc-headline[data-on="true"] { display: grid; grid-template-columns: 1fr 1fr; }
+@media (max-width: 620px) {
+  .calc-headline[data-on="true"] { grid-template-columns: 1fr; }
+}
+
+.calc-hero,
+.calc-hero-cmp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface);
+}
+.calc-hero { border-color: var(--accent); background: var(--accent-wash); }
+.calc-hero-cmp[data-tone="neg"] { border-color: var(--neg); background: var(--neg-wash); }
+
+.calc-hero-k {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-muted);
+}
+.calc-hero-v {
+  font-family: var(--font-mono);
+  font-size: var(--fs-7);
+  line-height: var(--lh-tight);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.calc-hero-note {
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+
+/* ---- pip value */
+
+.calc-pip { display: flex; align-items: baseline; gap: var(--sp-3); }
+.calc-pip-v {
+  font-family: var(--font-mono);
+  font-size: var(--fs-6);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.calc-pip-k { font-size: var(--fs-2); color: var(--text-muted); }
+
+/* ---- stats and rows */
+
+.calc-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-2);
+}
+.calc-stat:last-child { border-bottom: 0; }
+.calc-stat-k { color: var(--text-muted); }
+.calc-stat-v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.calc-stat[data-tone="pos"] .calc-stat-v { color: var(--pos); }
+.calc-stat[data-tone="neg"] .calc-stat-v { color: var(--neg); }
+
+.calc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-2);
+}
+.calc-row-k { color: var(--text-muted); }
+.calc-row-v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.calc-row[data-tone="pos"] .calc-row-v { color: var(--pos); }
+.calc-row[data-tone="neg"] .calc-row-v { color: var(--neg); }
+
+.calc-divide {
+  height: 1px;
+  margin: var(--sp-3) 0;
+  background: var(--border);
+}
+
+/* ---- R ladder */
+
+.calc-ladder { display: grid; gap: 1px; background: var(--border); border-radius: var(--r-2); overflow: hidden; }
+.calc-ladder-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+}
+.calc-ladder-r { color: var(--text-muted); font-family: var(--font-mono); }
+.calc-ladder-px,
+.calc-ladder-pnl {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+.calc-ladder-pnl { color: var(--pos); }
+
+/* ---- blocked, warnings, assumptions */
+
+.calc-blocked { display: none; }
+.calc-blocked[data-on="true"] {
+  display: block;
+  padding: var(--sp-5) var(--sp-6);
+  border: 1px solid var(--attn);
+  border-radius: var(--r-3);
+  background: var(--attn-wash);
+}
+.calc-blocked-title {
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--attn);
+  margin-bottom: var(--sp-2);
+}
+.calc-blocked-body { font-size: var(--fs-3); line-height: var(--lh-relaxed); color: var(--text); }
+
+.calc-notices { display: none; }
+.calc-notices[data-on="true"] { display: block; }
+
+.calc-warn {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: baseline;
+  padding: var(--sp-3) 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text);
+}
+.calc-warn-dot {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-full);
+  background: var(--attn);
+}
+.calc-assume {
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+}
+
+/* ----------------------------------------------------------- PLAYBOOK --- */
+
+.pb-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: start;
+}
+@media (max-width: 1000px) {
+  .pb-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.pb-col-left, .pb-col-right {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  min-width: 0;
+}
+
+.pb-note {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+.pb-status {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  min-height: 1em;
+}
+.pb-actions { display: flex; gap: var(--sp-3); flex-wrap: wrap; margin-top: var(--sp-4); }
+.pb-actions [data-hidden="true"] { display: none; }
+
+/* ---- the rules, in English */
+
+.pb-english { display: grid; gap: 1px; background: var(--border); border-radius: var(--r-2); overflow: hidden; }
+.pb-en-row {
+  display: grid;
+  grid-template-columns: minmax(88px, 110px) minmax(0, 1fr);
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+}
+.pb-en-k { color: var(--text-muted); }
+.pb-en-v { color: var(--text); }
+
+/* ---- the editor */
+
+.pb-group { margin-bottom: var(--sp-5); }
+.pb-group-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); }
+.pb-group-label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-muted);
+}
+.pb-group-hint { margin: var(--sp-1) 0 var(--sp-3); font-size: var(--fs-1); color: var(--text-faint); }
+
+.pb-conds { display: flex; flex-direction: column; gap: var(--sp-2); }
+.pb-cond { display: flex; gap: var(--sp-2); align-items: center; }
+.pb-and {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-wide);
+  color: var(--text-faint);
+  padding-left: var(--sp-2);
+}
+
+.pb-sel, .pb-operand {
+  min-width: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  background: var(--surface-inset);
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-2);
+}
+.pb-sel { flex: 1 1 40%; }
+.pb-sel-op { flex: 0 1 30%; }
+.pb-operand { flex: 1 1 26%; font-family: var(--font-mono); }
+.pb-operand.num { font-variant-numeric: tabular-nums; }
+.pb-sel:focus-visible, .pb-operand:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pb-operand:disabled { opacity: 0.45; }
+
+.pb-empty { font-size: var(--fs-1); color: var(--text-faint); padding: var(--sp-2) 0; }
+
+.pb-exit-row {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  margin-top: var(--sp-4);
+}
+.pb-exit-row .pb-group-label { flex: 0 0 60px; }
+
+/* ---- problems */
+
+.pb-problems { display: none; }
+.pb-problems[data-on="true"] { display: block; border-color: var(--attn); }
+.pb-problem {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.pb-problem-where { font-family: var(--font-mono); color: var(--attn); flex: 0 0 auto; }
+
+/* ---- result */
+
+.pb-metrics { display: none; }
+.pb-metrics[data-on="true"] { display: grid; gap: 1px; background: var(--border); border-radius: var(--r-2); overflow: hidden; }
+.pb-metric {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+}
+.pb-metric-k { color: var(--text-muted); }
+.pb-metric-v { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); }
+
+.pb-verdict { display: none; }
+.pb-verdict[data-on="true"] {
+  display: block;
+  margin: var(--sp-4) 0 var(--sp-3);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+}
+
+.pb-refused { display: none; }
+.pb-refused[data-on="true"] {
+  display: block;
+  padding: var(--sp-4);
+  border: 1px solid var(--attn);
+  border-radius: var(--r-2);
+  background: var(--attn-wash);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text);
+}
+
+/* ----------------------------------------------------------- SESSIONS --- */
+
+/*
+  MEASURED at 1800px: the last track was **998px**, holding
+  "closed — opens in 7.3h". 10 + 100 + 120 fixed, three gaps and the padding
+  come to about 310, and the note needs roughly 250, so the clock stops at 600
+  and the four columns sit next to each other instead of at opposite ends of
+  the desk.
+*/
+.sess-clock {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-width: 600px;
+  background: var(--border);
+  border-radius: var(--r-2);
+  overflow: hidden;
+}
+.sess-row {
+  display: grid;
+  grid-template-columns: 10px minmax(72px, 100px) minmax(90px, 120px) minmax(0, 1fr);
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+}
+.sess-dot { width: 7px; height: 7px; border-radius: var(--r-full); background: var(--text-faint); }
+.sess-row[data-open="true"] .sess-dot { background: var(--pos); }
+.sess-name { color: var(--text); }
+.sess-row[data-open="true"] .sess-name { font-weight: var(--fw-semi); }
+.sess-window { font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.sess-state { color: var(--text-muted); }
+.sess-row[data-open="true"] .sess-state { color: var(--pos); }
+
+.sess-overlap {
+  margin-top: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+.sess-overlap[data-on="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--text);
+}
+
+/* The map. 25 columns: one weekday label, then 24 hours. */
+.sess-grid {
+  display: grid;
+  grid-template-columns: 34px repeat(24, minmax(0, 1fr));
+  gap: 2px;
+  align-items: center;
+}
+.sess-grid:empty { display: none; }
+.sess-corner { display: block; }
+.sess-hhead,
+.sess-whead {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.sess-whead { text-align: left; }
+
+.sess-cell {
+  display: block;
+  aspect-ratio: 1;
+  min-height: 10px;
+  border-radius: 2px;
+  /* One token carries the intensity; a thin cell sets it to 0 and shows only
+     the hairline, so "no data" cannot be mistaken for "quiet". */
+  background: color-mix(in srgb, var(--accent) calc(var(--heat, 0) * 100%), transparent);
+  border: 1px solid var(--border-hair);
+}
+.sess-cell[data-thin="true"] { border-style: dashed; }
+
+.sess-empty { display: none; }
+.sess-empty[data-on="true"] {
+  display: block;
+  padding: var(--sp-5);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-2);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+}
+
+.sess-note { display: none; }
+.sess-note[data-on="true"] {
+  display: block;
+  margin-top: var(--sp-4);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+.sess-desk .pf-hint[data-on="false"] { display: none; }
+.sess-desk .dd-panel[data-on="false"] { display: none; }
+
+.sess-top { display: grid; gap: 1px; background: var(--border); border-radius: var(--r-2); overflow: hidden; }
+.sess-top-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(70px, 90px) minmax(70px, 90px);
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+}
+.sess-top-when { color: var(--text); }
+.sess-top-range, .sess-top-n {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.sess-top-range { color: var(--text); }
+.sess-top-n { color: var(--text-faint); }
+
+/* -------------------------------------------- WATCHLIST AND HEATMAP --- */
+
+.wl-bar { display: flex; align-items: center; gap: var(--sp-4); flex-wrap: wrap; }
+.wl-asof { font-size: var(--fs-1); color: var(--text-faint); font-variant-numeric: tabular-nums; }
+.wl-error { display: none; }
+.wl-error[data-on="true"] { display: inline; font-size: var(--fs-1); color: var(--neg); }
+
+.wl-add { display: flex; gap: var(--sp-3); margin-bottom: var(--sp-4); }
+.wl-add .field-input { flex: 1; min-width: 0; }
+
+/*
+  MEASURED at 1800px: the row was 1638px wide and "BTCUSDT" sat in a **525px**
+  cell, the price in 375 and "-1.81%" in 300 — every column four to five times
+  its content. Four `fr` tracks share whatever is left, and on a wide desk that
+  is everything.
+
+  90 fixed, four `--sp-4` gaps and the padding come to 186; the four flexible
+  columns want roughly 230 / 165 / 130 / 130.
+
+  There is NO wrapper element — `.wl-head` and `.wl-rows` are siblings — so
+  both carry the cap. They share one track list, and a measure on only one of
+  them would misalign the header from the columns it labels.
+*/
+.wl-head,
+.wl-rows { max-width: 820px; }
+.wl-head,
+.wl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(70px, 1fr) minmax(64px, 0.8fr) minmax(64px, 0.8fr) 90px;
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  font-size: var(--fs-2);
+}
+.wl-head {
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+}
+.wl-head .num, .wl-row .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+.wl-rows { display: grid; gap: 1px; background: var(--border); }
+.wl-row { background: var(--surface); }
+.wl-row[data-current="true"] { background: var(--accent-wash); }
+
+.wl-sym {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  font-weight: var(--fw-med);
+  color: var(--text);
+  cursor: pointer;
+}
+@media (hover: hover) { .wl-sym:hover { color: var(--accent); text-decoration: underline; } }
+.wl-px { font-family: var(--font-mono); color: var(--text); }
+.wl-chg { font-family: var(--font-mono); color: var(--text-muted); }
+.wl-row[data-tone="pos"] .wl-chg { color: var(--pos); }
+.wl-row[data-tone="neg"] .wl-chg { color: var(--neg); }
+.wl-vol { font-family: var(--font-mono); color: var(--text-faint); }
+.wl-tools { display: flex; gap: var(--sp-1); justify-content: flex-end; }
+
+.wl-empty { display: none; }
+.wl-empty[data-on="true"] {
+  display: block;
+  padding: var(--sp-5);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+
+.hm-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4); }
+.hm-quote { width: auto; flex: 0 0 auto; }
+
+.hm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: var(--sp-2);
+}
+.hm-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-3);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-2);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  /* Magnitude drives the wash; the tone picks which colour it washes toward.
+     Roles, never literal colours — the palette swaps per theme. */
+  background: color-mix(in srgb, var(--pos) calc(var(--mag, 0) * 55%), var(--surface));
+}
+.hm-tile[data-tone="neg"] {
+  background: color-mix(in srgb, var(--neg) calc(var(--mag, 0) * 55%), var(--surface));
+}
+@media (hover: hover) { .hm-tile:hover { border-color: var(--accent); } }
+.hm-sym {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hm-chg { font-size: var(--fs-1); font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+/* --------------------------------------------------------------- HEDGE --- */
+
+.hedge-pick { margin-bottom: var(--sp-4); }
+.hedge-pick .field-input { flex: 1; min-width: 0; text-transform: uppercase; }
+
+.hedge-row {
+  grid-template-columns:
+    minmax(80px, 110px) minmax(80px, 100px) minmax(48px, 60px)
+    minmax(58px, 72px) minmax(0, 1fr);
+}
+
+/* --------------------------------------------------------------- PAPER --- */
+
+.pp-banner {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: baseline;
+  padding: var(--sp-4) var(--sp-5);
+  border: 1px solid var(--attn);
+  border-radius: var(--r-3);
+  background: var(--attn-wash);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text);
+}
+.pp-badge {
+  flex: none;
+  padding: 2px var(--sp-3);
+  border-radius: var(--r-1);
+  background: var(--attn);
+  color: var(--surface-base);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
+}
+
+.pp-actions { display: flex; gap: var(--sp-3); align-items: center; margin-top: var(--sp-4); flex-wrap: wrap; }
+.pp-live { font-family: var(--font-mono); font-size: var(--fs-1); color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pp-message:empty { display: none; }
+.pp-message {
+  margin-top: var(--sp-3);
+  font-size: var(--fs-2);
+  color: var(--attn);
+  line-height: var(--lh-relaxed);
+}
+
+.pp-rows { display: grid; gap: 1px; background: var(--border); border-radius: var(--r-2); overflow: hidden; }
+.pp-rows:empty { display: none; }
+.pp-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(50px, 0.7fr) minmax(64px, 1fr) minmax(64px, 1fr) minmax(70px, 1fr) minmax(56px, 0.8fr);
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+}
+.pp-sym { color: var(--text); }
+.pp-v { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text-muted); }
+.pp-pnl { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; color: var(--text); }
+.pp-row[data-tone="pos"] .pp-pnl { color: var(--pos); }
+.pp-row[data-tone="neg"] .pp-pnl { color: var(--neg); }
+.pp-why { font-size: var(--fs-1); color: var(--text-faint); }
+
+.pp-empty { display: none; }
+.pp-empty[data-on="true"] { display: block; font-size: var(--fs-2); color: var(--text-muted); padding: var(--sp-3) 0; }
+
+.pp-curve { display: block; width: 100%; height: 90px; margin: var(--sp-4) 0; }
+
+/* --------------------------------------------------------- SMART MONEY --- */
+
+.sm-toggles { display: flex; flex-wrap: wrap; gap: var(--sp-2); margin-bottom: var(--sp-4); }
+.sm-toggle {
+  padding: var(--sp-2) var(--sp-4);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  background: var(--surface-inset);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: var(--fs-1);
+  cursor: pointer;
+}
+.sm-toggle[data-on="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--text);
+}
+
+.sm-controls { display: flex; gap: var(--sp-6); flex-wrap: wrap; align-items: flex-end; }
+.sm-ctl { display: flex; flex-direction: column; gap: var(--sp-2); font-size: var(--fs-1); color: var(--text-muted); }
+.sm-ctl .field-input { width: auto; }
+.sm-ctl input[type="range"] { width: 180px; }
+
+.sm-rows { display: grid; gap: 1px; background: var(--border); border-radius: var(--r-2); overflow: hidden; }
+.sm-rows:empty { display: none; }
+.sm-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 150px) minmax(56px, 76px) minmax(40px, 52px) minmax(70px, 92px) minmax(0, 2fr);
+  gap: var(--sp-4);
+  align-items: baseline;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface);
+  font-size: var(--fs-2);
+  /* A left edge carries direction, so the row is scannable without reading the
+     word — and the word is still there, because colour alone is not a label. */
+  border-left: 2px solid transparent;
+}
+.sm-row[role="button"] { cursor: pointer; }
+@media (hover: hover) { .sm-row[role="button"]:hover { background: var(--surface-hover); } }
+.sm-row[data-dir="long"] { border-left-color: var(--pos); }
+.sm-row[data-dir="short"] { border-left-color: var(--neg); }
+.sm-kind { color: var(--text); font-weight: var(--fw-med); }
+.sm-dir { color: var(--text-muted); }
+.sm-row[data-dir="long"] .sm-dir { color: var(--pos); }
+.sm-row[data-dir="short"] .sm-dir { color: var(--neg); }
+.sm-conf, .sm-when {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+.sm-why { color: var(--text-muted); line-height: var(--lh-relaxed); }
+
+.sm-empty { display: none; }
+.sm-empty[data-on="true"] {
+  display: block;
+  padding: var(--sp-5);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+}
+
+.sm-desk .dd-panel[data-on="false"] { display: none; }
+.sm-note p {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+}
+
+/* ─────────────────────────────────────────────────────── the broker book ──
+ *
+ * Provenance per row, because "is there a connection" is not the question an
+ * operator has — "is the number I am sizing on the real one" is, and that is
+ * answered per position. The two states that change a risk figure (not
+ * counted, unsized) are stated in words and given the attention roles; the
+ * ordinary ones are quiet.
+ */
+
+.bk {
+  display: grid;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  margin-bottom: var(--sp-5);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+
+.bk-h {
+  margin: 0;
+  font: var(--fw-semi) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.bk-head {
+  display: grid;
+  gap: var(--sp-3);
+}
+
+.bk-state {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+}
+
+.bk-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--r-full);
+  background: var(--text-faint);
+}
+
+.bk-state[data-on="1"] .bk-dot { background: var(--pos); }
+
+.bk-state-t {
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text);
+}
+
+.bk-state-b,
+.bk-note {
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+  margin: 0;
+}
+
+.bk-figs {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--sp-4);
+}
+
+.bk-fig { display: grid; gap: 1px; }
+
+.bk-fig-l {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.bk-fig-v {
+  font: var(--fw-semi) var(--fs-3) / 1.1 var(--font-mono);
+  color: var(--text);
+}
+
+.bk-why {
+  margin: 0;
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.bk-retry {
+  justify-self: start;
+  height: var(--h-ctl-sm);
+  padding: 0 var(--sp-5);
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-ui);
+  color: var(--text);
+  background: var(--surface-inset);
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-2);
+  cursor: pointer;
+}
+
+.bk-rows { display: grid; gap: var(--sp-1); }
+
+.bk-row {
+  display: grid;
+  grid-template-columns: minmax(110px, 1.3fr) 70px 90px 90px 110px minmax(90px, auto) auto;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+}
+
+.bk-row-head {
+  padding-block: 0;
+  background: transparent;
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  letter-spacing: var(--track-wide);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* A row that is NOT in the risk figures reads as excluded, not as ordinary. */
+.bk-row[data-kind="unmatched"],
+.bk-row[data-unsized="1"] {
+  opacity: 0.72;
+  border-left: 2px solid var(--attn);
+}
+
+.bk-id { display: grid; gap: 1px; min-width: 0; }
+
+.bk-sym {
+  font: var(--fw-semi) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text);
+}
+
+.bk-dir {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  text-transform: uppercase;
+  letter-spacing: var(--track-wide);
+}
+
+.bk-dir[data-dir="long"]  { color: var(--pos); }
+.bk-dir[data-dir="short"] { color: var(--neg); }
+
+.bk-qty, .bk-entry, .bk-stop, .bk-pnl {
+  font: var(--fw-med) var(--fs-2) / 1 var(--font-mono);
+  color: var(--text-muted);
+  text-align: right;
+}
+
+/* No stop is a STANDING, not a missing value. It gets the warning role. */
+.bk-stop[data-none="1"] {
+  color: var(--attn);
+  font-style: italic;
+}
+
+.bk-pnl[data-tone="pos"]  { color: var(--pos); }
+.bk-pnl[data-tone="neg"]  { color: var(--neg); }
+.bk-pnl[data-tone="none"] { color: var(--text-faint); }
+
+.bk-kind {
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.bk-keep {
+  height: var(--h-ctl-xs);
+  padding: 0 var(--sp-4);
+  font: var(--fw-med) var(--fs-1) / 1 var(--font-ui);
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--border-hi);
+  border-radius: var(--r-full);
+  cursor: pointer;
+}
+
+.bk-unsized,
+.bk-refusal {
+  grid-column: 1 / -1;
+  margin: var(--sp-2) 0 0;
+  font: var(--fw-normal) var(--fs-1) / var(--lh-body) var(--font-ui);
+  color: var(--text-muted);
+}
+
+.bk-refusal {
+  margin: 0;
+  padding: var(--sp-4);
+  color: var(--text);
+  background: var(--neg-wash);
+  border-left: 2px solid var(--neg);
+  border-radius: 0 var(--r-2) var(--r-2) 0;
+}
+
+.bk-empty {
+  padding: var(--sp-4);
+  font: var(--fw-normal) var(--fs-2) / var(--lh-body) var(--font-ui);
+  color: var(--text-faint);
+  background: var(--surface-inset);
+  border-radius: var(--r-2);
+}
+
+@media (hover: hover) {
+  .bk-retry:hover,
+  .bk-keep:hover {
+    color: var(--text);
+    background: var(--surface-hover);
+  }
+}
+
+.bk-retry:focus-visible,
+.bk-keep:focus-visible {
+  outline: none;
+  box-shadow: var(--ring);
+}
+
+/* ── v62.3: the Playbook's own controls ─────────────────────────────────── */
+
+/*
+  WHAT TO TEST, OVER WHAT, WITH HOW MUCH.
+
+  The desk had none of these: it tested whatever the chart was showing, over a
+  constant 1,500 bars, with no account behind it. MEASURED on the owner's
+  screen, that produced "992 bars from mt5" and 73 trades — a count describing
+  the window rather than the strategy.
+
+  Six controls, each at the width of what it holds. A year is four characters
+  and a market is eight; giving both a `1fr` track is the fault recorded twice
+  already in this file's neighbours.
+*/
+.pb-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) 92px 84px 84px minmax(0, 1fr) 84px;
+  gap: var(--sp-3);
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .pb-controls { grid-template-columns: repeat(auto-fit, minmax(104px, 160px)); justify-content: start; }
+}
+.pb-field { display: flex; flex-direction: column; gap: var(--sp-1); min-width: 0; }
+.pb-field .field-input { width: 100%; box-sizing: border-box; }
+
+/* The plan, in one line, BEFORE the run. Green is not a decoration here: a
+   refused plan and a clipped one are different states and the operator acts on
+   them differently. */
+.pb-plan {
+  margin: var(--sp-3) 0 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+.pb-plan[data-ok="false"] { color: var(--neg); }
+.pb-plan-why {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  color: var(--attn);
+  line-height: var(--lh-snug);
+  max-width: 76ch;
+}
+
+/* The combine control. A refusal is a RESULT here — "these two cannot be
+   combined, the second adds no state condition" is worth reading — so it is
+   coloured as attention rather than hidden. */
+.pb-combine { margin-top: var(--sp-4); }
+.pb-combine-why {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+  max-width: 72ch;
+}
+.pb-combine-why[data-refused="true"] { color: var(--attn); }
+
+/* ------------------------------------------- WHAT A MODEL MAKES OF IT --- */
+
+/*
+  THE SKILL VERDICT IS THE ONLY COLOURED THING HERE, and it earns it: "no
+  skill" is a REFUSAL to route, and CLAUDE.md's rule is that colour follows the
+  standing rather than the number. A panel that painted the AUC green whenever
+  it rose would be colouring a figure that means nothing on its own — 0.52 is
+  noise on 300 rows and a finding on 30,000.
+
+  Everything else in the panel is the ordinary metric grid, deliberately, so it
+  reads as part of the result rather than as a second product bolted on.
+*/
+.pb-learn { display: none; }
+.pb-learn[data-on="true"] { display: block; }
+
+.pb-learn-status {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.pb-learn-verdict {
+  margin: var(--sp-4) 0 var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--border);
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.pb-learn-verdict[data-skill="yes"] { border-left-color: var(--pos); color: var(--text); }
+.pb-learn-verdict[data-skill="no"] { border-left-color: var(--attn); }
+
+/*
+  THE RELIABILITY CURVE MOVED. Its markup is `ui/cards/calibration.ts` and
+  its look is `.cal*` in `desks.css`, because the Simulation desk draws the
+  same block and two copies of a thing like this drift. The `.pb-cal*` rules
+  that stood here are gone with the elements they styled - a dead rule is a
+  rule somebody will one day try to make work.
+*/
+
+.pb-learn-sub {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  max-width: 72ch;
+}
+/* ------------------------------- THE BROKER'S OWN ANSWER, BESIDE THE TABLE'S
+   A table is a claim about a broker; the broker is the broker. This block is
+   quiet when they agree and says so plainly when they do not — CLAUDE.md
+   records a shipped ticket sizing gold a thousand times too small because a
+   contract size was assumed rather than asked for.
+   -------------------------------------------------------------------------- */
+.risk-broker { margin: var(--sp-4) 0 0; display: flex; flex-direction: column; gap: var(--sp-2); align-items: flex-start; }
+
+.risk-broker-note {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-faint);
+  max-width: 72ch;
+}
+
+.risk-broker-out {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-4);
+  border-left: 2px solid var(--border);
+  font-size: var(--fs-1);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+/* Agreement is the quiet state. A disagreement is the finding. */
+.risk-broker-out[data-agree="yes"] { border-left-color: var(--pos); }
+.risk-broker-out[data-agree="no"] { border-left-color: var(--attn); color: var(--text); }
+
+/* ================================================================
+   THE FETCH OFFERED ON A REFUSAL.
+
+   A refusal that can be fixed carries the fix. Shown only when the
+   plan reports `missing` — a typed field, never a match on the
+   sentence, because two of the three refusals reaching that line
+   cannot be fixed by fetching and differ in English alone.
+
+   Sits under `.pb-plan`, which is `--neg` when the plan refuses, so
+   this block is the one thing in that area that is NOT red: the
+   refusal is the problem and this is the way out of it.
+   ================================================================ */
+.pb-fetch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.pb-fetch-size,
+.pb-fetch-note {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  max-width: 64ch;
+}
+.pb-fetch-note:empty { display: none; }
+
+/* ================================================================
+   DID IT STILL WORK RECENTLY? — the held-back window.
+
+   The rule set was CHOSEN, usually after seeing how it did, so the
+   window the choice was made on cannot argue with it. This is the
+   cheapest thing that can.
+
+   THE REFUSAL IS AS PROMINENT AS A RESULT. Two percentages over a
+   handful of trades look exactly like a measurement, so "not enough
+   to compare" gets the same weight rather than being tucked away.
+
+   `data-agrees="false"` is `--attn`, NOT `--neg`. A rule that stopped
+   working is a FINDING, not an error — the most valuable thing this
+   block can tell anyone, and colouring it as a fault would teach the
+   operator to look away from it.
+   ================================================================ */
+.pb-holdout {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.pb-holdout[data-on="false"] { display: none; }
+.pb-holdout-head {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.pb-holdout-ctl {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+.pb-holdout-ctl .field-input { width: auto; }
+.pb-holdout-why {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.pb-holdout-why[data-agrees="true"] { color: var(--pos); }
+.pb-holdout-why[data-agrees="false"] { color: var(--attn); }
+
+.pb-holdout-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  max-width: 52ch;
+}
+.pb-holdout-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-0);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--border);
+}
+.pb-holdout-col-head {
+  font-size: var(--fs-0);
+  color: var(--text-faint);
+}
+.pb-holdout-fig {
+  font-family: var(--font-mono);
+  font-size: var(--fs-4);
+  color: var(--text);
+}
+.pb-holdout-sub {
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+
+/* ================================================================
+   WHAT THE RUN WAS CHARGED.
+
+   A cost model is a HURDLE, so an assumed cost is an assumed
+   conclusion. The measured spread is offered and never adopted by
+   itself — a figure that moved because a service answered is a
+   result that changed for a reason nobody chose.
+   ================================================================ */
+.pb-costs {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.pb-costs[data-on="false"] { display: none; }
+.pb-costs-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-size: var(--fs-1);
+  color: var(--text);
+}
+.pb-costs-why {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-0);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+
+@media (max-width: 720px) {
+  .pb-holdout-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ================================================================
+   DOES IT WORK ANYWHERE ELSE? — one rule across several markets.
+
+   NOTHING HERE IS RANKED, and the layout carries that: rows in the
+   order they were run, one figure each, no sort control. A sorted
+   table always has a big number at the top — including on data with
+   no edge in it — and the top row of a sorted list reads as a
+   recommendation whatever the caption says.
+
+   `data-refused="true"` is muted, not red. A market with no history
+   did not fail the rule; it could not answer, and colouring it as a
+   failure would make a rule look worse than the evidence says.
+   ================================================================ */
+.pb-across {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.pb-across-head {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.pb-across-lede {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-0);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.pb-across-chiprow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+  margin-bottom: var(--sp-2);
+}
+.pb-chip[data-on="true"] {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.pb-across-ctl { margin-bottom: var(--sp-2); }
+.pb-across-why {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.pb-across-why[data-verdict="consistent"] { color: var(--pos); }
+.pb-across-why[data-verdict="one-market"] { color: var(--attn); }
+.pb-across-why[data-verdict="mixed"] { color: var(--attn); }
+
+.pb-across-row {
+  display: grid;
+  grid-template-columns: 120px 88px minmax(0, 1fr);
+  gap: var(--sp-2);
+  align-items: baseline;
+  padding: var(--sp-1) 0;
+  border-top: 1px solid var(--border);
+  max-width: 64ch;
+}
+.pb-across-sym { font-size: var(--fs-1); color: var(--text); }
+.pb-across-fig {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text);
+  text-align: right;
+}
+.pb-across-sub { font-size: var(--fs-0); color: var(--text-muted); }
+.pb-across-row[data-refused="true"] .pb-across-fig,
+.pb-across-row[data-refused="true"] .pb-across-sym { color: var(--text-faint); }
+
+@media (max-width: 720px) {
+  .pb-across-row { grid-template-columns: minmax(0, 1fr); }
+  .pb-across-fig { text-align: left; }
+}
+
+/* ================================================================
+   AGAINST ANOTHER RULE.
+
+   THE VERDICT LEADS, the two figures follow. A side-by-side pair
+   with the verdict underneath invites the eye to rank them first
+   and read the caveat second, which is the whole failure mode: a
+   gap of 0.03R over forty trades looks like a winner.
+
+   `data-verdict="tie"` is MUTED, not red and not green. A tie is
+   the most common honest answer and the one most worth reading;
+   colouring it as a failure teaches people to keep clicking until
+   something goes green.
+   ================================================================ */
+.pb-h2h {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.pb-h2h[data-on="false"] { display: none; }
+.pb-h2h-head {
+  margin: 0 0 var(--sp-1);
+  font-size: var(--fs-2);
+  color: var(--text);
+}
+.pb-h2h-lede {
+  margin: 0 0 var(--sp-2);
+  font-size: var(--fs-0);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.pb-h2h-ctl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+  margin-bottom: var(--sp-2);
+}
+.pb-h2h-ctl .field-input { width: auto; max-width: 28ch; }
+.pb-h2h-why {
+  margin: 0 0 var(--sp-3);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+  max-width: 72ch;
+}
+.pb-h2h-why[data-verdict="a"],
+.pb-h2h-why[data-verdict="b"] { color: var(--attn); }
+
+.pb-h2h-cols {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  max-width: 52ch;
+}
+.pb-h2h-col {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-0);
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--border);
+}
+.pb-h2h-name { font-size: var(--fs-0); color: var(--text-faint); }
+.pb-h2h-fig {
+  font-family: var(--font-mono);
+  font-size: var(--fs-4);
+  color: var(--text);
+}
+.pb-h2h-sub { font-size: var(--fs-0); color: var(--text-muted); }
+
+@media (max-width: 720px) {
+  .pb-h2h-cols { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* ================================================================
+   KEEP THE RESULT, WITH THE DATA BEHIND IT.
+
+   The line beside the buttons states what the receipt will contain
+   BEFORE it is pressed — bars, vendor, and whether the spread was
+   measured. A save button whose contents are a mystery is one
+   nobody trusts enough to press twice.
+   ================================================================ */
+.pb-receipt {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+}
+.pb-receipt[data-on="false"] { display: none; }
+.pb-receipt-ctl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  align-items: center;
+}
+.pb-receipt-what {
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+}
+.pb-receipt-note {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-0);
+  color: var(--text-muted);
+  max-width: 70ch;
+}
+.pb-receipt-note:empty { display: none; }

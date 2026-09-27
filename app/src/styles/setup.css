@@ -1,0 +1,575 @@
+/* ============================================================================
+   THE SETUP CARD
+
+   Fixed read order, always the same six blocks. The verdict is the only part
+   that changes colour, and it changes to say what YOUR RULES did — never to
+   suggest a direction. Reads semantic roles only, so it re-themes with the
+   rest.
+   ============================================================================ */
+
+.setup { display: flex; flex-direction: column; gap: 0; }
+.setup-idle,
+.setup-problem {
+  margin: 0;
+  padding: var(--sp-5) 0;
+  color: var(--text-muted);
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+}
+
+/* Wraps rather than truncates. Four items in one 307px row ellipsised the
+   strategy to "discretio…", which is the one word on the header that says
+   which of thirteen detectors the card is talking about. */
+.setup-head {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding-bottom: var(--sp-4);
+  flex-wrap: wrap;
+  row-gap: var(--sp-2);
+}
+.setup-inst { font-size: var(--fs-2); color: var(--text-muted); }
+.setup-count {
+  margin-left: auto;
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  padding: 2px var(--sp-4);
+  border-radius: var(--r-full);
+}
+.setup-count[data-kind="go"] { background: var(--pos-wash); color: var(--pos); }
+.setup-count[data-kind="stand-down"] { background: var(--neg-wash); color: var(--neg); }
+.setup-count[data-kind="unknown"] { background: var(--attn-wash); color: var(--attn); }
+
+/* --- verdict -------------------------------------------------------------- */
+.setup-verdict {
+  padding: var(--sp-4) 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+/* MEASURED, at the 360px dock the card actually lives in, and revised twice.
+   `--fs-6` is documented as "panel titles" and it is right for one: a desk
+   header, a modal, a settings page — surfaces 700px and wider. In a 307px
+   column it was 22px of bold uppercase against a card whose every other line
+   is 11.5–12.5px. A 1.76x leap with nothing in between does not read as
+   hierarchy, it reads as shouting.
+
+   `--fs-5` was still too loud, and the reason is that SIZE WAS NEVER THE ONLY
+   THING SHOUTING. This line stacks four emphasis mechanisms at once: the
+   display face, bold weight, uppercase, and the only saturated colour in the
+   card. Any one of those makes a line dominant; four makes it dominate whether
+   it is 22px or 18px, and each round of shrinking traded legibility for a
+   quietness that was never coming from the size.
+
+   So: down to `--fs-4`, and the tracking goes the other way. Negative tracking
+   is for large display type that needs pulling together; at 15.5px uppercase it
+   just looks cramped. Wide tracking is what makes a small, bold, uppercase
+   label read as deliberate rather than shrunken — it is the treatment every
+   institutional terminal uses for a status verdict, and it is the one that
+   stops the card being built around one word. The colour and the weight still
+   make it the first thing the eye lands on. */
+.setup-headline {
+  font-family: var(--font-disp);
+  font-size: var(--fs-4);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--track-wide);
+  line-height: var(--lh-tight);
+}
+.setup-verdict[data-kind="go"] .setup-headline { color: var(--pos); }
+.setup-verdict[data-kind="stand-down"] .setup-headline { color: var(--neg); }
+.setup-verdict[data-kind="unknown"] .setup-headline { color: var(--attn); }
+
+.setup-read {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  line-height: var(--lh-snug);
+}
+/* Bright, not muted: this is the sentence that stops a refusal being read as a
+   bearish call, so it must not look like small print. */
+.setup-notdirection {
+  margin: var(--sp-3) 0 0;
+  font-size: var(--fs-2);
+  color: var(--text);
+  font-weight: var(--fw-med);
+  line-height: var(--lh-snug);
+}
+
+/* --- sections ------------------------------------------------------------- */
+.setup-sec { padding: var(--sp-4) 0; border-bottom: 1px solid var(--border-hair); }
+/* The section label and the label/value rows now come from panelkit.css —
+   `.pk-lbl`, `.pk-kv` and their notes. They were written here first and then
+   copied by hand into four other panels, which is how the dock came to have
+   five different ideas of what a row looks like. One definition now. */
+
+/* --- gates ---------------------------------------------------------------- */
+.setup-gate {
+  display: flex;
+  gap: var(--sp-4);
+  align-items: flex-start;
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-hair);
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+}
+.setup-gate:last-child { border-bottom: 0; }
+.setup-mark { flex: 0 0 auto; width: 14px; text-align: center; font-weight: var(--fw-bold); }
+.setup-gate[data-status="pass"] .setup-mark { color: var(--pos); }
+.setup-gate[data-status="block"] .setup-mark { color: var(--neg); }
+.setup-gate[data-status="unknown"] .setup-mark { color: var(--attn); }
+/* A passing gate is quieter than a failing one: the eye should land on what is
+   refusing, not on six ticks. */
+.setup-gate[data-status="pass"] .setup-gate-text { color: var(--text-muted); }
+.setup-gate[data-status="block"] .setup-gate-text { color: var(--text); }
+.setup-gate-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.setup-clears { color: var(--attn); font-size: var(--fs-1); }
+
+/* --- trust ---------------------------------------------------------------- */
+.setup-trust {
+  padding: var(--sp-4) var(--sp-5);
+  margin-top: var(--sp-4);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+}
+.setup-record {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+/* The card's own track record.
+   Same monospace as `.setup-record` because they are the same KIND of thing —
+   a measurement over your own history — and giving them different treatments
+   would suggest one is an opinion. Set apart by a hairline rather than by
+   colour: it is not a warning, it is the card holding itself to account, and
+   colouring it would put it in competition with the verdict above. */
+.setup-learned {
+  margin-top: var(--sp-2);
+  padding-top: var(--sp-2);
+  border-top: 1px solid var(--border-hair);
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+.setup-pbo {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--attn);
+}
+
+/* --- actions -------------------------------------------------------------- */
+.setup-actions { display: flex; gap: var(--sp-3); padding-top: var(--sp-4); }
+.setup-actions .ghost-btn { flex: 1 1 auto; justify-content: center; }
+
+/* ── the two states restored from v39 ──────────────────────────────────────
+
+   ARMED and CONFLICT both PASS the gates, so neither is coloured like a
+   refusal. Armed is the accent — it is the ordinary working state, not an
+   alarm — and conflict takes the attention colour because it is a live
+   instruction to size down, not a rejection.                               */
+
+.setup-count[data-kind="armed"]    { background: var(--accent-wash); color: var(--accent); }
+.setup-count[data-kind="conflict"] { background: var(--attn-wash);   color: var(--attn); }
+
+.setup-verdict[data-kind="armed"]    .setup-headline { color: var(--accent); }
+.setup-verdict[data-kind="conflict"] .setup-headline { color: var(--attn); }
+
+/* The strategy that produced the plan. v39 named it and the rewrite never
+   did, so "STAND DOWN" had no subject — you could not tell which of thirteen
+   detectors the card was talking about. */
+.setup-strat {
+  font-size: var(--fs-1);
+  padding: 1px var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+/* A sizing instruction, not a footnote — so it is set at reading size and
+   given a rule of its own rather than tucked under the gates. */
+.setup-conflict {
+  margin: var(--sp-3) 0 0;
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--attn);
+  font-size: var(--fs-2);
+  line-height: 1.5;
+  color: var(--text);
+  max-width: 60ch;
+}
+
+/* ── a refused plan is DIMMED, not deleted ─────────────────────────────────
+
+   v39 rendered the plan in every state at half opacity when it was not live.
+   The rewrite hid it outright on any block, which made the card unable to
+   answer the question it exists for in the states it is in most of the time —
+   you could not read the entry to set an alert at it, or see what size the
+   trade would have been.
+
+   The guard that matters is elsewhere and unchanged: "Copy to Calculator"
+   stays disabled while a gate refuses. Reading a refused plan is not the
+   operational error; acting on one in a single click is.                    */
+
+.setup-sec[data-refused="true"] {
+  opacity: 0.55;
+}
+
+/* The label keeps full contrast, so the dimming reads as "these numbers are
+   not live" rather than as the panel having failed to load. */
+.setup-sec[data-refused="true"] .pk-lbl {
+  opacity: 1;
+  color: var(--neg);
+}
+
+.setup-strat[data-none="true"] {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* --- what the read is standing on ------------------------------------------
+   A <details>, closed by default. On a healthy read the summary line is a
+   one-line reassurance and the body is noise; on a thin one the summary makes
+   itself hard to ignore and the body is the first thing worth reading. */
+
+.setup-ev {
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.setup-ev-sum {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-3);
+  cursor: pointer;
+  font-size: var(--fs-1);
+  list-style: none;
+}
+.setup-ev-sum::-webkit-details-marker { display: none; }
+/* The disclosure triangle, drawn rather than inherited, so it matches the
+   panel carets the rest of the dock uses. */
+.setup-ev-sum::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 0; height: 0;
+  border-left: 4px solid currentColor;
+  border-top: 3px solid transparent;
+  border-bottom: 3px solid transparent;
+  opacity: 0.55;
+  /* Tokens, not `120ms ease` — the same literal the dock's own caret carried,
+     and the same defect: a hardcoded duration cannot be re-pointed, so
+     tokens.css sending every --dur-* to 0ms under prefers-reduced-motion did
+     not reach it. These two carets were the only motion in the inspector and
+     both of them ignored the setting. */
+  transition: transform var(--dur-2) var(--ease);
+}
+.setup-ev[open] .setup-ev-sum::before { transform: rotate(90deg); }
+
+.setup-ev-cov {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semi);
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+/* Under half the expected evidence is the state where the coverage figure has
+   to stop being a footnote. It is the same threshold the gate uses. */
+.setup-ev-cov[data-thin="true"] { color: var(--attn); }
+.setup-ev-note { color: var(--text-faint); min-width: 0; }
+
+.setup-ev-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding-top: var(--sp-3);
+}
+/* What is still being waited for. Sits above the source list rather than
+   inside it, because it describes the whole list rather than any one row, and
+   it is the actionable half of a low coverage figure. Bordered on the leading
+   edge in the warning colour: this is a state that will resolve itself, not a
+   failure to react to. */
+/* How the setup was chosen, on the header row. Muted and last: it qualifies
+   the name beside it rather than competing with it, and it wraps to its own
+   line on a narrow dock rather than squeezing the gate count out. */
+.setup-why {
+  flex: 1 1 100%;
+  order: 99;
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+/* The engine saying there is no idea here. Deliberately NOT the refusal red:
+   a blocked trade is a rule stopping you, and this is the market not offering
+   anything — reading the second as the first is what sends somebody looking
+   for a gate to loosen. */
+.setup-nosetup {
+  margin: var(--sp-2) 0 0;
+  color: var(--text);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  font-weight: var(--fw-med);
+}
+.setup-waiting {
+  margin: var(--sp-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+}
+
+.setup-ev-retry {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-inline-start: 2px solid var(--attn);
+  background: var(--attn-wash);
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  overflow-wrap: anywhere;
+}
+
+.setup-ev-row { display: flex; gap: var(--sp-3); align-items: baseline; font-size: var(--fs-1); }
+.setup-ev-mark { flex: 0 0 auto; width: 10px; text-align: center; font-weight: var(--fw-bold); }
+.setup-ev-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.setup-ev-label { color: var(--text); font-weight: var(--fw-med); }
+.setup-ev-why { color: var(--text-faint); line-height: var(--lh-snug); overflow-wrap: anywhere; }
+
+.setup-ev-row[data-kind="answered"] .setup-ev-mark { color: var(--pos); }
+/* A FAILED source is the only one here worth colouring as a problem: it is the
+   only one you can go and fix. "Nothing to say" is the market, and a source
+   this build does not have is neither. */
+.setup-ev-row[data-kind="failed"] .setup-ev-mark { color: var(--neg); }
+.setup-ev-row[data-kind="failed"] .setup-ev-label { color: var(--neg); }
+.setup-ev-row[data-kind="absent"] .setup-ev-mark { color: var(--text-faint); }
+.setup-ev-row[data-kind="absent"] .setup-ev-label { color: var(--text-muted); }
+.setup-ev-row[data-kind="unavailable"] .setup-ev-mark { color: var(--text-faint); }
+.setup-ev-row[data-kind="unavailable"] .setup-ev-label { color: var(--text-faint); }
+
+.setup-ev-open { align-self: flex-start; margin-top: var(--sp-2); }
+
+/* What the plan gave up, when the structural level was past the operator's own
+   sane-stop ceiling.
+   `--attn`, not `--neg`: nothing is wrong and nothing is refusing. It is a
+   trade-off the builder made on their behalf — this stop can be hit without
+   the idea being wrong — and the one thing it must not do is read as an error
+   they have to clear. */
+.setup-caveat {
+  margin: var(--sp-2) 0 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--attn);
+}
+
+/* ---------------------------------------------------------------------------
+   THE BASE-RATE STRIP
+
+   Sits directly under the read, because it is the number most likely to change
+   the decision. Deliberately quiet: this is evidence handed to the operator,
+   not a verdict, and a track record styled like an alert gets obeyed instead
+   of weighed. The only loud state is `data-adverse`, which is the one case
+   where history actively contradicts the ranking above it.
+--------------------------------------------------------------------------- */
+
+.setup-hist {
+  margin-top: var(--sp-3);
+  padding: var(--sp-3);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-2);
+  background: var(--surface-sunk);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* Thin samples lose the border emphasis entirely — see renderHistory: a
+   greyed-out number still gets read, so the numbers are absent, not dimmed. */
+.setup-hist[data-thin="true"] {
+  border-style: dashed;
+}
+
+.setup-hist[data-adverse="true"] {
+  border-color: var(--neg);
+  background: var(--neg-wash);
+}
+
+.setup-hist-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sp-2);
+}
+
+.setup-hist-label {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-muted);
+}
+
+.setup-hist-note {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+/* The knowledge base's line, under the in-sample replay.
+
+   A RULE, NOT A CHIP. The two lines answer different questions — this chart's
+   window versus every window harvested — and the one thing that must never
+   happen is a reader taking them for one statement in two sentences. A left
+   rule is the cheapest mark that says "different source" without spending any
+   of the card's accent budget, which `.setup-hist-dis` has already claimed for
+   the disagreement.
+
+   `--text-faint` < `--text-muted` < `--text`: this sits at muted, BELOW the
+   replay it qualifies and above the field note. Measured against the palette
+   rather than eyeballed, for the reason CLAUDE.md records about the shut
+   inspector rows. */
+.setup-hist-prior {
+  margin: 0;
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--border);
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+/* Thin is not a finding, so it recedes further rather than colouring. */
+.setup-hist-prior[data-standing="thin"] {
+  color: var(--text-faint);
+}
+
+/* Stale is a reason to distrust the number, and the number is still printed —
+   so the flag has to be visible without becoming an alarm. The attention role,
+   on the rule only. */
+.setup-hist-prior[data-stale="true"] {
+  border-left-color: var(--attn);
+}
+
+.setup-hist-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+
+.setup-hist-stat {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--border-hair);
+  border-radius: var(--r-full);
+  background: transparent;
+  cursor: help;
+}
+
+.setup-hist-k {
+  /* Kept in caps when the v53 pass moved labels to sentence case: these are
+     short DATA KEYS, several of them abbreviations (ATR, RSI), written in
+     lowercase in the code and capitalised here. "Atr" is not a word. */
+  text-transform: uppercase;
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-wide);
+  color: var(--text-faint);
+}
+
+.setup-hist-v {
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  font-weight: var(--fw-med);
+  color: var(--text);
+  /* Rates and R values line up in a column when several cards are compared. */
+  font-variant-numeric: tabular-nums;
+}
+
+.setup-hist-stat[data-tone="good"] .setup-hist-v { color: var(--pos); }
+.setup-hist-stat[data-tone="bad"] .setup-hist-v { color: var(--neg); }
+.setup-hist-stat[data-tone="thin"] {
+  border-color: var(--attn);
+  background: var(--attn-wash);
+}
+
+.setup-hist-warn {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  font-weight: var(--fw-med);
+  color: var(--neg);
+}
+
+.setup-hist-caveat {
+  margin: 0;
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-faint);
+}
+
+.setup-hist-span {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Offered only while it can change the answer — thin sample, not yet deepened.
+   A control that does nothing teaches the operator to distrust the ones that
+   do, so this disappears once the history has been extended. */
+.setup-hist-deepen {
+  align-self: flex-start;
+  padding: 4px var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-1);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: var(--fs-1);
+  font-weight: var(--fw-med);
+  cursor: pointer;
+}
+
+@media (hover: hover) { .setup-hist-deepen:hover:not(:disabled) {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+} }
+
+.setup-hist-deepen:disabled {
+  opacity: 0.55;
+  cursor: progress;
+}
+
+/* The replay contradicting the ranking. Given weight — it is the one place the
+   card argues with itself, and an argument rendered as a footnote is a
+   footnote, not an argument. */
+.setup-hist-dis {
+  margin: 0;
+  padding-left: var(--sp-3);
+  border-left: 2px solid var(--attn);
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+.setup-hist-alts {
+  margin: 0;
+  padding-left: var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.setup-hist-alt {
+  font-size: var(--fs-1);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+.setup-hist-field {
+  margin: 0;
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}

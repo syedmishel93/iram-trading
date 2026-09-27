@@ -1,0 +1,307 @@
+/* ===========================================================================
+   The Knowledge desk.
+
+   THE ONE VISUAL DECISION THAT CARRIES THE PAGE
+   The SAMPLE column is the only one that never goes grey, and it sits before
+   every rate. Everything to its right is withheld — printed as an em dash, not
+   dimmed — when the cell is under the floor, because a greyed-out number still
+   gets read and a dash cannot be.
+
+   COLOUR FOLLOWS THE STANDING, NEVER THE NUMBER
+   `data-standing` is computed from the Wilson LOWER BOUND against the
+   break-even the cell's own reward-to-risk demands, so a table sorted by
+   expectancy still has grey at the top when the top row is four trials. A
+   sorted table always has a big number at the top, including on data with no
+   edge in it — that is the whole reason the colour is not on the magnitude.
+
+   STALE IS A WORD, NOT A TINT
+   A faded row is a hint. A row whose numbers are a month old is a reason to
+   distrust them, which is a sentence, so it gets one: the literal word STALE
+   beside the age, plus the attention role on the row's left rule.
+
+   Every :hover is inside `@media (hover: hover)` — the standing rule since
+   v53.1, or it sticks after a tap on touch.
+
+   NOTHING HERE ANIMATES, and that is a decision rather than an omission. A
+   research table is met with the eye scanning down it; a row that eased into
+   its colour would be movement in the one place the reader is trying to
+   compare two numbers. There is therefore no `transition` in this file and no
+   literal duration to get wrong — see the CLAUDE.md rule about a hardcoded
+   duration being unable to honour reduced motion. The press feedback on the
+   buttons comes from `press.css`, which already owns `.primary-btn`,
+   `.ghost-btn` and `.seg-btn` — the only three button classes this desk uses,
+   deliberately, so it adds nothing to that list to be forgotten.
+   =========================================================================== */
+
+.kb {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+}
+
+/* --- head ---------------------------------------------------------------- */
+
+.kb-head { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+.kb-h1 {
+  margin: 0;
+  font-family: var(--font-disp);
+  font-size: var(--fs-5);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-tight);
+  color: var(--text);
+}
+
+/* The measure belongs on the prose, not on the container — the table below
+   wants every pixel it can get. */
+.kb-lede {
+  margin: 0;
+  max-width: 70ch;
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+.kb-summary {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  color: var(--text-faint);
+}
+
+/* --- the harvest control ------------------------------------------------- */
+
+.kb-run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--sp-4);
+  padding: var(--sp-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  background: var(--surface-inset);
+}
+
+.kb-field { display: flex; flex-direction: column; gap: var(--sp-2); min-width: 0; }
+
+.kb-field-k {
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+}
+
+.kb-input {
+  height: var(--h-ctl);
+  min-width: 140px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-2);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+}
+.kb-input:focus-visible { border-color: var(--accent); box-shadow: var(--ring); outline: none; }
+
+.kb-check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  height: var(--h-ctl);
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.kb-progress {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-2);
+  color: var(--accent);
+}
+
+.kb-report {
+  margin: 0;
+  max-width: 78ch;
+  font-size: var(--fs-2);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+.kb-report-rows { margin: 0; padding-left: var(--sp-6); list-style: disc; }
+
+.kb-report-row {
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text-muted);
+}
+
+/* The cap's note and the storage error. Both are things the operator has to be
+   able to act on, so neither is allowed to be quiet. */
+.kb-warn {
+  margin: 0;
+  padding: var(--sp-3) var(--sp-4);
+  border-left: 2px solid var(--attn);
+  border-radius: 0 var(--r-1) var(--r-1) 0;
+  background: var(--attn-wash);
+  font-size: var(--fs-2);
+  line-height: var(--lh-snug);
+  color: var(--text);
+}
+
+/* --- empty state --------------------------------------------------------- */
+
+.kb-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  padding: var(--sp-7) var(--sp-6);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-3);
+}
+
+.kb-empty-lede {
+  margin: 0;
+  max-width: 72ch;
+  font-size: var(--fs-3);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+/* --- axis switch --------------------------------------------------------- */
+
+.kb-axis {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.kb-hidden, .kb-none {
+  margin: 0;
+  font-size: var(--fs-2);
+  color: var(--text-faint);
+}
+
+/* --- the table ----------------------------------------------------------- */
+
+.kb-table {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  overflow: hidden;
+}
+
+/* One grid, declared once, so the header, the filter row and every data row
+   are the same twelve tracks. Two declarations is how a header drifts off its
+   column. */
+.kb-row {
+  display: grid;
+  grid-template-columns:
+    minmax(72px, 0.9fr)   /* symbol      */
+    44px                  /* timeframe   */
+    minmax(96px, 1.2fr)   /* setup kind  */
+    52px                  /* side        */
+    minmax(110px, 1.3fr)  /* condition   */
+    44px                  /* at R        */
+    64px                  /* trials      */
+    58px                  /* hit         */
+    64px                  /* at least    */
+    76px                  /* per attempt */
+    54px                  /* bars        */
+    minmax(96px, 0.9fr);  /* updated     */
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  border-bottom: 1px solid var(--border-hair);
+  /* The left rule is the stale marker's home. Transparent by default so the
+     row does not move by a pixel when it becomes stale. */
+  border-left: 2px solid transparent;
+  font-size: var(--fs-2);
+}
+.kb-row:last-child { border-bottom: 0; }
+
+.kb-header { background: var(--surface-inset); }
+.kb-filters { background: var(--surface-sunk); }
+
+.kb-hcell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--fs-1);
+  letter-spacing: var(--track-micro);
+  color: var(--text-faint);
+  cursor: pointer;
+}
+.kb-hcell[data-align="right"] { justify-content: flex-end; }
+.kb-hcell[data-sorted="asc"], .kb-hcell[data-sorted="desc"] { color: var(--accent); }
+@media (hover: hover) { .kb-hcell:hover { color: var(--text); } }
+
+.kb-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.kb-cell[data-align="right"] { text-align: right; font-family: var(--font-mono); }
+
+.kb-cond { color: var(--text); }
+
+/* The sample never greys. It is the number that licenses the row. */
+.kb-trials {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-semi);
+  color: var(--text);
+}
+
+.kb-updated {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  font-family: var(--font-mono);
+  color: var(--text-faint);
+}
+
+.kb-stale {
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-1);
+  background: var(--attn-wash);
+  color: var(--attn);
+  font-size: var(--fs-1);
+  font-weight: var(--fw-semi);
+  letter-spacing: var(--track-wide);
+}
+
+/* --- standing ------------------------------------------------------------ */
+
+/* Thin: everything to the right of the sample is a dash already, so the row
+   simply recedes. It is not a finding either way. */
+.kb-row[data-standing="thin"] .kb-cell { color: var(--text-faint); }
+
+/* Cleared break-even on the LOWER BOUND, not the point estimate. */
+.kb-row[data-standing="clears"] .kb-cell[data-align="right"] { color: var(--pos); }
+
+/* Measured, and losing. Said in the same weight as the good news. */
+.kb-row[data-standing="against"] .kb-cell[data-align="right"] { color: var(--neg); }
+
+/* Measured, positive, and short of the break-even its R needs — which is the
+   most common honest outcome and must not read as either of the two above. */
+.kb-row[data-standing="short"] .kb-cell[data-align="right"] { color: var(--text); }
+
+.kb-row[data-stale="true"] { border-left-color: var(--attn); }
+
+/* The data rows only. `.kb-header` and `.kb-filters` carry `.kb-row` for the
+   grid and are not rows anybody is reading across. */
+@media (hover: hover) {
+  .kb-table .kb-row:not(.kb-header):not(.kb-filters):hover { background: var(--surface-hover); }
+}
