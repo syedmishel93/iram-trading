@@ -73,7 +73,7 @@ credibility it exists to earn.
 **`scratchpad/tdz.py` COULD NOT SEE `const x = computed(...)`.** Its pattern
 accepted `x = computed(` but not the declaration form, because `[\w.]+` cannot
 span the space in `const claimCount` — so the optional group matched empty and
-`(computed)` was then required where `const` sits. MEASURED: **0 of 69
+`\b(computed)` was then required where `const` sits. MEASURED: **0 of 69
 matched**, two of them in `ui/playbook.ts`, the file the script was written for.
 It printed a healthy-looking "220 eager calls" and reported OK. A plausible total
 hid a systematic blind spot, which is the same defect as an audit that parses
@@ -3942,7 +3942,7 @@ exactly what wrappers do:
     fetched", which describes the control.
   * A backtick inside a double-quoted bash string ran `symbolField` as a
     command and silently ate three words out of a CSS comment. Same family as
-    the heredoc that turned `` into a backspace. Third time; the rule is
+    the heredoc that turned `` into a backspace. Third time; the rule is
     still "write it to a FILE".
 
 ### The gate
