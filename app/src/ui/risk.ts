@@ -28,11 +28,29 @@ import { signal, computed, effect, renderEffect, type ReadSignal, type Signal } 
 import type { KV } from "../store/kv";
 import {
   analysePortfolio,
+  exposures,
   SCENARIOS,
   MIN_HISTORY,
   type PortfolioRisk,
 } from "../risk/portfolio";
 import { sizeHedge, residualRiskFraction, type HedgeResult } from "../risk/hedge";
+import {
+  FACTORS,
+  alignFactors,
+  factorModel,
+  portfolioFactorRisk,
+  toDailyCloses,
+  transformSeries,
+  type AssetFactorModel,
+  type FactorMatrix,
+  type PortfolioFactorRisk,
+} from "../risk/factors";
+import {
+  HISTORICAL_WINDOWS,
+  measureWindow,
+  scenarioPnl,
+  type ScenarioResult,
+} from "../risk/scenario";
 import type { ClosesSeries } from "../data/correlation";
 import {
   sizePosition,
@@ -893,6 +911,155 @@ export function createRisk(opts: RiskDeskOptions): RiskDesk {
     }
   };
 
+  // ------------------------------------------------------ factor model ---
+
+  /**
+   * THE BOOK THROUGH FIVE FACTORS, and what a named piece of history would do
+   * to it.
+   *
+   * SEPARATE FROM THE PORTFOLIO PANEL ABOVE, not folded into it. That one is a
+   * historical simulation: it replays the book over its own bars and asks what
+   * actually happened. This one fits a MODEL, and a model has failure modes a
+   * replay does not — collinear factors, an asset the set does not describe, a
+   * beta that is not distinguishable from zero. Mixing the two would let the
+   * model's caveats attach to numbers that never needed them.
+   *
+   * BEHIND A BUTTON for the reason the portfolio read is: it loads every held
+   * symbol plus five factor series and runs a regression per position.
+   */
+  interface FactorRead {
+    readonly ok: boolean;
+    readonly models: readonly AssetFactorModel[];
+    readonly risk: PortfolioFactorRisk | null;
+    readonly matrix: FactorMatrix | null;
+    readonly scenarios: readonly {
+      readonly id: string;
+      readonly label: string;
+      readonly note: string;
+      readonly result: ScenarioResult | null;
+      readonly why: string | null;
+    }[];
+    readonly blocked: string | null;
+  }
+
+  const factorRead = signal<FactorRead | null>(null);
+  const factorBusy = signal<boolean>(false);
+  const factorAt = signal<number>(0);
+
+  const runFactors = async (): Promise<void> => {
+    const load = opts.loadCloses;
+    if (!load || factorBusy.peek()) return;
+    const book = positions.peek();
+    factorBusy.set(true);
+    try {
+      if (book.length === 0) {
+        factorRead.set({
+          ok: false,
+          models: [],
+          risk: null,
+          matrix: null,
+          scenarios: [],
+          blocked: "No positions to decompose. Add one above, or connect the broker.",
+        });
+        return;
+      }
+
+      const bookSymbols = [...new Set(book.map((p) => p.symbol.toUpperCase()))];
+      const wanted = [...new Set([...bookSymbols, ...FACTORS.map((f) => f.symbol)])];
+      const raw = await load(wanted);
+
+      /* DAILY, STATED HERE. The archive read picks whichever stored series is
+         longest per symbol, so crypto arrives at one minute and an equity index
+         at one day. See `toDailyCloses`. */
+      const daily = raw.map(toDailyCloses);
+
+      const held = new Set(daily.filter((d) => d.closes.length > 0).map((d) => d.symbol.toUpperCase()));
+      const missing = FACTORS.filter((f) => !held.has(f.symbol.toUpperCase()));
+      if (missing.length === FACTORS.length) {
+        factorRead.set({
+          ok: false,
+          models: [],
+          risk: null,
+          matrix: null,
+          scenarios: [],
+          blocked:
+            "None of the factor series is in the archive yet. Download " +
+            FACTORS.map((f) => f.symbol).join(", ") +
+            " from the Data desk and this panel will fill.",
+        });
+        return;
+      }
+
+      /* A FACTOR WITH NO HISTORY IS DROPPED AND NAMED, never carried as zero: a
+         column of zeroes is a factor that never moves, which is a claim rather
+         than an absence. */
+      const defs = FACTORS.filter((f) => held.has(f.symbol.toUpperCase()));
+      const matrix = alignFactors(daily, defs);
+
+      const factorArg = { ids: matrix.ids, rows: matrix.rows };
+      const times = matrix.times;
+
+      /* Each asset resampled onto the SAME rows as the factors, or a beta would
+         be fitted against dates that do not line up. */
+      const models: AssetFactorModel[] = [];
+      for (const sym of bookSymbols) {
+        const ser = daily.find((d) => d.symbol.toUpperCase() === sym);
+        if (ser === undefined || ser.closes.length === 0) continue;
+        const byT = new Map(ser.closes.map((p) => [p.t, p.c]));
+        const moves: number[] = [];
+        let usable = true;
+        for (let i = 0; i < times.length; i++) {
+          const t1 = times[i] as number;
+          const idx = matrix.times.indexOf(t1);
+          const t0 = idx > 0 ? (matrix.times[idx - 1] as number) : Number.NaN;
+          const a = byT.get(t0);
+          const b = byT.get(t1);
+          if (a === undefined || b === undefined) {
+            usable = false;
+            break;
+          }
+          moves.push((transformSeries([a, b], "price")[0] as number) ?? Number.NaN);
+        }
+        if (!usable || moves.length < 2) continue;
+        models.push(factorModel(sym, moves, factorArg));
+      }
+
+      const exposuresNow = exposures(book);
+      const risk = portfolioFactorRisk(exposuresNow, models, factorArg);
+
+      const scenarios = HISTORICAL_WINDOWS.map((w) => {
+        const m = measureWindow(matrix, w.from, w.to);
+        if (!m.ok) {
+          return { id: w.id, label: w.label, note: w.note, result: null, why: m.why };
+        }
+        return {
+          id: w.id,
+          label: w.label,
+          note: w.note,
+          result: scenarioPnl(exposuresNow, models, m.shock, factorArg),
+          why: null,
+        };
+      });
+
+      factorRead.set({
+        ok: models.length > 0 && matrix.rows.length > 0,
+        models,
+        risk,
+        matrix,
+        scenarios,
+        blocked:
+          models.length === 0
+            ? "No held symbol has enough daily history in the archive to fit against the factors."
+            : matrix.rows.length === 0
+              ? "The factor series share no days with each other — nothing to fit."
+              : null,
+      });
+      factorAt.set(Date.now());
+    } finally {
+      factorBusy.set(false);
+    }
+  };
+
   /**
    * The hedge read, computed on demand against one nominated instrument.
    *
@@ -1292,6 +1459,186 @@ export function createRisk(opts: RiskDeskOptions): RiskDesk {
     ),
   );
 
+
+  // -------------------------------------------------- factor panel ---
+
+  const beta2 = (v: number): string => (Number.isFinite(v) ? v.toFixed(2) : "\u2014");
+
+  /** One row per held symbol: its beta to each factor, and what it does not explain. */
+  const factorRows = computed<HTMLElement[]>(() => {
+    const read = factorRead();
+    if (read === null || read.matrix === null) return [];
+    const ids = read.matrix.ids;
+    const out: HTMLElement[] = [];
+
+    out.push(
+      h(
+        "div",
+        { class: "pf-row pf-row-head" },
+        h("span", { text: "Position" }),
+        ...ids.map((id) => h("span", { text: FACTORS.find((f) => f.id === id)?.label ?? id })),
+        h("span", { text: "Explained" }),
+      ),
+    );
+
+    for (const m of read.models) {
+      out.push(
+        h(
+          "div",
+          { class: "pf-row" },
+          h("span", { text: m.symbol }),
+          ...ids.map((id) =>
+            h("span", {
+              /* A YIELD BETA IS PER BASIS POINT and a price beta is per unit of
+                 log return. Printing both to two decimals would show the rates
+                 column as 0.00 for every asset — the numbers are around 1e-4 —
+                 so the rates column is scaled and LABELLED, never silently. */
+              text: () => {
+                const b = m.betas[id];
+                if (b === undefined || !Number.isFinite(b)) return "\u2014";
+                const kind = FACTORS.find((f) => f.id === id)?.kind;
+                return kind === "yield" ? `${(b * 10_000).toFixed(1)}\u2030/100bp` : beta2(b);
+              },
+              "data-weak": () => String(m.insignificant.includes(id)),
+            }),
+          ),
+          h("span", { text: Number.isFinite(m.r2) ? `${(m.r2 * 100).toFixed(0)}%` : "\u2014" }),
+        ),
+      );
+      if (m.caveat !== null) {
+        out.push(h("div", { class: "pf-note", text: `${m.symbol}: ${m.caveat}` }));
+      }
+    }
+    return out;
+  });
+
+  /** Where the book's risk comes from, as a share of its own variance. */
+  const decompositionRows = computed<HTMLElement[]>(() => {
+    const r = factorRead()?.risk;
+    if (!r) return [];
+    const rows: HTMLElement[] = [];
+    for (const f of r.byFactor) {
+      const def = FACTORS.find((x) => x.id === f.id);
+      rows.push(
+        h(
+          "div",
+          { class: "pf-row" },
+          h("span", { text: def?.label ?? f.id }),
+          h("span", { text: signedMoney(f.exposure) }),
+          h("span", { text: Number.isFinite(f.share) ? `${(f.share * 100).toFixed(0)}%` : "\u2014" }),
+        ),
+      );
+    }
+    rows.push(
+      h(
+        "div",
+        { class: "pf-row" },
+        /* NAMED, NOT LEFT AS THE REMAINDER. The idiosyncratic share is usually
+           the largest single line here, and a decomposition that only lists the
+           factors invites the reader to assume it adds to a hundred. */
+        h("span", { text: "Position-specific" }),
+        h("span", { text: "\u2014" }),
+        h("span", {
+          text: Number.isFinite(r.idiosyncraticShare) ? `${(r.idiosyncraticShare * 100).toFixed(0)}%` : "\u2014",
+        }),
+      ),
+    );
+    return rows;
+  });
+
+  /** One row per named piece of history, priced through the book's betas. */
+  const scenarioRows = computed<HTMLElement[]>(() => {
+    const read = factorRead();
+    if (read === null) return [];
+    return read.scenarios.map((sc) =>
+      h(
+        "div",
+        { class: "pf-scenario" },
+        h(
+          "div",
+          { class: "pf-row" },
+          h("span", { text: sc.label }),
+          h("span", {
+            class: "pf-scenario-pnl",
+            text: sc.result ? signedMoney(sc.result.total) : "\u2014",
+            "data-sign": () => (sc.result ? (sc.result.total >= 0 ? "up" : "down") : "none"),
+          }),
+        ),
+        /* THE REFUSAL IS THE RESULT when the archive cannot reach the window.
+           A scenario silently missing from the list teaches nothing. */
+        h("p", { class: "pf-note", text: sc.why ?? sc.result?.caveat ?? sc.note }),
+      ),
+    );
+  });
+
+  const factorPanel = h(
+    "section",
+    { class: "dd-panel" },
+    h(
+      "div",
+      { class: "panel-head" },
+      h("h2", { class: "panel-title", text: "Factors and scenarios" }),
+      h("button", {
+        class: "ghost-btn tiny",
+        type: "button",
+        text: () =>
+          factorBusy() ? "Fitting\u2026" : factorRead() ? "Recompute" : "Decompose the book",
+        disabled: () => factorBusy() || opts.loadCloses === undefined,
+        onclick: () => void runFactors(),
+      }),
+    ),
+    pkWhy(
+      "Each position is regressed on daily moves in equities, the dollar, the 10-year yield, equity volatility and crypto \u2014 so the book can be read as exposures rather than as a list of tickers. The scenarios below are not typed in: each one is a real date range, and what the factors did across it is measured from the archive. A factor scenario only moves the part of a position the factors explain, and the panel says how much that is.",
+      "What this is, and what it cannot say",
+    ),
+
+    h("div", {
+      class: "pf-blocked",
+      "data-on": () => String(factorRead()?.blocked != null),
+      text: () => factorRead()?.blocked ?? "",
+    }),
+
+    h(
+      "div",
+      { class: "pf-body", "data-on": () => String(factorRead()?.ok === true) },
+
+      h("h3", { class: "pf-sub", text: "What each position is exposed to" }),
+      h("div", { class: "pf-table pf-factors", ref: (el: HTMLElement) => renderEffect(() => {
+        el.textContent = "";
+        for (const row of factorRows()) el.appendChild(row);
+      }) }),
+
+      h("h3", { class: "pf-sub", text: "Where the risk comes from" }),
+      h("div", { class: "pf-table", ref: (el: HTMLElement) => renderEffect(() => {
+        el.textContent = "";
+        for (const row of decompositionRows()) el.appendChild(row);
+      }) }),
+      h("p", {
+        class: "pf-note",
+        text: () => factorRead()?.risk?.caveat ?? "",
+      }),
+
+      h("h3", { class: "pf-sub", text: "If that happened again" }),
+      h("div", { class: "pf-scenarios", ref: (el: HTMLElement) => renderEffect(() => {
+        el.textContent = "";
+        for (const row of scenarioRows()) el.appendChild(row);
+      }) }),
+
+      h("p", {
+        class: "pf-asof",
+        text: () => {
+          const read = factorRead();
+          if (read === null || read.matrix === null || factorAt() === 0) return "";
+          const m = read.matrix;
+          const day = (t: number): string => new Date(t).toISOString().slice(0, 10);
+          /* THE SAMPLE AND THE WINDOW, always. A beta with no sample beside it
+             is a number nobody can weigh. */
+          return `${m.rows.length} shared sessions, ${day(m.from)} to ${day(m.to)}. Fitted ${new Date(factorAt()).toLocaleTimeString()}.`;
+        },
+      }),
+    ),
+  );
+
   const el = h(
     "div",
     { class: "dd risk-desk" },
@@ -1327,7 +1674,7 @@ export function createRisk(opts: RiskDeskOptions): RiskDesk {
     h(
       "div",
       { class: "dd-layout" },
-      h("div", { class: "dd-primary" }, sizerPanel, bookPanel, portfolioPanel),
+      h("div", { class: "dd-primary" }, sizerPanel, bookPanel, portfolioPanel, factorPanel),
       h("div", { class: "dd-rail" }, configPanel, hedgePanel),
     ),
   );

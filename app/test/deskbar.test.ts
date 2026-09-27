@@ -112,8 +112,30 @@ describe("who leads, on the workspace tab", () => {
 describe("the v59 workspaces themselves", () => {
   const groups = groupDesks(VIEWS.map((v) => ({ id: v.id, label: v.label, icon: v.icon, ...("group" in v ? { group: v.group } : {}) })));
 
-  it("are five, in the order a trade is worked", () => {
-    expect(groups.map((g) => g.label)).toEqual(["Today", "Chart", "Research", "Strategy", "Review"]);
+  it("ARE IN THE ORDER A TRADE IS WORKED", () => {
+    /* SIX SINCE v63.27, and the order is the fact rather than the number.
+       `Trade` was split out of `Chart`, which had grown to 10 of 26 desks and,
+       counting the inspector cards the tools menu files under it, half of
+       everything the terminal can do.
+
+       It sits between Chart and Research because that is the order the work
+       happens in: read the price, size what you are about to do against the
+       book, and only then go looking for why. Research and Strategy follow as
+       the slower half, and Review is last because it judges all of it. */
+    expect(groups.map((g) => g.label)).toEqual([
+      "Today",
+      "Chart",
+      "Trade",
+      "Research",
+      "Strategy",
+      "Review",
+    ]);
+  });
+
+  it("opens Trade on the desk that sizes, not on a calculator", () => {
+    /* The first desk in a workspace is where clicking its tab lands, so it has
+       to be the one the workspace is named for. */
+    expect(groups.find((g) => g.label === "Trade")?.desks[0]?.id).toBe("risk");
   });
 
   it("open Chart on the chart", () => {

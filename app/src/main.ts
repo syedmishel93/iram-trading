@@ -11,6 +11,7 @@ import "./styles/chrome.css";
 /* The chart header. After chrome.css so it specialises the row it restyles. */
 import "./styles/topbar.css";
 import "./styles/risk.css";
+import "./styles/results.css";
 import "./styles/settings.css";
 import "./styles/learn.css";
 /* The Knowledge desk. After learn.css — it is the same family and specialises

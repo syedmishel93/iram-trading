@@ -1,0 +1,172 @@
+/*
+ * The Results desk.
+ *
+ * PREFIX `.res-`, CHOSEN BY AUDIT. `scratchpad/classcollide.py` refused `.rs-`
+ * before a line of this was written: `study.css` already owns `.rs-head`,
+ * `.rs-title`, `.rs-sub` and `.rs-bar`, and it imports later — so this desk
+ * would have rendered in the Study desk's clothes, silently, with nothing red.
+ *
+ * EVERY COLOUR IS A TOKEN. This terminal ships seven themes and a hardcoded
+ * value is right in exactly one of them.
+ */
+
+/* The lede carries the denominator, so it is the one line set in the face this
+   terminal uses for what it says on its own account. */
+.res-lede {
+  font-family: var(--font-serif);
+  font-size: var(--fs-4);
+  line-height: var(--lh-snug);
+  color: var(--text);
+  margin: var(--sp-2) 0 var(--sp-3);
+  max-width: 68ch;
+}
+
+.res-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+}
+
+.res-chip {
+  font: inherit;
+  font-size: var(--fs-2);
+  color: var(--text-muted);
+  background: var(--surface-inset);
+  border: 1px solid var(--border);
+  /* A FALLBACK, deliberately: a pill radius is not in the palette and a
+     dangling name would INHERIT rather than be ignored. */
+  border-radius: var(--radius-pill, 999px);
+  padding: 4px 12px;
+  cursor: pointer;
+  /* A TOKEN, never a literal: `tokens.css` sends every `--dur-*` to 0ms under
+     prefers-reduced-motion, and a hardcoded duration never sees it. */
+  transition: color var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease);
+}
+
+@media (hover: hover) {
+  .res-chip:not(:disabled):hover {
+    color: var(--text);
+    border-color: var(--border-hi);
+  }
+}
+
+.res-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.res-chip[data-on="true"] {
+  color: var(--text);
+  border-color: var(--accent);
+  background: var(--accent-wash, var(--surface));
+}
+
+.res-chip:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.res-board {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/*
+ * A 2px left rail rather than a status dot.
+ *
+ * `.bf-event` already established the rail as this terminal's way of carrying a
+ * row's standing, and reusing it makes a new surface look like it belongs. A
+ * dot is what every dashboard reaches for, which is the reason not to.
+ */
+.res-row {
+  border-left: 2px solid var(--border);
+  padding: var(--sp-2) 0 var(--sp-2) var(--sp-3);
+}
+
+.res-row[data-verdict="working"] { border-left-color: var(--pos); }
+.res-row[data-verdict="unproven"] { border-left-color: var(--link-amber); }
+.res-row[data-verdict="nothing"] { border-left-color: var(--border-hi); }
+.res-row[data-verdict="not searched"] { border-left-color: var(--border); }
+
+.res-row-head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+}
+
+.res-subject {
+  font: inherit;
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-1);
+  background: none;
+  border: 0;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+
+.res-subject:disabled { cursor: default; }
+
+@media (hover: hover) {
+  .res-subject:not(:disabled):hover .res-sym { color: var(--accent); }
+}
+
+.res-subject:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.res-sym {
+  font-family: var(--font-mono);
+  font-size: var(--fs-3);
+  color: var(--text);
+}
+
+.res-tf {
+  font-family: var(--font-mono);
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+}
+
+.res-verdict {
+  font-size: var(--fs-1);
+  color: var(--text-muted);
+}
+
+/* THE NUMBER THAT SURVIVED THE HURDLE, pushed right and set in the mono face
+   every other figure in this terminal uses. It leads because it is the answer;
+   everything qualifying it is smaller and dimmer below. */
+.res-edge {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--fs-3);
+  color: var(--text);
+}
+
+.res-row[data-verdict="working"] .res-edge { color: var(--pos); }
+
+.res-why {
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  margin: var(--sp-1) 0 0;
+  max-width: 76ch;
+}
+
+.res-meta {
+  font-size: var(--fs-1);
+  color: var(--text-faint);
+  margin: 2px 0 0;
+}
+
+.res-empty {
+  font-size: var(--fs-2);
+  line-height: var(--lh-relaxed);
+  color: var(--text-muted);
+  max-width: 68ch;
+  margin: var(--sp-3) 0;
+}

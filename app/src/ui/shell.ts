@@ -2676,7 +2676,7 @@ export function mountShell(root: HTMLElement): void {
   });
 
   const desks = createDesks(ctx, { bars, rules, knowledgeBase, analyst, workspaceSeries, shelf, sweep, sweepDepth });
-  const { flow, data, strategy, survey, study, playbook, simulation, sessions, smartMoney, paper, knowledge, watchlist, system, connections } =
+  const { flow, data, strategy, survey, study, playbook, results, simulation, sessions, smartMoney, paper, knowledge, watchlist, system, connections } =
     desks;
   agentDesk = desks.agentDesk;
 
@@ -3148,6 +3148,7 @@ export function mountShell(root: HTMLElement): void {
         if (view === "connections") return connections().el;
     if (view === "knowledge") return knowledge().el;
         if (view === "playbook") return playbook().el;
+        if (view === "results") return results().el;
         if (view === "simulation") return simulation();
         if (view === "sessions") return sessions().el;
         if (view === "watchlist") return watchlist().el;
