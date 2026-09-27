@@ -1617,13 +1617,24 @@
 .sys-head { display: flex; flex-direction: column; gap: var(--sp-3); }
 .sys-title {
   margin: 0;
+  /* SERIF, LIKE EVERY OTHER HERO SENTENCE. This title is a sentence -
+     "What this machine holds, and what it is doing." - not a desk NAME, and this
+     product already draws that line: `--font-serif` is the answer face, used by
+     `td-title`, `rv-title` and `strat-title`, while a short name like "Signals"
+     or "Watchlist" takes `view-title` in the UI face. A pass that "unified" them
+     moved this one to sans and broke a distinction that was deliberate. */
   font-family: var(--font-serif);
   font-weight: 400;
   font-size: var(--fs-6);
   line-height: var(--lh-tight);
   letter-spacing: var(--track-display);
   color: var(--text);
-  max-width: 34ch;
+  /* 34ch CANNOT HOLD THIS DESK'S OWN TITLE, which is 46 characters - so it
+     wrapped onto a second line every time, with the rest of a 1480px desk empty
+     beside it. A measure narrower than the text it exists to set is not a
+     measure, it is a line break nobody chose. 76ch is what `.view-sub` and
+     `.strat-title` use. */
+  max-width: 76ch;
 }
 .sys-lede { margin: 0; font-size: var(--fs-2); color: var(--text-muted); max-width: 78ch; }
 

@@ -140,6 +140,11 @@ class Audits(unittest.TestCase):
             "xref.py": "cross-reference audit; reports counts",
             "classcollide.py": "reports cross-sheet prefix overlaps, many deliberate",
             "deskshape.py": "a measurement tool",
+            "deskheads.py": ("an inventory of how each desk heads itself: it reports a "
+                             "spread, not a failure. The GUARD it led to is real and is "
+                             "gated -- app/test/desktitle.test.ts pins that every desk "
+                             "title uses one face, and that no title is capped narrower "
+                             "than its own text."),
             "tdz.py": "a measurement tool",
             "freetext.py": "a measurement tool",
             "probe.py": "an ad-hoc prober",

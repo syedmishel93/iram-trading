@@ -28,10 +28,17 @@
   gap: var(--sp-3);
 }
 
-/* The headline answer: serif, regular weight, as the design sets it. */
+/* The headline answer: serif, regular weight, as the design sets it.
+   THE MEASURE IS 76ch, NOT 44. At 44 both of this desk's headlines wrapped onto
+   a second line for their last two words - "You shape it." alone under a full
+   line, with the rest of a 1480px desk empty beside it. That ragged second line
+   IS the blank space the owner photographed, and it cost 34px at the top of the
+   screen you open to run a backtest. 76ch is the measure `.view-sub` already
+   uses here, and it holds both headlines (70 and 75 characters) on one line
+   while still capping them well inside the 80 this project reads to. */
 .strat-title {
   margin: 0;
-  max-width: 44ch;
+  max-width: 76ch;
   font-family: var(--font-serif);
   font-weight: 400;
   font-size: var(--fs-headline);
