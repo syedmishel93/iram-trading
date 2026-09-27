@@ -28,6 +28,7 @@ import { createPlaybook } from "../playbook";
 import { createSessions } from "../sessions";
 import { createSimulation } from "../simulation";
 import { createResults } from "../results";
+import { autoResults } from "../../data/autorun";
 import { SWEEP_SLOT, type SweepSummary } from "../../backtest/sweepcache";
 import { createSmartMoney } from "../smartmoney";
 import { createStrategy } from "../strategy";
@@ -441,6 +442,12 @@ export function createDesks(ctx: ShellContext, deps: DesksDeps) {
          `peek`, and a closure would silently drop it. */
       shelf: shelf.rows,
       sweeps: sweepRows,
+      /* THE LOADER IS PASSED, never defaulted inside the desk: a live default
+         is how a test comes to reach the operator's gateway. */
+      loadAuto: async () => {
+        const got = await autoResults();
+        return got.kind === "ok" ? { results: got.value.results } : null;
+      },
       /* A ROW IS A ROUTE, not a readout: the market it names is the one you
          would go and look at next. */
       onOpen: (symbol, timeframe) => {

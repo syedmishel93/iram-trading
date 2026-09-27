@@ -34,7 +34,14 @@
 import { h, clear } from "./dom";
 import { pkWhy } from "./panelkit";
 import { computed, renderEffect, signal, type ReadSignal } from "../core/signal";
-import { scoreboard, scoreTotals, type AssetScore } from "../backtest/scoreboard";
+import {
+  modelBoard,
+  scoreboard,
+  scoreTotals,
+  type AssetScore,
+  type ModelScore,
+} from "../backtest/scoreboard";
+import type { AutoResult } from "../data/autorun";
 import type { Discovered } from "../backtest/discovered";
 import type { SweepSummary } from "../backtest/sweepcache";
 
@@ -45,6 +52,14 @@ export interface ResultsOptions {
   readonly sweeps: ReadSignal<readonly SweepSummary[]>;
   /** Open a market on the chart, so a row is a route rather than a readout. */
   readonly onOpen?: (symbol: string, timeframe: string) => void;
+  /**
+   * The autonomous loop's per-market findings, which carry the router report.
+   *
+   * INJECTED SO A TEST CAN PASS A STUB. A live default here would reach the
+   * gateway from any test that constructed this desk — the defect this project
+   * has now recorded arriving through three separate doors.
+   */
+  readonly loadAuto?: () => Promise<{ readonly results: readonly AutoResult[] } | null>;
 }
 
 /** Verdict → the words the operator reads. Never the internal token. */
@@ -159,6 +174,106 @@ export function createResults(opts: ResultsOptions): { el: HTMLElement } {
       }),
   });
 
+  // ------------------------------------------------------- the model ---
+
+  const models = signal<readonly ModelScore[]>([]);
+  const modelWhy = signal<string>("");
+  const modelBusy = signal<boolean>(false);
+
+  const loadModels = async (): Promise<void> => {
+    const load = opts.loadAuto;
+    if (!load || modelBusy.peek()) return;
+    modelBusy.set(true);
+    try {
+      const got = await load();
+      if (got === null) {
+        /* "COULD NOT ASK" IS NOT "NOTHING LEARNED". Rendering an unreachable
+           service as an empty board would report the most confident possible
+           version of no news. */
+        models.set([]);
+        modelWhy.set("The autonomous service is not answering, so nothing can be said about the model.");
+        return;
+      }
+      models.set(modelBoard(got.results));
+      modelWhy.set("");
+    } finally {
+      modelBusy.set(false);
+    }
+  };
+  void loadModels();
+
+  const MODEL_TEXT: Readonly<Record<ModelScore["verdict"], string>> = {
+    skill: "Learned something",
+    "no skill": "Learned nothing",
+    "too few": "Too few to say",
+    "could not ask": "Not fitted",
+  };
+
+  const modelRow = (m: ModelScore): HTMLElement =>
+    h(
+      "div",
+      { class: "res-row", "data-verdict": m.verdict === "skill" ? "working" : m.verdict === "no skill" ? "nothing" : "not searched" },
+      h(
+        "div",
+        { class: "res-row-head" },
+        h(
+          "span",
+          { class: "res-subject" },
+          h("span", { class: "res-sym", text: m.symbol }),
+          h("span", { class: "res-tf", text: m.timeframe }),
+        ),
+        h("span", { class: "res-verdict", text: MODEL_TEXT[m.verdict] }),
+        /* LIFT OVER THE BASE RATE, not accuracy. Accuracy alone is unreadable:
+           61% is excellent against a 50% population and worthless against 61%. */
+        h("span", {
+          class: "res-edge",
+          text:
+            Number.isFinite(m.lift) && m.verdict === "skill"
+              ? `${m.lift >= 0 ? "+" : "\u2212"}${Math.abs(m.lift * 100).toFixed(0)}pts`
+              : "\u2014",
+        }),
+      ),
+      h("p", { class: "res-why", text: m.why }),
+    );
+
+  const modelPanel = h(
+    "section",
+    { class: "dd-panel" },
+    h(
+      "div",
+      { class: "panel-head" },
+      h("h2", { class: "panel-title", text: "What the model learned" }),
+      h("button", {
+        class: "ghost-btn tiny",
+        type: "button",
+        text: () => (modelBusy() ? "Reading\u2026" : "Refresh"),
+        disabled: () => modelBusy() || opts.loadAuto === undefined,
+        onclick: () => void loadModels(),
+      }),
+    ),
+    pkWhy(
+      "A classifier that always predicts the commonest outcome scores the base rate exactly \u2014 so an accuracy with no base rate beside it cannot be read at all, and \u201c58% accurate\u201d on a population that is 58% winners has learned nothing. Both numbers are on every row. Learning nothing is an ANSWER about a market and is kept apart from a model that was never fitted. The calibration curve and the fold boundaries are on the Simulation desk, which answers about one market in depth.",
+      "Why accuracy alone is not a result",
+    ),
+    h("p", {
+      class: "res-empty",
+      "data-on": () => String(modelWhy() !== "" || models().length === 0),
+      text: () =>
+        modelWhy() !== ""
+          ? modelWhy()
+          : "No market has had a model fitted yet. The autonomous search fits one per market once its candidate ledger is deep enough.",
+      style: () => (modelWhy() === "" && models().length > 0 ? "display:none" : ""),
+    }),
+    h("div", {
+      class: "res-board",
+      ref: (el: HTMLElement) =>
+        renderEffect(() => {
+          clear(el);
+          for (const m of models()) el.appendChild(modelRow(m));
+        }),
+    }),
+  );
+
   const el = h(
     "div",
     { class: "dd results-desk" },
@@ -196,6 +311,8 @@ export function createResults(opts: ResultsOptions): { el: HTMLElement } {
 
       board,
     ),
+
+    modelPanel,
   );
 
   return { el };
