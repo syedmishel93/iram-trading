@@ -109,17 +109,44 @@
    `align-items: start` because a claim list and a two-line verdict differ in
    height by a factor of ten, and stretching them to match fills the difference
    with emptiness that looks like missing data. */
+/*
+  MULTI-COLUMN, BECAUSE A GRID PLACES BY ROW AND THESE CARDS ARE NOT ROWS.
+
+  The comment above already names the problem - a claim list and a two-line
+  verdict differ in height by a factor of ten - and `align-items: start` stops
+  them stretching to match. What it cannot stop is the ROW: a grid puts the next
+  pair on a line below the taller of the previous two, so the shorter one leaves
+  a hole beside it. MEASURED on this desk at 1920:
+
+      row 2    left 486   right 180   -> 306px of nothing on the right
+      row 3    left 101   right 495   -> 394px of nothing on the left
+
+  That alternating emptiness is what the owner circled in red. Multi-column
+  places by COLUMN and fills each one greedily to a balanced height, so a short
+  card is followed immediately by the next and there are no slots left to be
+  empty - the same fix, with the same measurements behind it, that `.bf-grid`
+  records on the Briefing desk.
+
+  Three is the cap and 32rem decides how many a given width actually gets, so a
+  narrow desk still drops to two and then one rather than squeezing.
+*/
 .ld-stack {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(32rem, 1fr));
-  align-items: start;
-  gap: var(--sp-4);
+  columns: 3 32rem;
+  column-gap: var(--sp-4);
+}
+
+/* A card split across a column break has its head in one column and its figures
+   in the next. The margin is the row gap: multi-column has no `row-gap` between
+   siblings, only between columns. */
+.ld-stack > * {
+  break-inside: avoid;
+  margin-bottom: var(--sp-4);
 }
 
 /* The headline panel spans: it is the sentence every other panel qualifies,
    and it reads as one of several findings if it sits in a column beside them. */
 .ld-panel-lead,
-.ld-wide { grid-column: 1 / -1; }
+.ld-wide { column-span: all; }
 
 /* --- panels -------------------------------------------------------------- */
 

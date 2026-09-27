@@ -532,3 +532,9 @@
 .shelf-confirm p { margin: 0 0 var(--sp-2); flex: 1 0 100%; color: var(--text-muted); }
 .shelf-retire { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; width: 100%; }
 .shelf-retire .field-input { flex: 1 1 16rem; min-width: 0; }
+
+/* A NAME IS SHORT, SO THE FIELD IS. At the widened desk measure this ran to
+   1,300px for a label you type three words into. A field states its own width
+   or it takes the row's - this project has recorded that trap from both
+   directions already. */
+.strat-name { max-width: 44ch; }

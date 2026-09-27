@@ -516,7 +516,20 @@
  * is showing, and the chart mounts outside it.
  */
 .view-slot > * {
-  max-width: 1480px;
+  /* 1800, NOT 1480. The old measure was chosen for a TABLE ROW - past roughly
+     there the eye loses a row between its first column and its last - and then
+     applied to every desk, including the card dashboards that have no long rows
+     at all. MEASURED on the Learning desk at 1920: 209px of nothing down each
+     side, 22% of the screen, on a grid of cards each of which is its own
+     measure. A professional terminal uses the width; a centred column is an
+     article layout wearing a dashboard's clothes.
+
+     The rows the old number protected are protected where they live instead -
+     see `.jr-fields` in components.css, which caps the Journal's entry form
+     rather than the whole desk. That is the same move as putting the stretch
+     here instead of on three desk classes: the rule belongs to the thing it is
+     about. */
+  max-width: 1800px;
   margin-inline: auto;
   /**
    * `margin-inline: auto` TURNS OFF THE STRETCH IT SITS BESIDE.
@@ -1495,6 +1508,12 @@
 .jr-field { display: flex; flex-direction: column; gap: var(--sp-1); }
 
 .jr-input,
+/* A NOTE IS PROSE, SO IT TAKES A MEASURE. Raising the desk cap to 1800 took
+   this field to 1,782px - a single line you type a sentence into, running the
+   whole width of the screen. The desk cap was never the right place to protect
+   a row like this; the row is. 76ch is what this project reads to. */
+.jr-note { max-width: 76ch; }
+
 .jr-note {
   width: 100%;
   padding: var(--sp-2);

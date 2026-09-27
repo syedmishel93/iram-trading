@@ -61,7 +61,7 @@ describe("the desk column", () => {
        to centre it took it to 897. Only all three give a desk that fills its
        column up to the measure and sits in the middle of what is left. */
     const rule = capRule();
-    expect(rule, "the reading measure").toMatch(/max-width:\s*1480px/);
+    expect(rule, "the dashboard measure").toMatch(/max-width:\s*1800px/);
     expect(rule, "centred, not left-aligned").toMatch(/margin-inline:\s*auto/);
     expect(rule, "WITHOUT THIS the auto margin cancels the container's stretch").toMatch(
       /width:\s*100%/,
@@ -122,5 +122,43 @@ describe("the Strategy desk's conversation is a rail", () => {
        pins itself over the content beneath it. */
     const narrow = strat.slice(strat.indexOf("@media (max-width: 900px)"));
     expect(narrow).toMatch(/\.strat-chat-card\s*\{[^}]*position:\s*static/);
+  });
+});
+
+describe("a field states its own width", () => {
+  /* WIDENING THE DESK MEASURE FROM 1480 TO 1800 EXPOSED A CLASS, not two
+     instances. The old cap was holding back fields that had never declared a
+     width of their own: the Journal's note ran to 1,782px and the Strategy
+     desk's name field to 1,300px — single lines you type a sentence or three
+     words into, stretched the width of the screen.
+
+     A DESK CAP IS THE WRONG PLACE TO PROTECT A ROW. It protects every row on
+     every desk by making the whole desk narrow, which is what cost 22% of the
+     screen. The row is the right place, and this pins that the ones found so far
+     keep theirs. */
+
+  const sheets = readdirSync(DIR).filter((f) => f.endsWith(".css"));
+  const all = sheets.map((f) => readFileSync(join(DIR, f), "utf8").replace(/\/\*[\s\S]*?\*\//g, "")).join("\n");
+
+  it("THE PROSE AND NAME FIELDS CARRY A MEASURE", () => {
+    for (const cls of ["jr-note", "strat-name"]) {
+      /* NO REGEX BUILT FROM A TEMPLATE. The first version of this line went
+         through a shell heredoc, which ate its doubled backslashes - and in a
+         template literal `\s` is simply `s`, so the pattern matched nothing
+         and the guard reported "no rule" for a rule that was plainly there.
+         A plain index walk carries no escapes to lose. */
+      const at = all.indexOf(`.${cls} {`) >= 0 ? all.indexOf(`.${cls} {`) : all.indexOf(`.${cls}{`);
+      expect(at, `.${cls} should have a rule`).toBeGreaterThan(-1);
+      const body = all.slice(at, all.indexOf("}", at));
+      expect(body, `.${cls} must cap its own width`).toMatch(/max-width: \d+ch/);
+    }
+  });
+
+  it("and the desk measure is the dashboard one, not the table one", () => {
+    /* 1480 was chosen for a table ROW and then applied to card dashboards that
+       have no long rows at all. */
+    const comp = readFileSync(join(DIR, "components.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+    const rule = comp.match(/\.view-slot\s*>\s*\*\s*\{([^}]*max-width[^}]*)\}/);
+    expect(rule?.[1] ?? "").toMatch(/max-width:\s*1800px/);
   });
 });
