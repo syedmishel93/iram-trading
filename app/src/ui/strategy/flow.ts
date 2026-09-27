@@ -558,6 +558,13 @@ export function createStrategyFlow(opts: StrategyFlowOptions) {
   renderEffect(() => {
     const chat = state().chat;
     clear(chatLog);
+    /* THE RESERVE IS FOR MESSAGES, so it is only paid once there are some.
+       `min-height: 120px` holds the card steady as a conversation grows — right
+       — but before one starts it reserved 120px for a single 19px line, and 101
+       of those were blank on a screen where 53% already went before the first
+       control. The effect that knows the log is empty is the one that should
+       say so. */
+    chatLog.setAttribute("data-empty", String(chat.length === 0));
     if (chat.length === 0) {
       chatLog.appendChild(
         h("p", {

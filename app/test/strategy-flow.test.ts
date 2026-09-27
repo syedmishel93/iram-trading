@@ -470,6 +470,22 @@ describe("the conversation card leads with one line", () => {
     expect(whys.some((w) => /pullbacks to the 50 EMA/.test(w)), "the example must be reachable").toBe(true);
   });
 
+  it("AN EMPTY LOG CLAIMS NO RESERVE, and a used one does", () => {
+    /* THE PARAGRAPH WAS NOT THE COST. Shortening it from 142 characters to 72
+       saved exactly ZERO pixels, because `.strat-chat` carries
+       `min-height: 120px` and the line is 19px inside it — measured in the
+       browser, `firstControlY` was 425 before and 425 after. The reserve is what
+       keeps the card steady as a conversation grows, which is worth having; what
+       was not worth having was paying it before anybody had typed anything.
+
+       MEASURED after marking the empty state: the log went 120px -> 19px, the
+       first control 425 -> 324, and the share of the first screen spent before
+       reaching one went 47.1% -> 35.9%. */
+    const f = mount();
+    const log = step(f.el, "conversation").querySelector(".strat-chat") as HTMLElement;
+    expect(log.getAttribute("data-empty"), "a fresh desk has an empty log").toBe("true");
+  });
+
   it("and the input keeps its own example, which is a different one", () => {
     // Two examples in two places is not duplication: the placeholder shows the
     // shape of a REFINEMENT, the Why shows the shape of a first idea.

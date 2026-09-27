@@ -93,7 +93,14 @@
   gap: var(--sp-3);
   max-height: 420px;
   overflow-y: auto;
+  /* THE RESERVE IS FOR MESSAGES. It keeps the card steady as a conversation
+     grows, which is worth having - but an EMPTY log holds one 19px line, so
+     101px of this was blank before anybody had typed anything. */
   min-height: 120px;
+}
+
+.strat-chat[data-empty="true"] {
+  min-height: 0;
 }
 
 .strat-msg {
