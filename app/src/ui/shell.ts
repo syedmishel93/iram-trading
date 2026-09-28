@@ -22,6 +22,7 @@ import { recentClaims } from "../data/claims";
 import { sanitiseAll, tunedCount, type Params } from "../chart/params";
 import { pkRowsLive, type PkRow } from "./panelkit";
 import { PROFILE_BASIS, volumeProfile } from "../chart/profile";
+import { resolveTheme, watchSystemTheme, THEME_CHOICES } from "./systemtheme";
 import { createJournal } from "../journal/store";
 import { createLearnStore } from "../learn/store";
 import { createBackfiller } from "../data/backfill";
@@ -129,7 +130,7 @@ import { canAnchor, presetFor, anchorFor, anchorTimeframe } from "../alert/prese
 import { deliver } from "../alert/notify";
 import type { BarView } from "../chart/series";
 import { createTerminalAccess } from "./shell/terminalaccess";
-import { ACCENTS, CHART_STYLES, SESSION_TIMEFRAMES, THEMES, TIMEFRAMES, DENSITIES, MA_SET, VIEWS, SCOPED_VIEWS, sessionWash, type ThemeName, type Density } from "./shell/views";
+import { ACCENTS, CHART_STYLES, SESSION_TIMEFRAMES, TIMEFRAMES, DENSITIES, MA_SET, VIEWS, SCOPED_VIEWS, sessionWash, type ThemeName, type Density } from "./shell/views";
 import { SESSIONS } from "../data/sessionmap";
 import { assetClass } from "../data/sessions";
 import { indexAtOrAfter } from "./shell/bars";
@@ -209,7 +210,12 @@ export function mountShell(root: HTMLElement): void {
   const detectGen = prefs["detectDesign"] === DETECT_DESIGN;
 
   const state: ShellState = {
-    theme: signal<ThemeName>((prefs["theme"] as ThemeName) ?? "iram"),
+    /* `auto` FOLLOWS THE SYSTEM, and is the default for a fresh install: this
+       terminal ships seven themes including a light one and read
+       `prefers-color-scheme` nowhere, so a first run on a light machine got the
+       dark theme with no way to say "match my system". An install that already
+       has a saved theme keeps it — a saved theme is a decision. */
+    theme: signal<ThemeName>((prefs["theme"] as ThemeName) ?? ("auto" as ThemeName)),
     /* The Briefing, on a first run (v56). NOT a change for anyone already
        using the terminal: `view` is persisted, so an existing install opens
        on whatever it was last on. A product whose front door is a chart of
@@ -658,7 +664,22 @@ export function mountShell(root: HTMLElement): void {
     if (!res.ok) console.warn(`[iram] preferences not saved — ${res.error}`);
   });
 
-  effect(() => document.documentElement.setAttribute("data-theme", state.theme()));
+  /**
+   * THE RESOLVED THEME, never the stored one.
+   *
+   * `data-theme="auto"` matches no rule in `tokens.css`, so every custom
+   * property would fall through to whatever `:root` carries — and an undefined
+   * property INHERITS rather than being ignored, which this project measured
+   * turning a trust dot invisible. `resolveTheme` always returns a real name.
+   */
+  const systemDark = signal<boolean>(true);
+  watchSystemTheme((dark) => systemDark.set(dark));
+  effect(() =>
+    document.documentElement.setAttribute(
+      "data-theme",
+      resolveTheme(state.theme(), systemDark()),
+    ),
+  );
   effect(() => document.documentElement.setAttribute("data-density", state.density()));
   /* "theme" sets NO attribute, so the theme's own brand applies — see the
      accent block at the end of tokens.css. */
@@ -1610,7 +1631,7 @@ export function mountShell(root: HTMLElement): void {
     railOn,
     view: state.view,
     theme: state.theme as unknown as Signal<string>,
-    themes: THEMES,
+    themes: THEME_CHOICES,
     density: state.density as unknown as Signal<string>,
     densities: DENSITIES,
     dockOpen: dockToggle,
@@ -2409,7 +2430,7 @@ export function mountShell(root: HTMLElement): void {
       volumeHeight: () => volumeHeight(),
       setVolumeHeight,
       theme: state.theme as unknown as Signal<string>,
-      themes: THEMES,
+      themes: THEME_CHOICES,
       density: state.density as unknown as Signal<string>,
       densities: DENSITIES,
       accent,
@@ -5181,6 +5202,11 @@ export function mountShell(root: HTMLElement): void {
   // reading computed style per frame would be absurd.
   effect(() => {
     state.theme();
+    /* AND THE SYSTEM SETTING. With `theme` set to `auto` the stored value never
+       changes when the machine flips at sunset — only the RESOLVED one does, so
+       an effect watching `state.theme()` alone would leave the canvas painted in
+       the old palette while every DOM surface around it had already switched. */
+    systemDark();
     /* The palette is read here too, so changing a candle colour repaints through
        the same path a theme change does. `applyPalette` writes the custom
        properties FIRST; `themeFromCss` then reads the resolved values, which is

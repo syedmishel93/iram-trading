@@ -4,6 +4,30 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
+
+    <!--
+      STANDALONE ON APPLE DEVICES, WITHOUT A MANIFEST FILE.
+
+      A `manifest.json` is the usual way to do this and it CANNOT be used here:
+      the shipped artefact is ONE self-contained index.html that must open from a
+      double-click with no server (see vite.config.ts, where that is called a
+      hard product requirement), and the gateway serves exactly that one file. A
+      manifest has to be a real URL, so adding one would either break the
+      single-file property or ship a dead link.
+
+      These do the same job inline. Added to Home Screen, the terminal opens in
+      its own window with no address bar — and for a real desktop window there is
+      already `desktop/`, a Tauri shell, which is a better answer than either.
+
+      `theme-color` is the BROWSER CHROME's colour, and it is the dark surface
+      because that is what this terminal ships as. It does not follow the live
+      theme: a value here is read at load, and re-writing it per theme would be a
+      second owner for a colour `tokens.css` already holds.
+    -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="IRAM" />
+    <meta name="theme-color" content="#0F1012" />
     <title>IRAM Intelligence Terminal</title>
 
     <!--
