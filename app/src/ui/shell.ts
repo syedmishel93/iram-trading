@@ -4556,7 +4556,7 @@ export function mountShell(root: HTMLElement): void {
 
   /** What the live bar reads: last bar, heat, sessions, fresh structure,
       the bar countdown and the next-bar band — `ui/model/readings.ts`. */
-  const { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand } =
+  const { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand, nextCandle } =
     createReadingsModel(ctx, { replay, nowMs, detections, openBook });
 
   /*
@@ -4577,12 +4577,38 @@ export function mountShell(root: HTMLElement): void {
        the look-ahead this codebase spends most of its comments avoiding. */
     const onReplay = replay.active();
     const band = onReplay ? null : nextBarBand();
+    /* READ BEFORE THE GUARD, like everything else in this effect — see above. */
+    const series = bars();
     if (!chart) return;
-    chart.setProjection(
-      band === null
-        ? null
-        : { low: band.low, high: band.high, confidence: 0.8, calibrated: band.calibrated },
-    );
+    if (band === null) {
+      chart.setProjection(null);
+      return;
+    }
+    /**
+     * THE BODY, WHEN ONE HAS BEEN EARNED.
+     *
+     * `nextCandle()` returns a direction only when a candle pattern's measured
+     * edge ON THIS MARKET clears the charge for having searched several — which
+     * on most bars it does not, and then open equals close and the body draws as
+     * a flat line. `analysis/nextcandle.ts` argues the whole case, including why
+     * this is a named deviation from `forecast.ts`'s refusal.
+     */
+    const cf = nextCandle(series, {
+      low: band.low,
+      high: band.high,
+      confidence: 0.8,
+      expected: Math.abs(band.high - band.low) / 2,
+      sigma: Number.NaN,
+      percentile: Number.NaN,
+      n: series.length,
+    });
+    chart.setProjection({
+      low: band.low,
+      high: band.high,
+      confidence: 0.8,
+      calibrated: band.calibrated,
+      ...(cf === null ? {} : { body: { open: cf.open, close: cf.close } }),
+    });
   });
 
   renderEffect(() => {
@@ -5459,6 +5485,41 @@ export function mountShell(root: HTMLElement): void {
     if (!hovering) {
       const band = replay.active() ? null : nextBarBand();
       if (band !== null) {
+        /**
+         * THE DIRECTION VERDICT, beside the range.
+         *
+         * The drawn candle is a doji on almost every bar, and without a sentence
+         * that is indistinguishable from a broken feature — which is exactly how
+         * this started: "the next candle predictor is just a transparent box".
+         * It is not broken; it is the honest answer, and the answer has to be
+         * readable.
+         *
+         * MEASURED on this operator's own BTCUSDT: over 5,000 bars at 15m and
+         * 40,000 at 1h, NONE of the six patterns has a next-bar edge clearing
+         * its own search. The strongest was a bearish harami at +1.9 standard
+         * errors against a hurdle of 3.3 — and the sign was UP, the opposite of
+         * what the pattern is named for.
+         */
+        const cf = nextCandle(bars(), {
+          low: band.low,
+          high: band.high,
+          confidence: 0.8,
+          expected: Math.abs(band.high - band.low) / 2,
+          sigma: Number.NaN,
+          percentile: Number.NaN,
+          n: bars().length,
+        });
+        const called = cf !== null && cf.basis === "pattern";
+        legend.appendChild(
+          h("span", {
+            class: "legend-fc",
+            "data-ok": called ? "true" : "false",
+            text: called
+              ? `next candle: ${cf.close > cf.open ? "up" : "down"} on ${cf.pattern ?? ""}`
+              : "next candle: no direction",
+            title: cf?.why ?? "",
+          }),
+        );
         legend.appendChild(
           h("span", {
             class: "legend-fc",

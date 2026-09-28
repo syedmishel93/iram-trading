@@ -8,6 +8,13 @@
  */
 
 import { type Calibration, GOOD_ENOUGH, calibration, forecastRange } from "../../analysis/forecast";
+import { MIN_BARS, type RangeForecast } from "../../analysis/forecast";
+import {
+  bestEdge,
+  forecastCandle,
+  matchPatterns,
+  type CandleForecast,
+} from "../../analysis/nextcandle";
 import { type SessionStatus, sessionStatuses } from "../../data/sessionmap";
 import { marketState } from "../../data/sessions";
 import { type Detection } from "../../detect/types";
@@ -161,5 +168,41 @@ export function createReadingsModel(ctx: ShellContext, deps: ReadingsModelDeps) 
     };
   };
 
-  return { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand };
+  /**
+   * The forecast CANDLE — the band above, plus a body when one is earned.
+   *
+   * CACHED ON THE SAME KEY AND FOR A HARDER REASON. `bestEdge` walks the whole
+   * loaded history once per pattern looking for occurrences, so six patterns is
+   * six passes over 800 bars; per repaint on a live feed that is far worse than
+   * the band it sits beside. The edge can only change when a bar CLOSES, which
+   * is exactly when this key changes.
+   *
+   * The body is NOT re-centred on the live price the way the band is. The band
+   * is a width and scales; the body is a claim about where the next close lands
+   * relative to THIS bar's open, and sliding it with every tick would redraw the
+   * prediction continuously until it agreed with whatever just happened.
+   */
+  let edgeCache: { key: string; edge: ReturnType<typeof bestEdge> } | null = null;
+
+  const nextCandle = (
+    series: readonly BarView[],
+    band: RangeForecast,
+  ): CandleForecast | null => {
+    if (series.length < MIN_BARS) return null;
+    const last = series[series.length - 1] as BarView;
+    const key = `${state.symbol()}|${state.timeframe()}|${last.t}`;
+    if (edgeCache === null || edgeCache.key !== key) {
+      edgeCache = { key, edge: bestEdge(series) };
+    }
+    /* The edge is only applied when the pattern it was measured for is ALSO the
+       one that just fired. A measured edge for `hammer` says nothing about a bar
+       that was not a hammer, and applying it anyway would turn a conditional
+       statistic into a permanent drift. */
+    const firing = matchPatterns(series, series.length - 1);
+    const e = edgeCache.edge.edge;
+    const applies = e !== null && firing.includes(e.pattern);
+    return forecastCandle(series, band, applies ? e : null);
+  };
+
+  return { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand, nextCandle };
 }

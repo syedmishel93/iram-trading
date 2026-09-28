@@ -123,6 +123,17 @@ export interface Projection {
   readonly confidence: number;
   /** Whether the replay says the claim holds. False draws it muted. */
   readonly calibrated: boolean;
+  /**
+   * The BODY of the forecast candle, when a direction has been earned.
+   *
+   * Absent on most bars, and that is the answer rather than a gap — see
+   * `analysis/nextcandle.ts`, which will only produce one when a pattern's
+   * measured edge on THIS market clears the charge for having searched several.
+   * The band above is a volatility statement and says nothing about direction;
+   * this is the only part of the drawing that is ever a directional call, which
+   * is why it is separate and optional.
+   */
+  readonly body?: { readonly open: number; readonly close: number };
 }
 
 /**
@@ -1335,6 +1346,78 @@ export class ChartEngine {
     ctx.moveTo(x0, Math.round(yLow) + 0.5);
     ctx.lineTo(x1, Math.round(yLow) + 0.5);
     ctx.stroke();
+
+    /**
+     * THE FORECAST CANDLE, and it must never look like a bar that happened.
+     *
+     * Every real candle here is a filled body with a solid wick. This one is a
+     * DASHED OUTLINE with no fill, in the same muted ink as the band, sitting in
+     * the empty slot past the last bar. A reader who glances at it has to be
+     * able to tell in one look that it is a proposal rather than a print — a
+     * forecast drawn in the same ink as history is the most expensive kind of
+     * mistake this file can make.
+     *
+     * The direction colours it, because a body with no colour is unreadable
+     * against a band that is already neutral — but the dash and the empty fill
+     * carry "this has not happened" regardless of which way it points.
+     */
+    const bodyF = f.body;
+    if (bodyF !== undefined) {
+      const yOpen = vp.yOf(bodyF.open);
+      const yClose = vp.yOf(bodyF.close);
+      if (Number.isFinite(yOpen) && Number.isFinite(yClose)) {
+        const rising = bodyF.close > bodyF.open;
+        const flat = bodyF.close === bodyF.open;
+        /* NO DIRECTION IS DRAWN AS A LINE, in the band's own ink. Giving it the
+           up or down colour would be a call the model explicitly declined. */
+        /* BRIGHTER THAN THE BAND, ALWAYS. MEASURED after the first version: with
+           the body in the band's own ink at the band's own alpha, a no-direction
+           doji was invisible inside the box it sits in — the operator saw a
+           transparent rectangle and nothing else, which is the complaint this
+           whole feature exists to answer. The candle is the foreground. */
+        ctx.strokeStyle = flat ? th.text : rising ? th.up : th.down;
+        ctx.globalAlpha = f.calibrated ? 0.9 : 0.5;
+        ctx.lineWidth = 1.5;
+
+        const pad = Math.max(1, (x1 - x0) * 0.18);
+        const bx0 = x0 + pad;
+        const bx1 = x1 - pad;
+        const top = Math.min(yOpen, yClose);
+        const bottom = Math.max(yOpen, yClose);
+
+        /* The wick, from the band's edges to the body. */
+        ctx.beginPath();
+        const mid = Math.round((bx0 + bx1) / 2) + 0.5;
+        ctx.moveTo(mid, Math.round(yHigh) + 0.5);
+        ctx.lineTo(mid, Math.round(top) + 0.5);
+        ctx.moveTo(mid, Math.round(bottom) + 0.5);
+        ctx.lineTo(mid, Math.round(yLow) + 0.5);
+        ctx.stroke();
+
+        /* THE BODY IS SOLID WHILE THE WICK STAYS DASHED. Both are still the
+           forecast — the empty fill and the muted band around them carry that —
+           but a body drawn in the same dashes as everything else had no edge for
+           the eye to catch, and a candle you cannot find is not a forecast. */
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        if (bottom - top < 1) {
+          /* A flat body is a LINE, not a zero-height rectangle: a rect of no
+             height renders as nothing on some devices and as a hairline on
+             others, so "no direction" would be invisible on exactly the bars
+             where it is the answer. */
+          /* A DOJI, and it must read as one. This is the answer on almost every
+             bar — measured on this operator's own BTCUSDT, not one of six
+             patterns clears its own search at 15m or 1h — so "no direction" is
+             the state the control spends its life in and has to be legible. */
+          ctx.moveTo(bx0 - 1, Math.round(top) + 0.5);
+          ctx.lineTo(bx1 + 1, Math.round(top) + 0.5);
+        } else {
+          ctx.rect(Math.round(bx0) + 0.5, Math.round(top) + 0.5, Math.round(bx1 - bx0), Math.round(bottom - top));
+        }
+        ctx.stroke();
+      }
+    }
+
     ctx.restore();
   }
 
