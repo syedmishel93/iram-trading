@@ -4630,20 +4630,22 @@ export function mountShell(root: HTMLElement): void {
       percentile: Number.NaN,
       n: series.length,
     });
+    /* NOTHING DRAWN WHEN THERE IS NO DIRECTION. A flat body has to take a
+       colour, and every colour available is a directional claim the model
+       declined to make. The legend already says nothing in that state, so the
+       two agree rather than one showing a candle the other will not describe. */
+    if (cf === null || cf.basis === "none") {
+      chart.setProjection(null);
+      drawnCandle.set(cf);
+      return;
+    }
+    /* THE FORECAST'S OWN GRADE decides whether it is drawn at full strength.
+       `rangeErr` and `atrErr` are the same quantity measured two ways over the
+       same replay, so the comparison is the one claim this drawing makes. */
+    const sk = nextCandleSkill(series);
     chart.setProjection({
-      low: band.low,
-      high: band.high,
-      confidence: 0.8,
-      calibrated: band.calibrated,
-      /* NO CANDLE WHEN THERE IS NO DIRECTION TO DRAW. Now that the forecast is
-         rendered as an ordinary candle, a flat body would have to take a colour,
-         and every colour available is a directional claim the model declined to
-         make. The band alone is the honest drawing there — and the legend
-         already says nothing in that state, so the two agree rather than one
-         showing a candle the other will not describe. */
-      ...(cf === null || cf.basis === "none"
-        ? {}
-        : { candle: { open: cf.open, high: cf.high, low: cf.low, close: cf.close } }),
+      candle: { open: cf.open, high: cf.high, low: cf.low, close: cf.close },
+      beatsAtr: sk !== null && sk.rangeErr < sk.atrErr,
     });
     /* PUBLISHED AFTER IT IS DRAWN, so the legend describes the candle on the
        canvas rather than one of its own. */

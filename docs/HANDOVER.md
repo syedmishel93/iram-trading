@@ -1,6 +1,45 @@
 # MISHEL INTELLIGENCE TRADING — SESSION HANDOVER
 Terminal: **app/ v50 is the product** (see ../LEGACY.md) · index.html **v39.29** (FROZEN 2026-09-08, still openable at /legacy) + **app/ v58** (Vite/TS rewrite: 3,618 tests in 144 files, 23 desks, connected to the MT5 account for positions and equity — a Briefing, an Analyse and a Chart standing alone, the other 20 in 4 groups) + **desktop/** (Tauri native shell) · Server: proxy `ddt_data_server.py` (8787) + `mishel_service.py` (8788, **SQLite by default, PostgreSQL via `IRAM_DB_URL` — see `server/db/`**) + **`server/quant/` (8789, optional model service — GARCH, causal inference, calibrated classification; the terminal degrades to "not running" without it)** + mishel_ml.py + mishel_hmm.py + mishel_data.py · Launcher: **`run.py` — the only one** (starts `server/gateway`: all three services and the terminal on ONE port, 8787; `--status`, `--port`, `--legacy`, `--no-background`, `--build`, `--install`; `run.sh`/`.bat`/`.command` are three-line wrappers) · Tests: `tests/run_tests.sh`, `python -m pytest tests/test_quant_service.py`.
 
+## v63.28 — THE BAND IS GONE; THE PROJECTION IS THE CANDLE
+
+*"why the hollow transparent still there"* — pointing at the translucent dashed
+box, which is the 80% interval for the next close and NOT the candle. The candle
+was the small cross inside it.
+
+Three releases of me defending that box, and the owner was right about the
+mechanism every time. **It was the only rectangle on a canvas made of candles**,
+about three times the height of the candle inside it — so the eye read the big
+shape and the small one was decoration inside it. Which is exactly backwards:
+the candle's wicks are the MEASURED part (0.236 ATR of error against 0.363 for
+flat ATR at 1h, z +4.75) and the box was framing them with something that had
+never been compared to anything.
+
+`Projection` is now `{ candle, beatsAtr }` and `drawProjection` draws one candle.
+
+### WHAT IS LOST, SAID PLAINLY
+
+The 80% close interval had a calibration replay behind it and the candle's body
+does not. The replay has NOT been deleted: it still runs, `forecastCandle` still
+clamps the body inside that interval so the drawing cannot contradict it, and
+`nextBarBand` still feeds it. What is gone is drawing it. If it is ever wanted
+back it belongs in a readout, not as a box around the thing it dwarfs.
+
+### AND THE MUTING MEANS SOMETHING AGAIN
+
+The candle was dimmed when the BAND'S model failed ITS calibration — two
+different models, one muting the other. Coherent while both were drawn together;
+incoherent the moment the band was not. It is now dimmed when the candle's own
+walk-forward replay says its range does NOT beat flat ATR on this market
+(`rangeErr < atrErr`), which is the honesty check that belongs to the thing
+being drawn. **An honesty flag has to be about the object it dims.**
+
+Verified on the python build at :8787 by pixel scan, not by looking: **0
+band-tinted pixels** anywhere in the projection slot, the forecast rendering as
+a single 8px candle slot in muted `--up`, 0 signal errors. Live legend:
+`next ▲ 50% right of 250, coin 50%`, range 0.26 ATR against 0.35 for flat ATR.
+Gate: `VERIFY PASSED — 5 stages, 165s`, 4,979 frontend tests.
+
 ## v63.27 — THE FORECAST CANDLE IS A CANDLE
 
 The forecast was drawn as a dashed hollow outline, on my reasoning that it must

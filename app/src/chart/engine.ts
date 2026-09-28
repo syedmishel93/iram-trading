@@ -97,53 +97,46 @@ export interface CountdownTag {
 }
 
 /**
- * The next bar's forecast range, drawn in the space right of the newest bar.
+ * THE FORECAST CANDLE, drawn in the empty slot right of the newest bar.
  *
- * WHAT THIS IS AND, MORE IMPORTANTLY, WHAT IT IS NOT
- * It is an interval on the next CLOSE, from the volatility model in
- * analysis/forecast.ts, at a stated confidence. It is NOT a direction call.
- * The box is symmetric about the last price by construction and has no upper
- * or lower bias to read, because the model that produces it forecasts the size
- * of the next move and says nothing whatsoever about its sign.
+ * WHAT THIS IS, AND WHICH HALF OF IT IS MEASURED
  *
- * That is the whole reason it can be drawn at all. A shaded cone leaning
- * upward would be a direction call wearing an interval's clothes, and one bar
- * ahead is the horizon where a direction call is least defensible.
+ * Its HIGH and LOW come from `analysis/analogue.ts`: the bars most like the
+ * current one ON THIS SERIES, and what actually followed them. Walk-forward on
+ * this operator's own archive, the median error of that range forecast is
+ * 0.236 ATR against 0.363 for flat ATR(14) at 1h — 35% better, z +4.75. That
+ * half is a real forecast conditioned on the setup.
  *
- * `calibrated` is what keeps it honest on screen: the model replays itself
- * over the loaded history and reports how often the interval actually
- * contained the outcome. When that check fails, the band is drawn in the muted
- * colour and the axis label says so, rather than being drawn identically to a
- * band that has passed.
+ * Its CLOSE is a directional call and is the weakest thing in this interface.
+ * On the same replay it is right 53% of the time against a 51% majority class,
+ * which is not skill. It is drawn because the owner asked to see a candle and
+ * to find out whether it was right — and the surface that draws it also prints
+ * that hit rate beside the rate always calling one way would have scored, which
+ * is the only condition under which drawing it is honest.
+ *
+ * THIS REPLACED A TRANSLUCENT BAND — the 80% interval for the next close. It is
+ * gone from the drawing, not from the model: `forecastCandle` still clamps the
+ * body inside that interval so the two cannot contradict each other. What the
+ * band was on screen was the only rectangle on a canvas made of candles, three
+ * times the height of the candle inside it, framing the measured part with an
+ * unmeasured one.
  */
 export interface Projection {
-  readonly low: number;
-  readonly high: number;
-  /** Nominal confidence, 0..1 — what the interval CLAIMS to contain. */
-  readonly confidence: number;
-  /** Whether the replay says the claim holds. False draws it muted. */
-  readonly calibrated: boolean;
-  /**
-   * THE FORECAST CANDLE ITSELF — open, high, low and close.
-   *
-   * Its HIGH and LOW are a measured forecast of where the next bar will trade,
-   * from `analysis/analogue.ts`: the bars most like this one, and what actually
-   * followed them. On this operator's archive that beats flat ATR by 35% at 1h.
-   * Its CLOSE is a directional call and is the weakest thing in this interface;
-   * the surface that draws it also prints its running hit rate beside the rate
-   * that always calling one way would have scored.
-   *
-   * Separate from the band above, which is a wider statement about the next
-   * CLOSE at a stated confidence. They answer different questions — "where will
-   * it trade" against "where will it settle" — which is the only reason both
-   * are on screen at once.
-   */
-  readonly candle?: {
+  readonly candle: {
     readonly open: number;
     readonly high: number;
     readonly low: number;
     readonly close: number;
   };
+  /**
+   * Whether the forecast's OWN replay says its range beats flat ATR here.
+   * False draws it dimmer.
+   *
+   * This used to be the BAND's calibration flag, and once the band stopped
+   * being drawn that was one model muting a different one. An honesty check has
+   * to belong to the thing it dims.
+   */
+  readonly beatsAtr: boolean;
 }
 
 /**
@@ -706,16 +699,18 @@ export class ChartEngine {
     this.invalidate();
   }
 
-  /** The next-bar range band. Null removes it. See `Projection`. */
+  /** The forecast candle. Null removes it. See `Projection`. */
   setProjection(p: Projection | null): void {
     const cur = this.projection;
     if (cur === p) return;
     if (
       cur !== null &&
       p !== null &&
-      cur.low === p.low &&
-      cur.high === p.high &&
-      cur.calibrated === p.calibrated
+      cur.candle.open === p.candle.open &&
+      cur.candle.high === p.candle.high &&
+      cur.candle.low === p.candle.low &&
+      cur.candle.close === p.candle.close &&
+      cur.beatsAtr === p.beatsAtr
     ) {
       return;
     }
@@ -1323,13 +1318,13 @@ export class ChartEngine {
   }
 
   /**
-   * The next bar's forecast range, in the empty space right of the newest bar.
+   * The forecast candle, in the empty space right of the newest bar.
    *
    * Drawn in the OVERSCROLL — the gap `Viewport.scrollToLive` deliberately
    * leaves at the right edge — which is the one region of the plot where
-   * nothing else can be, because there are no bars there. That is also the
-   * only honest place for it: a band drawn over the last few candles would
-   * invite reading it against bars that have already happened.
+   * nothing else can be, because there are no bars there. That is also what
+   * makes it readable as a forecast without any decoration: a candle drawn over
+   * the last few bars would invite being read as one of them.
    *
    * If the chart has been panned so that the slot is off screen, nothing is
    * drawn. A forecast squeezed onto the last visible pixel column would be a
@@ -1348,30 +1343,7 @@ export class ChartEngine {
     const x1 = Math.min(right, x0 + Math.max(vp.barWidth, 3));
     if (x0 >= right || x1 - x0 < 2) return;
 
-    const yHigh = vp.yOf(f.high);
-    const yLow = vp.yOf(f.low);
-    if (!Number.isFinite(yHigh) || !Number.isFinite(yLow)) return;
-
-    /* Muted when the model's own calibration replay says the interval does not
-       contain what it claims to. Same geometry, visibly less confident ink —
-       the alternative is drawing a failed model exactly like a passing one. */
-    const ink = f.calibrated ? th.accent : th.textFaint;
-
     ctx.save();
-    ctx.globalAlpha = f.calibrated ? 0.14 : 0.08;
-    ctx.fillStyle = ink;
-    ctx.fillRect(x0, yHigh, x1 - x0, yLow - yHigh);
-
-    ctx.globalAlpha = f.calibrated ? 0.55 : 0.32;
-    ctx.strokeStyle = ink;
-    ctx.lineWidth = 1;
-    ctx.setLineDash([3, 3]);
-    ctx.beginPath();
-    ctx.moveTo(x0, Math.round(yHigh) + 0.5);
-    ctx.lineTo(x1, Math.round(yHigh) + 0.5);
-    ctx.moveTo(x0, Math.round(yLow) + 0.5);
-    ctx.lineTo(x1, Math.round(yLow) + 0.5);
-    ctx.stroke();
 
     /**
      * THE FORECAST CANDLE — DRAWN THE WAY THIS CHART DRAWS EVERY OTHER CANDLE.
@@ -1396,8 +1368,8 @@ export class ChartEngine {
      * platform says it: plainly the same object as its neighbours, plainly not
      * yet a print.
      */
-    const cf = f.candle;
-    if (cf !== undefined) {
+    {
+      const cf = f.candle;
       const yOpen = vp.yOf(cf.open);
       const yClose = vp.yOf(cf.close);
       const yTop = vp.yOf(cf.high);
@@ -1417,10 +1389,11 @@ export class ChartEngine {
         const ink = flat ? th.textFaint : cf.close > cf.open ? th.up : th.down;
 
         ctx.setLineDash([]);
-        /* Muted further when the band failed its own calibration replay, for
-           the reason the band is: a failed model drawn like a passing one is
-           the thing `calibrated` exists to prevent. */
-        ctx.globalAlpha = f.calibrated ? 0.62 : 0.34;
+        /* Dimmer when the forecast's own replay says its range does not beat
+           flat ATR on this market — the check that belongs to the thing being
+           drawn, rather than the calibration of a band that is no longer on
+           screen. */
+        ctx.globalAlpha = f.beatsAtr ? 0.62 : 0.34;
         ctx.strokeStyle = ink;
         ctx.fillStyle = ink;
 
