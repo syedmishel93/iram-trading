@@ -32,7 +32,9 @@
  */
 
 import { createDeskBar } from "../deskbar";
-import { h } from "../dom";
+import { clear, h } from "../dom";
+import { renderEffect, signal } from "../../core/signal";
+import { DEFAULT_THEME, appearanceOf, nextAppearance } from "../systemtheme";
 import { icon } from "../icons";
 import { VIEWS, WORKSPACE_LEAD } from "./views";
 import { createToolsButton } from "./toolsmenu";
@@ -71,6 +73,15 @@ export interface CommandBarDeps {
 export function createCommandBar(ctx: ShellContext, d: CommandBarDeps) {
   const { account, commands, keymap, state } = ctx;
   const { appMenu, askAgent, dockToggle, settings, palette, broker, revealCard } = d;
+
+  /**
+   * The dark theme to come back to.
+   *
+   * NOT PERSISTED, deliberately: the stored `theme` already IS the persisted
+   * answer, and a second stored copy would be a second owner for one fact. This
+   * only has to survive between two presses of one button in one session.
+   */
+  const lastDark = signal<string>(DEFAULT_THEME);
 
   /**
    * ONE bar. Brand, menus, desks, utilities.
@@ -231,6 +242,52 @@ export function createCommandBar(ctx: ShellContext, d: CommandBarDeps) {
      * Appearance, alongside the twenty-odd settings that previously had no
      * address at all.
      */
+    /**
+     * LIGHT / DARK / FOLLOW THE SYSTEM, in one press.
+     *
+     * THERE WAS NO SUCH CONTROL. The gear beside this one used to open a
+     * two-item theme and density menu and was changed to open Settings — and
+     * the icon stayed a SUN, a filled dot with eight rays, which is the
+     * universal brightness glyph. So the one button that looked like a
+     * light/dark toggle opened a settings dialog, and the theme itself was three
+     * levels down behind an eight-option select. The owner reported exactly
+     * that: "the light and dark mode toggle doesn't work."
+     *
+     * THREE STATES, because `auto` is the default for a fresh install and is
+     * otherwise only reachable by opening Settings — a two-way toggle would
+     * throw it away on the first press with no way back.
+     *
+     * IT REMEMBERS THE DARK THEME. Six of the seven are dark, so an operator on
+     * `tradingview` who pressed this twice would be moved silently to `iram`.
+     */
+    h("button", {
+      class: "icon-btn",
+      title: () => {
+        const a = appearanceOf(state.theme());
+        const nxt = nextAppearance(state.theme(), lastDark.peek());
+        return a === "auto"
+          ? "Appearance: following your system — click for light"
+          : a === "light"
+            ? "Appearance: light — click for dark"
+            : `Appearance: dark (${state.theme()}) — click to follow your system` +
+              (nxt.appearance === "auto" ? "" : "");
+      },
+      "aria-label": () => `Appearance, currently ${appearanceOf(state.theme())}`,
+      ref: (el: HTMLButtonElement) =>
+        renderEffect(() => {
+          /* The glyph IS the state. A single fixed icon would leave "which of
+             the three am I on" answerable only from the tooltip. */
+          clear(el);
+          const a = appearanceOf(state.theme());
+          el.appendChild(icon(a === "auto" ? "autoTheme" : a === "light" ? "sun" : "moon"));
+        }),
+      onclick: () => {
+        const cur = state.theme();
+        if (appearanceOf(cur) === "dark" && cur !== "auto") lastDark.set(cur);
+        state.theme.set(nextAppearance(cur, lastDark.peek()) .theme as typeof cur);
+      },
+    }),
+
     h("button", {
       class: "icon-btn",
       title: () => `Settings (${keymap.keysFor("app.settings") ?? "Ctrl+,"})`,

@@ -121,3 +121,52 @@ export function watchSystemTheme(
   legacy.addListener?.(handler);
   return () => legacy.removeListener?.(handler);
 }
+
+/* ------------------------------------------------- the light/dark toggle --- */
+
+/**
+ * The themes that are LIGHT.
+ *
+ * Declared here and CROSS-CHECKED AGAINST `tokens.css` by `systemtheme.test.ts`,
+ * which reads every `--p-bg-base` and computes its luminance. The fact is owned
+ * by the stylesheet; a hand-written list that nothing compared would be right
+ * today and wrong the first time a light theme is added — and the symptom would
+ * be a toggle that claims to switch to light and stays dark.
+ */
+export const LIGHT_THEMES: ReadonlySet<string> = new Set([LIGHT_THEME]);
+
+/** What the toggle is currently showing. */
+export type Appearance = "auto" | "light" | "dark";
+
+/** Which of the three states a stored value represents. */
+export function appearanceOf(stored: string): Appearance {
+  if (stored === "auto") return "auto";
+  return LIGHT_THEMES.has(stored) ? "light" : "dark";
+}
+
+/**
+ * The next state in the cycle, and the theme name it stores.
+ *
+ * THREE STATES, NOT TWO. `auto` is the default for a fresh install and is
+ * otherwise unreachable without opening Settings; a two-way toggle would throw
+ * it away the first time anybody pressed the button and give them no way back.
+ *
+ * IT REMEMBERS WHICH DARK THEME. Six of the seven themes are dark, so "go dark"
+ * is ambiguous — and an operator who chose `tradingview` and pressed this twice
+ * would silently be moved to `iram` and have to find Settings to get back. The
+ * last dark theme travels with the call.
+ */
+export function nextAppearance(
+  stored: string,
+  lastDark: string = DEFAULT_THEME,
+): { appearance: Appearance; theme: string } {
+  const dark = KNOWN.has(lastDark) && !LIGHT_THEMES.has(lastDark) ? lastDark : DEFAULT_THEME;
+  switch (appearanceOf(stored)) {
+    case "auto":
+      return { appearance: "light", theme: LIGHT_THEME };
+    case "light":
+      return { appearance: "dark", theme: dark };
+    default:
+      return { appearance: "auto", theme: "auto" };
+  }
+}

@@ -37,7 +37,11 @@ import {
   LIGHT_THEME,
   resolveTheme,
   watchSystemTheme,
+  LIGHT_THEMES,
+  appearanceOf,
+  nextAppearance,
 } from "../src/ui/systemtheme";
+import { readFileSync } from "node:fs";
 import { THEMES } from "../src/ui/shell/views";
 
 /** A fake `matchMedia` with a controllable match and listener set. */
@@ -149,5 +153,82 @@ describe("watchSystemTheme", () => {
     stop();
     m.flip(false);
     expect(fn).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("WHICH THEMES ARE LIGHT is owned by the stylesheet", () => {
+  /* A hand-written list that nothing compared would be right today and wrong the
+     first time a light theme is added — and the symptom is a toggle that claims
+     to switch to light and stays dark. `tokens.css` declares every theme's base
+     surface; this reads it and works the answer out. */
+  const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+
+  const luminance = (hex: string): number => {
+    const n = parseInt(hex.slice(1), 16);
+    const [r, g, b] = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+    /* Rec. 709 relative luminance, which is what "is this light" means to an eye
+       rather than to an average of three channels. */
+    return (0.2126 * (r as number) + 0.7152 * (g as number) + 0.0722 * (b as number)) / 255;
+  };
+
+  const fromCss = new Set<string>();
+  const re = /\[data-theme="(\w+)"\]\s*\{[^}]*?--p-bg-base:\s*(#[0-9A-Fa-f]{6})/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(tokens)) !== null) {
+    if (luminance(m[2] as string) > 0.5) fromCss.add(m[1] as string);
+  }
+
+  it("PARSES THE STYLESHEET AT ALL, or it is checking nothing", () => {
+    const declared = [...tokens.matchAll(/\[data-theme="(\w+)"\]\s*\{[^}]*?--p-bg-base:/g)];
+    expect(declared.length, "found no theme base surfaces in tokens.css").toBeGreaterThan(5);
+  });
+
+  it("agrees with the stylesheet about every theme", () => {
+    expect([...LIGHT_THEMES].sort()).toEqual([...fromCss].sort());
+  });
+});
+
+describe("the light/dark toggle", () => {
+  it("reads a stored theme as one of the three states", () => {
+    expect(appearanceOf("auto")).toBe("auto");
+    expect(appearanceOf(LIGHT_THEME)).toBe("light");
+    expect(appearanceOf(DEFAULT_THEME)).toBe("dark");
+    expect(appearanceOf("tradingview")).toBe("dark");
+  });
+
+  it("CYCLES THROUGH ALL THREE, so auto is reachable in one press", () => {
+    /* `auto` is the default for a fresh install and is otherwise only reachable
+       by opening Settings. A two-way toggle would throw it away the first time
+       anybody pressed the button and give them no way back. */
+    const a = nextAppearance("auto");
+    expect(a.appearance).toBe("light");
+    const b = nextAppearance(a.theme);
+    expect(b.appearance).toBe("dark");
+    const c = nextAppearance(b.theme);
+    expect(c.appearance).toBe("auto");
+    expect(c.theme).toBe("auto");
+  });
+
+  it("REMEMBERS WHICH DARK THEME, rather than always landing on the default", () => {
+    /* Six of the seven themes are dark. An operator who chose `tradingview` and
+       pressed this twice would silently be moved to `iram` and have to find
+       Settings to get back. */
+    const toDark = nextAppearance(LIGHT_THEME, "tradingview");
+    expect(toDark.theme).toBe("tradingview");
+  });
+
+  it("falls back to the shipped dark theme when the remembered one is light or unknown", () => {
+    expect(nextAppearance(LIGHT_THEME, LIGHT_THEME).theme).toBe(DEFAULT_THEME);
+    expect(nextAppearance(LIGHT_THEME, "nonsense").theme).toBe(DEFAULT_THEME);
+  });
+
+  it("ALWAYS STORES SOMETHING resolveTheme can render", () => {
+    let cur = "auto";
+    const named = new Set<string>([...THEMES, "auto"]);
+    for (let i = 0; i < 7; i++) {
+      cur = nextAppearance(cur).theme;
+      expect(named.has(cur), cur + " is not a storable value").toBe(true);
+      expect(new Set<string>(THEMES).has(resolveTheme(cur, true))).toBe(true);
+    }
   });
 });

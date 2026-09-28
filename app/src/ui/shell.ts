@@ -22,7 +22,7 @@ import { recentClaims } from "../data/claims";
 import { sanitiseAll, tunedCount, type Params } from "../chart/params";
 import { pkRowsLive, type PkRow } from "./panelkit";
 import { PROFILE_BASIS, volumeProfile } from "../chart/profile";
-import { resolveTheme, watchSystemTheme, THEME_CHOICES } from "./systemtheme";
+import { resolveTheme, watchSystemTheme, THEME_CHOICES, type ThemeChoice } from "./systemtheme";
 import { createJournal } from "../journal/store";
 import { createLearnStore } from "../learn/store";
 import { createBackfiller } from "../data/backfill";
@@ -130,7 +130,7 @@ import { canAnchor, presetFor, anchorFor, anchorTimeframe } from "../alert/prese
 import { deliver } from "../alert/notify";
 import type { BarView } from "../chart/series";
 import { createTerminalAccess } from "./shell/terminalaccess";
-import { ACCENTS, CHART_STYLES, SESSION_TIMEFRAMES, TIMEFRAMES, DENSITIES, MA_SET, VIEWS, SCOPED_VIEWS, sessionWash, type ThemeName, type Density } from "./shell/views";
+import { ACCENTS, CHART_STYLES, SESSION_TIMEFRAMES, TIMEFRAMES, DENSITIES, MA_SET, VIEWS, SCOPED_VIEWS, sessionWash, type Density } from "./shell/views";
 import { SESSIONS } from "../data/sessionmap";
 import { assetClass } from "../data/sessions";
 import { indexAtOrAfter } from "./shell/bars";
@@ -215,7 +215,7 @@ export function mountShell(root: HTMLElement): void {
        `prefers-color-scheme` nowhere, so a first run on a light machine got the
        dark theme with no way to say "match my system". An install that already
        has a saved theme keeps it — a saved theme is a decision. */
-    theme: signal<ThemeName>((prefs["theme"] as ThemeName) ?? ("auto" as ThemeName)),
+    theme: signal<ThemeChoice>((prefs["theme"] as ThemeChoice) ?? "auto"),
     /* The Briefing, on a first run (v56). NOT a change for anyone already
        using the terminal: `view` is persisted, so an existing install opens
        on whatever it was last on. A product whose front door is a chart of
