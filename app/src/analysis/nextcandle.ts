@@ -43,6 +43,7 @@
 
 import type { BarView } from "../chart/series";
 import type { RangeForecast } from "./forecast";
+import type { AnalogueForecast } from "./analogue";
 import { expectedMaxNormal } from "../study/stats";
 
 /* ------------------------------------------------------------ patterns --- */
@@ -254,7 +255,18 @@ export function bestEdge(
 
 /* ------------------------------------------------------------ the candle -- */
 
-export type ForecastBasis = "pattern" | "none";
+/**
+ * Where the drawn body came from.
+ *
+ * `pattern` outranks `analogue` because it is the STRONGER claim: a named
+ * pattern whose measured edge cleared a best-of-six hurdle is a hypothesis that
+ * was stated and then paid for, where the analogue is a median over neighbours
+ * with no such charge. It is also the rarer one — MEASURED on this operator's
+ * own market, no pattern clears at 1m, 15m or 1h, so in practice the analogue
+ * is what draws and the pattern path is the exception that outranks it when it
+ * finally fires.
+ */
+export type ForecastBasis = "pattern" | "analogue" | "none";
 
 export interface CandleForecast {
   readonly open: number;
@@ -264,6 +276,15 @@ export interface CandleForecast {
   readonly basis: ForecastBasis;
   /** The pattern the body came from, when there is one. */
   readonly pattern: string | null;
+  /**
+   * Share of analogues that agreed with the body's direction, 0.5..1, or NaN
+   * when the body did not come from analogues.
+   *
+   * NOT a probability that the call is right, and it must never be printed as
+   * one. It is how much the evidence agrees with ITSELF — `replayAnalogue` is
+   * the only thing here that measures whether the call was ever correct.
+   */
+  readonly agree: number;
   readonly why: string;
 }
 
@@ -283,6 +304,7 @@ export function forecastCandle(
   bars: readonly BarView[],
   band: RangeForecast,
   edge: Edge | null,
+  analogue: AnalogueForecast | null = null,
 ): CandleForecast {
   const last = bars[bars.length - 1];
   const open = last?.c ?? Number.NaN;
@@ -306,33 +328,73 @@ export function forecastCandle(
 
   const note =
     "Opens at the last close, which holds on a continuous feed and not across a " +
-    "weekend or session gap. High and low are the volatility model's interval; " +
-    "only the body is a directional call.";
+    "weekend or session gap.";
 
-  if (!Number.isFinite(open) || bars.length < 2 || edge === null || !edge.usable) {
+  if (!Number.isFinite(open) || bars.length < 2) {
     return {
       open,
       high,
       low,
-      /* NO DIRECTION: the body collapses to a line. This is the common case and
-         it is the answer, not a failure to produce one. */
       close: open,
       basis: "none",
       pattern: null,
-      why: `No directional call — nothing measured on this market clears its own search. ${note}`,
+      agree: Number.NaN,
+      why: `Not enough history to forecast a candle. ${note}`,
     };
   }
 
-  const raw = open * Math.exp(edge.mean);
-  const close = Math.min(high, Math.max(low, raw));
+  /**
+   * THE WICKS COME FROM THE ANALOGUE WHERE THERE IS ONE, AND THAT IS THE
+   * MEASURED PART OF THIS DRAWING.
+   *
+   * Walk-forward on this operator's own archive, median absolute error of the
+   * next bar's RANGE: the analogue 0.236 ATR against flat ATR(14) at 0.363 on
+   * BTCUSDT 1h — 35% better, on 1,500 bars, z +4.75. At 1m the two tie. So the
+   * height and the wicks of this candle are a real forecast conditioned on the
+   * setup, where the band around them is one width for every bar.
+   *
+   * With no analogue the wicks fall back to the band's own edges, which is a
+   * wider and blunter statement and is drawn identically — the `basis` field is
+   * what separates them, and every surface that shows this reads it.
+   */
+  const wickHigh = analogue === null ? high : analogue.high;
+  const wickLow = analogue === null ? low : analogue.low;
+
+  let close = open;
+  let basis: ForecastBasis = "none";
+  let pattern: string | null = null;
+  let agree = Number.NaN;
+  let why = `No directional call, and no analogues to take one from. ${note}`;
+
+  if (edge !== null && edge.usable) {
+    /* CLAMPED INTO THE BAND, NOT INTO THE WICKS. The band is the calibrated
+       interval and is the right sanity bound; clamping into the analogue's
+       median wicks would let a typical-sized bar veto a measured pattern. */
+    close = Math.min(high, Math.max(low, open * Math.exp(edge.mean)));
+    basis = "pattern";
+    pattern = edge.pattern;
+    why = `${edge.pattern}: ${edge.why}. ${note}`;
+  } else if (analogue !== null) {
+    close = Math.min(high, Math.max(low, analogue.close));
+    basis = "analogue";
+    agree = analogue.agree;
+    why =
+      `Drawn from ${analogue.why}. The SHAPE is a measured forecast; the ` +
+      `DIRECTION is the median of those neighbours and is graded on screen ` +
+      `against what always calling one way would have scored. ${note}`;
+  }
+
   return {
     open,
-    high,
-    low,
+    /* THE WICKS MUST CONTAIN THE BODY. A high below the close is not a
+       rendering glitch, it is a drawing that says something impossible. */
+    high: Math.max(wickHigh, open, close),
+    low: Math.min(wickLow, open, close),
     close,
-    basis: "pattern",
-    pattern: edge.pattern,
-    why: `${edge.pattern}: ${edge.why}. ${note}`,
+    basis,
+    pattern,
+    agree,
+    why,
   };
 }
 

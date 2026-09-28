@@ -4556,8 +4556,34 @@ export function mountShell(root: HTMLElement): void {
 
   /** What the live bar reads: last bar, heat, sessions, fresh structure,
       the bar countdown and the next-bar band — `ui/model/readings.ts`. */
-  const { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand, nextCandle } =
-    createReadingsModel(ctx, { replay, nowMs, detections, openBook });
+  const {
+    lastBar,
+    heatNow,
+    sessionClock,
+    freshDetections,
+    barCountdown,
+    nextBarBand,
+    nextCandle,
+    nextCandleSkill,
+  } = createReadingsModel(ctx, { replay, nowMs, detections, openBook });
+
+  /**
+   * THE FORECAST CANDLE THE CHART ACTUALLY DREW.
+   *
+   * Published by the projection effect below and read by the legend, so the
+   * arrow beside the price and the body on the canvas cannot disagree. The
+   * legend's first version built its OWN candle against a made-up band to get
+   * the direction out of it — two owners for one fact, and the failure would
+   * have been an arrow pointing the opposite way to the body with nothing on
+   * screen or in a test to say which was wrong.
+   *
+   * Null while there is no forecast: on replay, and on a series too short for
+   * the analogue to have neighbours.
+   */
+  /* DERIVED FROM THE PRODUCER, never hand-written. `nextCandle` already returns
+     `CandleForecast | null`; restating that here would be a second definition
+     of one shape, which this codebase has three defects on record from. */
+  const drawnCandle = signal<ReturnType<typeof nextCandle>>(null);
 
   /*
    * EVERY SIGNAL IS READ BEFORE THE `chart` GUARD, AND THAT ORDER IS LOAD-BEARING.
@@ -4582,16 +4608,18 @@ export function mountShell(root: HTMLElement): void {
     if (!chart) return;
     if (band === null) {
       chart.setProjection(null);
+      drawnCandle.set(null);
       return;
     }
     /**
-     * THE BODY, WHEN ONE HAS BEEN EARNED.
+     * THE FORECAST CANDLE — open, high, low and close.
      *
-     * `nextCandle()` returns a direction only when a candle pattern's measured
-     * edge ON THIS MARKET clears the charge for having searched several — which
-     * on most bars it does not, and then open equals close and the body draws as
-     * a flat line. `analysis/nextcandle.ts` argues the whole case, including why
-     * this is a named deviation from `forecast.ts`'s refusal.
+     * Its wicks come from `analysis/analogue.ts`: the bars most like this one on
+     * this series, and what actually followed them. That part is MEASURED to
+     * beat flat ATR by 35% at 1h on this operator's own archive. Its body is a
+     * directional call, is the weakest thing here, and the legend prints its
+     * running hit rate beside the rate that always calling one way would have
+     * scored — which is the whole reason it is allowed to be drawn at all.
      */
     const cf = nextCandle(series, {
       low: band.low,
@@ -4607,8 +4635,13 @@ export function mountShell(root: HTMLElement): void {
       high: band.high,
       confidence: 0.8,
       calibrated: band.calibrated,
-      ...(cf === null ? {} : { body: { open: cf.open, close: cf.close } }),
+      ...(cf === null
+        ? {}
+        : { candle: { open: cf.open, high: cf.high, low: cf.low, close: cf.close } }),
     });
+    /* PUBLISHED AFTER IT IS DRAWN, so the legend describes the candle on the
+       canvas rather than one of its own. */
+    drawnCandle.set(cf);
   });
 
   renderEffect(() => {
@@ -5480,22 +5513,49 @@ export function mountShell(root: HTMLElement): void {
     );
 
     /*
-     * THE NEXT-BAR READOUT IS GONE, and it was mine.
+     * HOW OFTEN THE DRAWN CANDLE'S DIRECTION HAS ACTUALLY BEEN RIGHT.
      *
-     * MEASURED on 3,799 bars of this operator's own BTCUSDT 1m: the 80% band's
-     * half-width correlates 0.91 with ATR(14) and IS ATR x 1.33. The status bar
-     * already prints `ATR 77.44`, so the line said the same thing twice and
-     * called the second one a forecast. "Do not keep a readout that duplicates
-     * something already on screen" — a rule this file records learning once
-     * before, over a scroll-depth figure that restated a scrollbar.
+     * THE PREDECESSOR OF THIS LINE WAS DELETED FOR BEING ATR PRINTED TWICE —
+     * measured at 0.91 correlation with ATR(14) on 3,799 bars of this
+     * operator's own 1m, beside a status bar already showing ATR. The rule that
+     * came out of it is the one this line has to survive: do not keep a readout
+     * that duplicates something already on screen.
      *
-     * The operator said three times that it was no use to them. They were right,
-     * and the reason turned out to be arithmetic rather than taste.
+     * It does not. The candle on the canvas shows WHERE; this shows whether
+     * that has ever been right here, which is on screen nowhere else and is the
+     * exact thing the owner asked to be able to check. The price level is
+     * deliberately NOT repeated — the candle is drawn against the price axis and
+     * printing its close as a number would be the duplication all over again.
      *
-     * The BAND ITSELF stays on the canvas: a shape against the price axis
-     * answers "can this reach my level in one bar" at a glance, which a number
-     * in a status strip does not. It is the sentence that was redundant.
+     * THE NO-INFORMATION RATE IS PART OF THE LINE, not a tooltip. "Right 53%"
+     * on a window that rose 53% of the time is a report about the window, and
+     * this codebase has already shipped one board that called 29 of 29 markets
+     * skilled for exactly that reason.
      */
+    if (!hovering) {
+      const sk = nextCandleSkill(series);
+      const cf = drawnCandle();
+      if (sk !== null && cf !== null && cf.basis !== "none") {
+        const rising = cf.close > cf.open;
+        legend.appendChild(h("span", { class: "legend-key", text: "next" }));
+        legend.appendChild(
+          h("span", {
+            class: "legend-val num",
+            "data-dir": rising ? "up" : "down",
+            text: rising ? "▲" : "▼",
+            title: cf.why,
+          }),
+        );
+        legend.appendChild(
+          h("span", {
+            class: "legend-fc",
+            "data-skill": sk.skill ? "yes" : "no",
+            text: `${(sk.hitRate * 100).toFixed(0)}% right of ${sk.scored}, coin ${(sk.noInfoRate * 100).toFixed(0)}%`,
+            title: `${sk.why}. The candle's HEIGHT is the measured part: over these bars its range was off by ${sk.rangeErr.toFixed(2)} ATR against ${sk.atrErr.toFixed(2)} for flat ATR(14).`,
+          }),
+        );
+      }
+    }
   });
 
   // ---- deeper history, on demand ------------------------------------------

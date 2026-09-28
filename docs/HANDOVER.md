@@ -1,6 +1,103 @@
 # MISHEL INTELLIGENCE TRADING — SESSION HANDOVER
 Terminal: **app/ v50 is the product** (see ../LEGACY.md) · index.html **v39.29** (FROZEN 2026-09-08, still openable at /legacy) + **app/ v58** (Vite/TS rewrite: 3,618 tests in 144 files, 23 desks, connected to the MT5 account for positions and equity — a Briefing, an Analyse and a Chart standing alone, the other 20 in 4 groups) + **desktop/** (Tauri native shell) · Server: proxy `ddt_data_server.py` (8787) + `mishel_service.py` (8788, **SQLite by default, PostgreSQL via `IRAM_DB_URL` — see `server/db/`**) + **`server/quant/` (8789, optional model service — GARCH, causal inference, calibrated classification; the terminal degrades to "not running" without it)** + mishel_ml.py + mishel_hmm.py + mishel_data.py · Launcher: **`run.py` — the only one** (starts `server/gateway`: all three services and the terminal on ONE port, 8787; `--status`, `--port`, `--legacy`, `--no-background`, `--build`, `--install`; `run.sh`/`.bat`/`.command` are three-line wrappers) · Tests: `tests/run_tests.sh`, `python -m pytest tests/test_quant_service.py`.
 
+## v63.26 — A FORECAST CANDLE WITH A SHAPE WORTH DRAWING
+
+The owner asked four times to see the next candle and kept being shown a box.
+The control was not broken: `nextcandle.ts` would only take a direction from a
+named candle pattern whose edge cleared a best-of-six t-hurdle, and MEASURED on
+this operator's own market no pattern clears at 1m, 15m or 1h. So the body
+collapsed to a flat line on every bar, for ever, and the drawing was a
+translucent rectangle with a dash in it. The refusal was right and the
+ESTIMATOR was too weak to ever say anything.
+
+A pattern match is a rare, discrete event that throws away nearly everything the
+bar says. `analysis/analogue.ts` keeps all of it: the current bar becomes a
+ten-dimensional scale-free feature vector, the most similar past bars ON THIS
+SERIES are found, and the forecast is the median of what actually followed them.
+
+### THE SHAPE IS FORECASTABLE AND THE DIRECTION IS NOT, and that split is the design
+
+Walk-forward over 1,500 bars per timeframe, on the operator's own archive:
+
+| | next-bar RANGE, median abs error | | next-bar DIRECTION | majority class |
+|---|---|---|---|---|
+| BTCUSDT 1h | **0.236 ATR** vs **0.363** for flat ATR(14) | z +4.75 | 53.1% | 51.2% (z +1.45) |
+| BTCUSDT 1m | 0.443 vs 0.497 | tie | 53.7% | 51.6% (z +1.58) |
+| BTCUSDT 15m | — | | 49.9% | 50.7% (z −0.62) |
+
+At 1h the conditional range beats flat ATR by **35%**, which is the quantity
+`forecast.ts` already argues is genuinely predictable, arriving conditioned on
+the setup instead of as one number for every bar. The direction clears nothing
+on any timeframe. Confirmed live on the running product: 0.23 ATR against 0.34.
+
+So the wicks and the height are drawn as a forecast, and the body is drawn
+because the owner asked to see one AND to find out whether it was right — with
+`replayAnalogue` putting its rolling hit rate in the legend beside the
+no-information rate. On screen now: `next ▲ 52% right of 250, coin 51%`, in
+`--text-faint`, because **colour follows the standing, not the number** and the
+standing is "not better than a coin". `--accent` is reserved for a hit rate that
+has actually beaten the majority class by more than its own noise.
+
+### THE PREDECESSOR OF THAT LINE WAS DELETED LAST RELEASE FOR BEING ATR TWICE
+
+It correlated 0.91 with ATR(14) and was ATR × 1.33, beside a status bar already
+printing ATR. The rule stands, and this line has to survive it: the price level
+is deliberately NOT repeated — the candle is drawn against the price axis, so
+printing its close as a number would be the same duplication. What IS shown is
+whether the thing has ever been right here, which is on screen nowhere else.
+
+### FIVE THINGS MEASUREMENT OVERTURNED
+
+**MY CAUSALITY TEST PASSED WITH A LOOK-AHEAD LEAK INJECTED.** It compared the
+first `FEATURE_COUNT` entries of each row, so an extra ELEVENTH feature reading
+one bar forward was never looked at. Proved by injecting one. Fixed to compare
+the WHOLE row and its length — and the leak that REPLACES a feature then failed
+three tests at once, including "no skill in a random walk", which is exactly the
+failure mode the module exists to be safe from. **A constant that bounds a loop
+is a way for a test to narrow silently.**
+
+**376ms ON EVERY BAR CLOSE, and it locked the renderer.** The replay is 250
+forecasts over a 3,000-bar pool; forcing six repaints timed the debugger out.
+NONE of the cost was the actual work: the pool's mean and spread were recomputed
+from scratch per query (two full passes to produce twenty numbers — they are
+sums over a contiguous range, so PREFIX SUMS give the identical answer in O(1)),
+and `sort()` allocated 3,000 objects per query to read the first 40 of them.
+Prefix sums, a bounded insertion, and a flat `Float64Array`: **376ms → 37ms,
+8.5×**, one forecast 11.4ms → 0.2ms, and **zero long tasks** over 12s of live
+ticking. Proved BYTE-IDENTICAL against the old implementation on all three real
+series with `toBe`, not `toBeCloseTo` — a speed-up that also moves the answer is
+a new model wearing the old one's tests.
+
+**THE LEGEND BUILT ITS OWN CANDLE AGAINST A FABRICATED BAND** (`close ± 1`) to
+get the arrow's direction out of it. Two owners for one fact, and the failure
+would have been an arrow pointing the opposite way to the body with nothing red
+and no test to say which was wrong. The projection effect now publishes the
+candle it drew and the legend reads it.
+
+**THE WICK WAS DRAWN TO THE BAND'S EDGES**, so every forecast candle was exactly
+as tall as the band — the one part of this that is measurably better than ATR
+was the one part the drawing threw away.
+
+**THE GATE CAUGHT BOTH NEW FILES BEING UNTRACKED.** `test_tracked_sources.py`,
+added after `.gitignore`'s bare `data/` hid 58 source files, earning its keep.
+
+### WHAT HOLDS IT HONEST
+
+- **No price level in the features, ever** — a distance handed `close` learns the
+  YEAR, and 2021 and 2024 are separable by price alone on BTCUSDT. Pinned by a
+  test that rescales the whole series ×3.7 and requires every feature identical.
+- **A candidate may not overlap the query.** Bars three apart share seven of ten
+  features, so without `PURGE` the nearest neighbours of bar q are q−1, q−2, q−3
+  and the "forecast" is yesterday's return wearing a statistic's clothes.
+- **The metric may not be set by the future.** Spreads come from the candidate
+  pool alone — a leak through a scaling constant is the hardest kind to notice.
+- **A flat body is neither right nor wrong**, in the replay as in `scoreCandle`.
+- **`flat`/`sum`/`sumSq`/`count` are a deliberate second copy of `rows`** for
+  speed, so a test walks every bar and requires them in step.
+
+Gate: `VERIFY PASSED — 5 stages, 224s`, 4,976 frontend tests.
+
 ## v63.25 — THE ONE THING A GENERIC CHART CANNOT DRAW
 
 The owner asked for a chart better than TradingView. TradingView draws this

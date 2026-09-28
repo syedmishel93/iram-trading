@@ -124,16 +124,26 @@ export interface Projection {
   /** Whether the replay says the claim holds. False draws it muted. */
   readonly calibrated: boolean;
   /**
-   * The BODY of the forecast candle, when a direction has been earned.
+   * THE FORECAST CANDLE ITSELF — open, high, low and close.
    *
-   * Absent on most bars, and that is the answer rather than a gap — see
-   * `analysis/nextcandle.ts`, which will only produce one when a pattern's
-   * measured edge on THIS market clears the charge for having searched several.
-   * The band above is a volatility statement and says nothing about direction;
-   * this is the only part of the drawing that is ever a directional call, which
-   * is why it is separate and optional.
+   * Its HIGH and LOW are a measured forecast of where the next bar will trade,
+   * from `analysis/analogue.ts`: the bars most like this one, and what actually
+   * followed them. On this operator's archive that beats flat ATR by 35% at 1h.
+   * Its CLOSE is a directional call and is the weakest thing in this interface;
+   * the surface that draws it also prints its running hit rate beside the rate
+   * that always calling one way would have scored.
+   *
+   * Separate from the band above, which is a wider statement about the next
+   * CLOSE at a stated confidence. They answer different questions — "where will
+   * it trade" against "where will it settle" — which is the only reason both
+   * are on screen at once.
    */
-  readonly body?: { readonly open: number; readonly close: number };
+  readonly candle?: {
+    readonly open: number;
+    readonly high: number;
+    readonly low: number;
+    readonly close: number;
+  };
 }
 
 /**
@@ -1361,13 +1371,20 @@ export class ChartEngine {
      * against a band that is already neutral — but the dash and the empty fill
      * carry "this has not happened" regardless of which way it points.
      */
-    const bodyF = f.body;
-    if (bodyF !== undefined) {
-      const yOpen = vp.yOf(bodyF.open);
-      const yClose = vp.yOf(bodyF.close);
-      if (Number.isFinite(yOpen) && Number.isFinite(yClose)) {
-        const rising = bodyF.close > bodyF.open;
-        const flat = bodyF.close === bodyF.open;
+    const cf = f.candle;
+    if (cf !== undefined) {
+      const yOpen = vp.yOf(cf.open);
+      const yClose = vp.yOf(cf.close);
+      const yTop = vp.yOf(cf.high);
+      const yBot = vp.yOf(cf.low);
+      if (
+        Number.isFinite(yOpen) &&
+        Number.isFinite(yClose) &&
+        Number.isFinite(yTop) &&
+        Number.isFinite(yBot)
+      ) {
+        const rising = cf.close > cf.open;
+        const flat = cf.close === cf.open;
         /* NO DIRECTION IS DRAWN AS A LINE, in the band's own ink. Giving it the
            up or down colour would be a call the model explicitly declined. */
         /* BRIGHTER THAN THE BAND, ALWAYS. MEASURED after the first version: with
@@ -1385,13 +1402,16 @@ export class ChartEngine {
         const top = Math.min(yOpen, yClose);
         const bottom = Math.max(yOpen, yClose);
 
-        /* The wick, from the band's edges to the body. */
+        /* THE WICK IS THE FORECAST'S OWN HIGH AND LOW, not the band's edges.
+           Drawing it to the band made every forecast candle exactly as tall as
+           the band, so the one part of this that is measurably better than ATR
+           was the one part the drawing threw away. */
         ctx.beginPath();
         const mid = Math.round((bx0 + bx1) / 2) + 0.5;
-        ctx.moveTo(mid, Math.round(yHigh) + 0.5);
+        ctx.moveTo(mid, Math.round(yTop) + 0.5);
         ctx.lineTo(mid, Math.round(top) + 0.5);
         ctx.moveTo(mid, Math.round(bottom) + 0.5);
-        ctx.lineTo(mid, Math.round(yLow) + 0.5);
+        ctx.lineTo(mid, Math.round(yBot) + 0.5);
         ctx.stroke();
 
         /* THE BODY IS SOLID WHILE THE WICK STAYS DASHED. Both are still the
@@ -1399,6 +1419,18 @@ export class ChartEngine {
            but a body drawn in the same dashes as everything else had no edge for
            the eye to catch, and a candle you cannot find is not a forecast. */
         ctx.setLineDash([]);
+        /* A HOLLOW BODY WITH A WHISPER OF FILL. Every candle that has actually
+           happened is drawn SOLID, so hollow is the one-glance difference
+           between a print and a proposal — but a pure outline at this size read
+           as a rectangle rather than as a candle, which is the complaint this
+           whole control exists to answer. The fill is faint enough that the two
+           can never be confused and heavy enough that the body has mass. */
+        if (bottom - top >= 1) {
+          ctx.globalAlpha = f.calibrated ? 0.22 : 0.12;
+          ctx.fillStyle = rising ? th.up : th.down;
+          ctx.fillRect(Math.round(bx0), Math.round(top), Math.round(bx1 - bx0), Math.round(bottom - top));
+          ctx.globalAlpha = f.calibrated ? 0.9 : 0.5;
+        }
         ctx.beginPath();
         if (bottom - top < 1) {
           /* A flat body is a LINE, not a zero-height rectangle: a rect of no

@@ -15,6 +15,17 @@ import {
   matchPatterns,
   type CandleForecast,
 } from "../../analysis/nextcandle";
+import {
+  POOL,
+  PURGE,
+  WARMUP,
+  analogueForecast,
+  buildFeatures,
+  replayAnalogue,
+  type AnalogueForecast,
+  type AnalogueSkill,
+  type FeatureSet,
+} from "../../analysis/analogue";
 import { type SessionStatus, sessionStatuses } from "../../data/sessionmap";
 import { marketState } from "../../data/sessions";
 import { type Detection } from "../../detect/types";
@@ -201,6 +212,78 @@ export function createReadingsModel(ctx: ShellContext, deps: ReadingsModelDeps) 
    */
   let edgeCache: { key: string; edge: ReturnType<typeof bestEdge> } | null = null;
 
+  /**
+   * How many bars of the replay the direction is graded over.
+   *
+   * 250 is chosen so the hit rate has a standard error near 3 points — tight
+   * enough that a real 5-point edge would show, loose enough that it is still
+   * about the CURRENT market. A longer window is a better statistic about a
+   * market that has partly stopped existing.
+   */
+  const SKILL_WINDOW = 250;
+
+  /**
+   * ONLY THE TAIL IS HANDED TO THE ANALOGUE, and this is not an approximation.
+   *
+   * A query's candidate pool is capped at `POOL` by the module itself, so once
+   * the slice holds the pool, the purge gap, the warm-up and the whole replay
+   * window, every forecast is BYTE-IDENTICAL to one computed over the full
+   * archive — and the cost stops growing with it. The 1h archive here is 40,000
+   * bars; unsliced, `buildFeatures` would walk all of them on every price
+   * change to answer a question that can only see 3,000.
+   */
+  const analogueTail = (series: readonly BarView[]): readonly BarView[] => {
+    const need = POOL + PURGE + WARMUP + SKILL_WINDOW + 40;
+    return series.length > need ? series.slice(series.length - need) : series;
+  };
+
+  /**
+   * The analogue forecast and its grade, cached on two DIFFERENT keys.
+   *
+   * The forecast must move WITHIN the bar: its features describe the live bar,
+   * which is still forming, and freezing it at the bar's first tick would draw
+   * a prediction made from a one-second-old candle for the rest of the hour. So
+   * its key carries the live close.
+   *
+   * The grade must NOT. `replayAnalogue` is 250 forecasts over a 3,000-bar pool
+   * each — far too much to repeat per tick — and every bar it scores is closed,
+   * so it can only change when one more of them closes. Its key is the bar's
+   * timestamp alone.
+   */
+  let anaCache: { key: string; feat: FeatureSet; f: AnalogueForecast | null } | null = null;
+  let skillCache: { key: string; skill: AnalogueSkill | null } | null = null;
+
+  const analogueNow = (series: readonly BarView[]): AnalogueForecast | null => {
+    const last = series[series.length - 1];
+    if (last === undefined) return null;
+    const key = `${state.symbol()}|${state.timeframe()}|${series.length}|${last.t}|${last.c}`;
+    if (anaCache === null || anaCache.key !== key) {
+      const tail = analogueTail(series);
+      const feat = buildFeatures(tail);
+      anaCache = { key, feat, f: analogueForecast(tail, feat, tail.length - 1) };
+    }
+    return anaCache.f;
+  };
+
+  /**
+   * How often the drawn direction has actually been right, and what always
+   * calling one way would have scored.
+   *
+   * THE SECOND NUMBER IS THE POINT. "Right 53%" is a report about the window
+   * unless the majority class is beside it — CLAUDE.md's rule, and the reason a
+   * model board here once called 29 of 29 markets skilled.
+   */
+  const nextCandleSkill = (series: readonly BarView[]): AnalogueSkill | null => {
+    const last = series[series.length - 1];
+    if (last === undefined) return null;
+    const key = `${state.symbol()}|${state.timeframe()}|${series.length}|${last.t}`;
+    if (skillCache === null || skillCache.key !== key) {
+      const tail = analogueTail(series);
+      skillCache = { key, skill: replayAnalogue(tail, buildFeatures(tail), SKILL_WINDOW) };
+    }
+    return skillCache.skill;
+  };
+
   const nextCandle = (
     series: readonly BarView[],
     band: RangeForecast,
@@ -218,8 +301,17 @@ export function createReadingsModel(ctx: ShellContext, deps: ReadingsModelDeps) 
     const firing = matchPatterns(series, series.length - 1);
     const e = edgeCache.edge.edge;
     const applies = e !== null && firing.includes(e.pattern);
-    return forecastCandle(series, band, applies ? e : null);
+    return forecastCandle(series, band, applies ? e : null, analogueNow(series));
   };
 
-  return { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand, nextCandle };
+  return {
+    lastBar,
+    heatNow,
+    sessionClock,
+    freshDetections,
+    barCountdown,
+    nextBarBand,
+    nextCandle,
+    nextCandleSkill,
+  };
 }
