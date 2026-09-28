@@ -5486,50 +5486,57 @@ export function mountShell(root: HTMLElement): void {
       const band = replay.active() ? null : nextBarBand();
       if (band !== null) {
         /**
-         * THE DIRECTION VERDICT, beside the range.
+         * WHAT THE NEXT BAR CAN DO, not which way it will go.
          *
-         * The drawn candle is a doji on almost every bar, and without a sentence
-         * that is indistinguishable from a broken feature — which is exactly how
-         * this started: "the next candle predictor is just a transparent box".
-         * It is not broken; it is the honest answer, and the answer has to be
-         * readable.
+         * The direction was measured and is not there. On this operator's own
+         * BTCUSDT: at 15m and 1h NOTHING out of twelve conditions and six candle
+         * patterns clears its own search; at 1m one does — an up bar drifts
+         * +0.0015% into the next — and that is 49.9% of bars pointing the right
+         * way, against a Binance spot fee around 0.1% a side. Significant at
+         * n=28,949 and worth a hundredth of its own cost.
          *
-         * MEASURED on this operator's own BTCUSDT: over 5,000 bars at 15m and
-         * 40,000 at 1h, NONE of the six patterns has a next-bar edge clearing
-         * its own search. The strongest was a bearish harami at +1.9 standard
-         * errors against a hurdle of 3.3 — and the sign was UP, the opposite of
-         * what the pattern is named for.
+         * So the slot answers the question that IS answerable one bar ahead:
+         * HOW FAR can it move, is that wide or tight for this instrument, and
+         * has the band been honest lately. That is what a stop distance and a
+         * scalp target are read off, and unlike a direction it survives being
+         * checked — `calibration()` replays every forecast walk-forward and the
+         * realised figure here is its own report card.
          */
-        const cf = nextCandle(bars(), {
-          low: band.low,
-          high: band.high,
-          confidence: 0.8,
-          expected: Math.abs(band.high - band.low) / 2,
-          sigma: Number.NaN,
-          percentile: Number.NaN,
-          n: bars().length,
-        });
-        const called = cf !== null && cf.basis === "pattern";
-        legend.appendChild(
-          h("span", {
-            class: "legend-fc",
-            "data-ok": called ? "true" : "false",
-            text: called
-              ? `next candle: ${cf.close > cf.open ? "up" : "down"} on ${cf.pattern ?? ""}`
-              : "next candle: no direction",
-            title: cf?.why ?? "",
-          }),
-        );
+        const half = Math.abs(band.high - band.low) / 2;
+        /* A DISTANCE IS NOT A PRICE. `fmt` carries the instrument's price
+           precision, which on BTCUSDT printed "±47.1531" — four decimals of
+           noise on a number nobody reads past the second. A stop distance is
+           read at a glance and sized in whole points. */
+        const dist = (v: number): string =>
+          v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toFixed(5);
+        const pctl = band.percentile;
+        const width =
+          !Number.isFinite(pctl) ? "" :
+          pctl >= 0.8 ? " · wide for this market" :
+          pctl <= 0.2 ? " · tight for this market" : " · typical";
+        const held =
+          Number.isFinite(band.held) && band.heldN >= 100
+            ? ` · held ${(band.held * 100).toFixed(0)}% of ${band.heldN.toLocaleString()}`
+            : " · not enough history to score it";
         legend.appendChild(
           h("span", {
             class: "legend-fc",
             "data-ok": band.calibrated ? "true" : "false",
-            text: band.calibrated
-              ? `next bar 80% range ${fmt(band.low)}–${fmt(band.high)}`
-              : `next bar range ${fmt(band.low)}–${fmt(band.high)} · uncalibrated`,
-            title: band.calibrated
-              ? "Where the next close is expected to land, at 80% confidence, from the volatility model. It is a size forecast, not a direction call — the band is symmetric by construction."
-              : "The volatility model failed its own calibration replay on this history: its 80% intervals did not contain 80% of outcomes. Shown so it is not silently absent, drawn muted so it is not read as checked.",
+            text: `next bar ±${dist(half)}${width}${held}`,
+            title:
+              `80% of the time the next close lands within ±${dist(half)} of here ` +
+              `(${fmt(band.low)}–${fmt(band.high)}). It is a SIZE forecast and says nothing ` +
+              `about direction: the band is symmetric by construction.
+
+` +
+              `"Held" is the model replaying itself over this history bar by bar and counting how ` +
+              `often its 80% interval actually contained the outcome. A forecast without that ` +
+              `number is a claim; with it, it is a measurement.
+
+` +
+              `No direction is drawn because none was found. Six candle patterns and twelve ` +
+              `conditions were measured on this market's own bars; at 15m and 1h not one clears ` +
+              `the bar a best-of search has to clear.`,
           }),
         );
       }

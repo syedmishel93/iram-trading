@@ -144,7 +144,17 @@ export function createReadingsModel(ctx: ShellContext, deps: ReadingsModelDeps) 
    */
   let fcCache: { key: string; f: ReturnType<typeof forecastRange>; cal: Calibration } | null = null;
 
-  const nextBarBand = (): { low: number; high: number; expected: number; calibrated: boolean } | null => {
+  const nextBarBand = (): {
+    low: number;
+    high: number;
+    expected: number;
+    calibrated: boolean;
+    /** Where this bar's forecast width sits against its own history, 0..1. */
+    percentile: number;
+    /** What the 80% band ACTUALLY contained over the replay, and on how many. */
+    held: number;
+    heldN: number;
+  } | null => {
     const series = bars();
     if (series.length === 0) return null;
     const last = series[series.length - 1] as BarView;
@@ -160,11 +170,18 @@ export function createReadingsModel(ctx: ShellContext, deps: ReadingsModelDeps) 
        the price it was fitted at, and every bound is proportional to it. */
     const fittedAt = f.expected / f.sigma;
     const scale = fittedAt > 0 ? last.c / fittedAt : 1;
+    /* THE 80% BUCKET IS THE ONE DRAWN, so it is the one whose score is shown.
+       Quoting the mean error across all three levels would be a number about the
+       model; this is a number about the band on screen. */
+    const b80 = fcCache.cal.buckets.find((x) => Math.abs(x.nominal - 0.8) < 1e-9);
     return {
       low: f.low * scale,
       high: f.high * scale,
       expected: f.expected * scale,
       calibrated: fcCache.cal.usable && fcCache.cal.error <= GOOD_ENOUGH,
+      percentile: f.percentile,
+      held: b80?.realised ?? Number.NaN,
+      heldN: b80?.n ?? 0,
     };
   };
 
