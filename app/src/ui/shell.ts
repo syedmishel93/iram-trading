@@ -5479,68 +5479,23 @@ export function mountShell(root: HTMLElement): void {
       }),
     );
 
-    /* The forecast band stays, but only at rest: while scrubbing, the legend is
-       reporting a bar that has already happened and a forecast of the next one
-       has nothing to do with it. */
-    if (!hovering) {
-      const band = replay.active() ? null : nextBarBand();
-      if (band !== null) {
-        /**
-         * WHAT THE NEXT BAR CAN DO, not which way it will go.
-         *
-         * The direction was measured and is not there. On this operator's own
-         * BTCUSDT: at 15m and 1h NOTHING out of twelve conditions and six candle
-         * patterns clears its own search; at 1m one does — an up bar drifts
-         * +0.0015% into the next — and that is 49.9% of bars pointing the right
-         * way, against a Binance spot fee around 0.1% a side. Significant at
-         * n=28,949 and worth a hundredth of its own cost.
-         *
-         * So the slot answers the question that IS answerable one bar ahead:
-         * HOW FAR can it move, is that wide or tight for this instrument, and
-         * has the band been honest lately. That is what a stop distance and a
-         * scalp target are read off, and unlike a direction it survives being
-         * checked — `calibration()` replays every forecast walk-forward and the
-         * realised figure here is its own report card.
-         */
-        const half = Math.abs(band.high - band.low) / 2;
-        /* A DISTANCE IS NOT A PRICE. `fmt` carries the instrument's price
-           precision, which on BTCUSDT printed "±47.1531" — four decimals of
-           noise on a number nobody reads past the second. A stop distance is
-           read at a glance and sized in whole points. */
-        const dist = (v: number): string =>
-          v >= 100 ? v.toFixed(0) : v >= 10 ? v.toFixed(1) : v >= 1 ? v.toFixed(2) : v.toFixed(5);
-        const pctl = band.percentile;
-        const width =
-          !Number.isFinite(pctl) ? "" :
-          pctl >= 0.8 ? " · wide for this market" :
-          pctl <= 0.2 ? " · tight for this market" : " · typical";
-        const held =
-          Number.isFinite(band.held) && band.heldN >= 100
-            ? ` · held ${(band.held * 100).toFixed(0)}% of ${band.heldN.toLocaleString()}`
-            : " · not enough history to score it";
-        legend.appendChild(
-          h("span", {
-            class: "legend-fc",
-            "data-ok": band.calibrated ? "true" : "false",
-            text: `next bar ±${dist(half)}${width}${held}`,
-            title:
-              `80% of the time the next close lands within ±${dist(half)} of here ` +
-              `(${fmt(band.low)}–${fmt(band.high)}). It is a SIZE forecast and says nothing ` +
-              `about direction: the band is symmetric by construction.
-
-` +
-              `"Held" is the model replaying itself over this history bar by bar and counting how ` +
-              `often its 80% interval actually contained the outcome. A forecast without that ` +
-              `number is a claim; with it, it is a measurement.
-
-` +
-              `No direction is drawn because none was found. Six candle patterns and twelve ` +
-              `conditions were measured on this market's own bars; at 15m and 1h not one clears ` +
-              `the bar a best-of search has to clear.`,
-          }),
-        );
-      }
-    }
+    /*
+     * THE NEXT-BAR READOUT IS GONE, and it was mine.
+     *
+     * MEASURED on 3,799 bars of this operator's own BTCUSDT 1m: the 80% band's
+     * half-width correlates 0.91 with ATR(14) and IS ATR x 1.33. The status bar
+     * already prints `ATR 77.44`, so the line said the same thing twice and
+     * called the second one a forecast. "Do not keep a readout that duplicates
+     * something already on screen" — a rule this file records learning once
+     * before, over a scroll-depth figure that restated a scrollbar.
+     *
+     * The operator said three times that it was no use to them. They were right,
+     * and the reason turned out to be arithmetic rather than taste.
+     *
+     * The BAND ITSELF stays on the canvas: a shape against the price axis
+     * answers "can this reach my level in one bar" at a glance, which a number
+     * in a status strip does not. It is the sentence that was redundant.
+     */
   });
 
   // ---- deeper history, on demand ------------------------------------------
