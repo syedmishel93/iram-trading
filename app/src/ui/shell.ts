@@ -4635,7 +4635,13 @@ export function mountShell(root: HTMLElement): void {
       high: band.high,
       confidence: 0.8,
       calibrated: band.calibrated,
-      ...(cf === null
+      /* NO CANDLE WHEN THERE IS NO DIRECTION TO DRAW. Now that the forecast is
+         rendered as an ordinary candle, a flat body would have to take a colour,
+         and every colour available is a directional claim the model declined to
+         make. The band alone is the honest drawing there — and the legend
+         already says nothing in that state, so the two agree rather than one
+         showing a candle the other will not describe. */
+      ...(cf === null || cf.basis === "none"
         ? {}
         : { candle: { open: cf.open, high: cf.high, low: cf.low, close: cf.close } }),
     });

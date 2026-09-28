@@ -1,6 +1,52 @@
 # MISHEL INTELLIGENCE TRADING — SESSION HANDOVER
 Terminal: **app/ v50 is the product** (see ../LEGACY.md) · index.html **v39.29** (FROZEN 2026-09-08, still openable at /legacy) + **app/ v58** (Vite/TS rewrite: 3,618 tests in 144 files, 23 desks, connected to the MT5 account for positions and equity — a Briefing, an Analyse and a Chart standing alone, the other 20 in 4 groups) + **desktop/** (Tauri native shell) · Server: proxy `ddt_data_server.py` (8787) + `mishel_service.py` (8788, **SQLite by default, PostgreSQL via `IRAM_DB_URL` — see `server/db/`**) + **`server/quant/` (8789, optional model service — GARCH, causal inference, calibrated classification; the terminal degrades to "not running" without it)** + mishel_ml.py + mishel_hmm.py + mishel_data.py · Launcher: **`run.py` — the only one** (starts `server/gateway`: all three services and the terminal on ONE port, 8787; `--status`, `--port`, `--legacy`, `--no-background`, `--build`, `--install`; `run.sh`/`.bat`/`.command` are three-line wrappers) · Tests: `tests/run_tests.sh`, `python -m pytest tests/test_quant_service.py`.
 
+## v63.27 — THE FORECAST CANDLE IS A CANDLE
+
+The forecast was drawn as a dashed hollow outline, on my reasoning that it must
+never look like a bar that happened. The owner's answer: *"i dont need the
+hollow candle make the chart normal like trading view candles because its a
+serious tool not fun"*.
+
+They are right about the MECHANISM, not only the taste. The distinction was
+being carried by a NOVELTY when two things already carry it and cannot be
+mistaken: this candle sits in the empty slot PAST the newest bar — which
+`drawProjection`'s own comment already calls the one region of the plot where
+nothing else can be — and it sits inside the band, which nothing that has
+happened ever gets. A hollow body was a third signal, and the one that made a
+serious instrument look like a toy.
+
+So it is `drawCandles`' geometry now: a solid filled body, a wick at the theme's
+own weight, a doji floored at one pixel. What says "not settled" is OPACITY
+(0.62, and 0.34 when the band fails its calibration replay, for the same reason
+the band mutes) — which is how a platform says it without a costume.
+
+### TWO THINGS THE CHANGE FORCED, both real
+
+**A FLAT BODY HAD TO TAKE A COLOUR, AND EVERY COLOUR IS A CLAIM.** Hollow, a
+no-direction doji could be drawn as a neutral line. Rendered as an ordinary
+candle it would take the rising colour under `close >= open` — a directional
+statement about a bar the model explicitly declined to call. The shell now sends
+no candle at all when `basis === "none"`; the band alone is the honest drawing
+there, and the legend was already silent in that state, so the two agree instead
+of one showing a candle the other will not describe. The engine keeps a neutral
+`textFaint` for an exactly-flat body as a belt, so a future caller cannot
+reintroduce it silently.
+
+**MY OWN COMMENT WAS FALSE AND I FIXED THE CODE, NOT THE COMMENT.** It claimed
+the geometry was "read from the same viewport rather than restated" — and
+`Math.max(1, Math.floor(vp.barWidth * 0.7))` appeared in both `drawCandles` and
+`drawProjection`. Restated is exactly what it was. `bodyWidth()` is now the one
+owner, with three tests: 70% floored to whole pixels, never zero however narrow
+the slot (a zero-width rect renders as NOTHING, so a zoomed-out chart would lose
+its bodies silently), and monotonic. A forecast one pixel narrower than its
+neighbours is not a bug anyone reports — it is a chart that looks slightly
+wrong, which is worse.
+
+Verified on the python build at :8787: the forecast candle is the same form and
+proportions as the bar beside it, visibly dimmer, 0 signal errors.
+Gate: `VERIFY PASSED — 5 stages, 161s`, 4,979 frontend tests.
+
 ## v63.26 — A FORECAST CANDLE WITH A SHAPE WORTH DRAWING
 
 The owner asked four times to see the next candle and kept being shown a box.

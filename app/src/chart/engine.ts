@@ -397,6 +397,22 @@ export function themeFromCss(root: HTMLElement = document.documentElement): Char
  * from. A value that is not a number at all is 1 — the width every previous
  * version of this chart drew.
  */
+/**
+ * How wide a candle BODY is, given the slot it sits in.
+ *
+ * ONE OWNER, because there are now two callers: the candles themselves and the
+ * forecast candle drawn in the slot past the newest bar. Restated in both, the
+ * two would drift the moment bar geometry changed and the forecast would be the
+ * single candle on the chart at the wrong width — a difference nobody would
+ * read as a bug, only as a chart that looks slightly off.
+ *
+ * Floored at 1: below about 3px a slot cannot hold a body at all, and a zero
+ * width renders as nothing rather than as a thin bar.
+ */
+export function bodyWidth(barWidth: number): number {
+  return Math.max(1, Math.floor(barWidth * 0.7));
+}
+
 export function wickWidth(raw: string): number {
   const n = Number.parseFloat(raw);
   if (!Number.isFinite(n)) return 1;
@@ -1358,18 +1374,27 @@ export class ChartEngine {
     ctx.stroke();
 
     /**
-     * THE FORECAST CANDLE, and it must never look like a bar that happened.
+     * THE FORECAST CANDLE — DRAWN THE WAY THIS CHART DRAWS EVERY OTHER CANDLE.
      *
-     * Every real candle here is a filled body with a solid wick. This one is a
-     * DASHED OUTLINE with no fill, in the same muted ink as the band, sitting in
-     * the empty slot past the last bar. A reader who glances at it has to be
-     * able to tell in one look that it is a proposal rather than a print — a
-     * forecast drawn in the same ink as history is the most expensive kind of
-     * mistake this file can make.
+     * The first version was a dashed hollow outline, on the reasoning that a
+     * forecast must never look like a bar that happened. The owner's answer was
+     * that a hollow candle reads as a gimmick on a tool people take positions
+     * with, and the mechanism behind that is the real argument: the distinction
+     * was being carried by a NOVELTY when two things already carry it and
+     * cannot be mistaken. This candle sits in the empty slot PAST the newest
+     * bar, where no bar can be — `drawProjection`'s own comment above says that
+     * region is the only place nothing else can occupy — and it sits inside the
+     * band, which nothing that has happened ever gets.
      *
-     * The direction colours it, because a body with no colour is unreadable
-     * against a band that is already neutral — but the dash and the empty fill
-     * carry "this has not happened" regardless of which way it points.
+     * So the geometry is `drawCandles`' geometry, through the SAME `bodyWidth`
+     * function and the same viewport: a body 70% of the bar width, a wick at
+     * the theme's own weight, a doji floored at one pixel. The 0.7 lives in one
+     * place — copied here it would drift the moment bar geometry changed, and
+     * the forecast would be the one candle on the chart at the wrong width.
+     *
+     * What is left to say "not settled" is OPACITY, which is how a serious
+     * platform says it: plainly the same object as its neighbours, plainly not
+     * yet a print.
      */
     const cf = f.candle;
     if (cf !== undefined) {
@@ -1383,69 +1408,39 @@ export class ChartEngine {
         Number.isFinite(yTop) &&
         Number.isFinite(yBot)
       ) {
-        const rising = cf.close > cf.open;
+        /* A BODY OF EXACTLY ZERO IS NOT AN UP BAR. Under `close >= open` alone
+           a declined direction would take the rising colour, which is a
+           directional claim about a bar the model refused to call. The shell
+           does not send a candle in that state at all; this is the belt, so
+           that a future caller cannot reintroduce it silently. */
         const flat = cf.close === cf.open;
-        /* NO DIRECTION IS DRAWN AS A LINE, in the band's own ink. Giving it the
-           up or down colour would be a call the model explicitly declined. */
-        /* BRIGHTER THAN THE BAND, ALWAYS. MEASURED after the first version: with
-           the body in the band's own ink at the band's own alpha, a no-direction
-           doji was invisible inside the box it sits in — the operator saw a
-           transparent rectangle and nothing else, which is the complaint this
-           whole feature exists to answer. The candle is the foreground. */
-        ctx.strokeStyle = flat ? th.text : rising ? th.up : th.down;
-        ctx.globalAlpha = f.calibrated ? 0.9 : 0.5;
-        ctx.lineWidth = 1.5;
+        const ink = flat ? th.textFaint : cf.close > cf.open ? th.up : th.down;
 
-        const pad = Math.max(1, (x1 - x0) * 0.18);
-        const bx0 = x0 + pad;
-        const bx1 = x1 - pad;
+        ctx.setLineDash([]);
+        /* Muted further when the band failed its own calibration replay, for
+           the reason the band is: a failed model drawn like a passing one is
+           the thing `calibrated` exists to prevent. */
+        ctx.globalAlpha = f.calibrated ? 0.62 : 0.34;
+        ctx.strokeStyle = ink;
+        ctx.fillStyle = ink;
+
+        const bodyW = bodyWidth(vp.barWidth);
+        const cx = Math.round((x0 + x1) / 2) + 0.5;
         const top = Math.min(yOpen, yClose);
-        const bottom = Math.max(yOpen, yClose);
+        /* Floored at one pixel, exactly as a real doji is — a rect of no height
+           renders as nothing on some devices and a hairline on others. */
+        const height = Math.max(1, Math.abs(yClose - yOpen));
 
-        /* THE WICK IS THE FORECAST'S OWN HIGH AND LOW, not the band's edges.
-           Drawing it to the band made every forecast candle exactly as tall as
-           the band, so the one part of this that is measurably better than ATR
-           was the one part the drawing threw away. */
         ctx.beginPath();
-        const mid = Math.round((bx0 + bx1) / 2) + 0.5;
-        ctx.moveTo(mid, Math.round(yTop) + 0.5);
-        ctx.lineTo(mid, Math.round(top) + 0.5);
-        ctx.moveTo(mid, Math.round(bottom) + 0.5);
-        ctx.lineTo(mid, Math.round(yBot) + 0.5);
+        ctx.moveTo(cx, Math.round(yTop) + 0.5);
+        ctx.lineTo(cx, Math.round(yBot) + 0.5);
+        ctx.lineWidth = th.wick;
         ctx.stroke();
 
-        /* THE BODY IS SOLID WHILE THE WICK STAYS DASHED. Both are still the
-           forecast — the empty fill and the muted band around them carry that —
-           but a body drawn in the same dashes as everything else had no edge for
-           the eye to catch, and a candle you cannot find is not a forecast. */
-        ctx.setLineDash([]);
-        /* A HOLLOW BODY WITH A WHISPER OF FILL. Every candle that has actually
-           happened is drawn SOLID, so hollow is the one-glance difference
-           between a print and a proposal — but a pure outline at this size read
-           as a rectangle rather than as a candle, which is the complaint this
-           whole control exists to answer. The fill is faint enough that the two
-           can never be confused and heavy enough that the body has mass. */
-        if (bottom - top >= 1) {
-          ctx.globalAlpha = f.calibrated ? 0.22 : 0.12;
-          ctx.fillStyle = rising ? th.up : th.down;
-          ctx.fillRect(Math.round(bx0), Math.round(top), Math.round(bx1 - bx0), Math.round(bottom - top));
-          ctx.globalAlpha = f.calibrated ? 0.9 : 0.5;
-        }
         ctx.beginPath();
-        if (bottom - top < 1) {
-          /* A flat body is a LINE, not a zero-height rectangle: a rect of no
-             height renders as nothing on some devices and as a hairline on
-             others, so "no direction" would be invisible on exactly the bars
-             where it is the answer. */
-          /* A DOJI, and it must read as one. This is the answer on almost every
-             bar — measured on this operator's own BTCUSDT, not one of six
-             patterns clears its own search at 15m or 1h — so "no direction" is
-             the state the control spends its life in and has to be legible. */
-          ctx.moveTo(bx0 - 1, Math.round(top) + 0.5);
-          ctx.lineTo(bx1 + 1, Math.round(top) + 0.5);
-        } else {
-          ctx.rect(Math.round(bx0) + 0.5, Math.round(top) + 0.5, Math.round(bx1 - bx0), Math.round(bottom - top));
-        }
+        ctx.rect(Math.round(cx - bodyW / 2), Math.round(top), bodyW, Math.round(height));
+        ctx.fill();
+        ctx.lineWidth = 1;
         ctx.stroke();
       }
     }
@@ -1586,7 +1581,7 @@ export class ChartEngine {
     const th = this.theme;
     const { from, to } = vp.visibleRange(s.length);
 
-    const bodyW = Math.max(1, Math.floor(vp.barWidth * 0.7));
+    const bodyW = bodyWidth(vp.barWidth);
     const halfW = bodyW / 2;
     // Below ~3px per bar, individual bodies are sub-pixel; drawing wicks only
     // is both faster and more legible than a wall of overlapping rectangles.
