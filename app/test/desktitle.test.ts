@@ -8,8 +8,8 @@
  * rest are in the display one" and moved them all into one rule. MEASURED
  * afterwards, that finding was false, and the change broke something real:
  *
- *   `.view-title`  holds a desk's NAME — "Signals", "Playbook", "Watchlist",
- *                  "Simulation", "Smart money". Nine of them.
+ *   `.view-title`  holds a desk's NAME — "Alerts", "Playbook", "Watchlist",
+ *                  "Walk-forward", "Smart money". Fifteen of them.
  *   `.strat-title`, `.td-title`, `.rv-title`, `.sys-title` hold a SENTENCE —
  *                  "The AI studies your trades. You decide what's true.",
  *                  "What this machine holds, and what it is doing."

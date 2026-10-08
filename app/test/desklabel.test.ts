@@ -70,6 +70,31 @@ export const DESK_LABEL_ALLOWLIST: readonly { file: string; text: string; why: s
     text: "Chart",
     why: "the same 'use what the chart is showing' button as the calculator's, naming the source of a symbol rather than a destination",
   },
+
+  /* THE FOUR BELOW APPEARED WHEN THE DESKS WERE RENAMED, and they are the
+     cost of naming a desk after a word the domain already uses. Each is the
+     NOUN in its own context, and two of them are worth the operator knowing
+     about rather than being quietly suppressed — see the notes. */
+  {
+    file: "ui/screener.ts",
+    text: "Correlation",
+    why: "a stat row inside the screener's reasoning panel, labelling the correlation it measured — the quantity, not the desk that charts them",
+  },
+  {
+    file: "ui/shell.ts",
+    text: "Track record",
+    why: "the chart toolbar pill that toggles the claims overlay; it shares the word with the desk ON PURPOSE, because both answer 'did what this machine said work out' — one on the chart, one as a page",
+  },
+  {
+    file: "ui/strategy.ts",
+    text: "Walk-forward",
+    why: "the Strategy desk's own walk-forward panel — the TECHNIQUE. It now shares a name with the simulation desk, which is a real ambiguity the owner should weigh, not a drift this guard can fix",
+  },
+  {
+    file: "ui/studypanel.ts",
+    text: "Studies",
+    why: "the chart's indicator panel. In charting 'studies' MEANS indicators — thinkorswim's own term — so the study desk's new name collides with an established sense already in use here. Flagged to the owner; allowlisted so the collision is recorded rather than hidden",
+  },
 ];
 
 /** Every `.ts` under `app/src`, except the owner itself. */
@@ -240,6 +265,90 @@ describe("deskLabel", () => {
 
     const good: ViewId = "screener";
     expect(deskLabel(good)).toBe(deskLabel("screener"));
+  });
+});
+
+describe("the names themselves", () => {
+  it("names every desk a word a trader would type", () => {
+    /* A command palette can only find what you can name. Measured before this:
+       roughly 7 of 27 labels were words a trader would search for, and the
+       rest — "Opportunities", "Decision", "Conditions", "Connections",
+       "Knowledge", "Survey", "Simulation", "Learning" — were internal
+       concepts. */
+    const expected: Record<string, string> = {
+      screener: "Scanner",
+      decision: "Confluence",
+      flow: "Derivatives",
+      agent: "Ask AI",
+      study: "Studies",
+      knowledge: "Edge stats",
+      survey: "Market regime",
+      connections: "Correlation",
+      strategy: "Strategy tester",
+      signals: "Alerts",
+      results: "Test results",
+      simulation: "Walk-forward",
+      learn: "Track record",
+      workspace: "Layouts",
+      paper: "Paper trading",
+    };
+    for (const [id, label] of Object.entries(expected)) {
+      expect(deskLabel(id as ViewId), id).toBe(label);
+    }
+  });
+
+  it("LEAVES THE TWELVE THAT WERE ALREADY RIGHT", () => {
+    for (const [id, label] of Object.entries({
+      briefing: "Briefing",
+      watchlist: "Watchlist",
+      chart: "Chart",
+      smart: "Smart money",
+      sessions: "Sessions",
+      risk: "Risk",
+      calculator: "Calculator",
+      quant: "Quant",
+      playbook: "Playbook",
+      data: "Data",
+      journal: "Journal",
+      system: "System",
+    })) {
+      expect(deskLabel(id as ViewId), id).toBe(label);
+    }
+  });
+
+  it("NEVER CHANGES AN ID — they are persisted, and a changed one is a blank desk", () => {
+    /* The active desk and every saved layout store the id string. Rename one
+       and the operator is dropped onto a fallback with nothing on screen to
+       say why. The labels above may move; this list may not. */
+    expect(VIEWS.map((v) => v.id).sort()).toEqual([
+      "agent", "briefing", "calculator", "chart", "connections", "data", "decision",
+      "flow", "journal", "knowledge", "learn", "paper", "playbook", "quant", "results",
+      "risk", "screener", "sessions", "signals", "simulation", "smart", "strategy",
+      "study", "survey", "system", "watchlist", "workspace",
+    ]);
+  });
+
+  it("GIVES NO DESK THE SAME NAME AS ITS GROUP, bar the one that earns it", () => {
+    /* `study` was approved as "Research" and a GROUP is already called
+       Research, so the All tools menu would have read "Research › Research" —
+       a desk looking like a duplicate of its own heading. The group cannot
+       move here; regrouping is stage 2's job. Hence "Studies".
+
+       `chart` IS ALLOWED TO, and running this rule found that out: it has
+       shared its group's name since long before any of this. The difference is
+       whether the desk is the group's centrepiece. "Chart › Chart" reads as the
+       obvious entry to the Chart group; "Research › Research" would have read
+       as a heading printed twice. A rule that cannot tell those apart would
+       have renamed a desk nobody asked to rename. */
+    const EARNED = new Set(["chart"]);
+    for (const v of VIEWS) {
+      if (EARNED.has(v.id)) continue;
+      expect(v.label, `${v.id} is named after its own group`).not.toBe(v.group);
+    }
+    for (const id of EARNED) {
+      const v = VIEWS.find((x) => x.id === id);
+      expect(v?.label, `${id} is exempted but no longer matches its group`).toBe(v?.group);
+    }
   });
 });
 

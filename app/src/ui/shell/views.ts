@@ -86,32 +86,32 @@ export const MA_SET = [
 export const VIEWS = [
   /* Today — AI briefs · you plan. */
   { id: "briefing", group: "Today", label: "Briefing", icon: "briefing", scoped: true, hint: "Where you stand, what changed, and what to look at" },
-  { id: "screener", group: "Today", label: "Opportunities", icon: "screener", scoped: false, hint: "Scan the universe for setups with entry, stop, targets and a track record" },
+  { id: "screener", group: "Today", label: "Scanner", icon: "screener", scoped: false, hint: "Scan the universe for setups with entry, stop, targets and a track record" },
   { id: "watchlist", group: "Today", label: "Watchlist", icon: "watchlist", scoped: false, hint: "Your list, and the market heatmap" },
 
   /* Chart — AI-led. */
   { id: "chart", group: "Chart", label: "Chart", icon: "chart", scoped: true, hint: "Price, structure and drawings" },
-  { id: "decision", group: "Chart", label: "Decision", icon: "decision", scoped: true, hint: "Every source, weighed, with its coverage" },
+  { id: "decision", group: "Chart", label: "Confluence", icon: "decision", scoped: true, hint: "Every source, weighed, with its coverage" },
   { id: "smart", group: "Chart", label: "Smart money", icon: "smart", scoped: true, hint: "Structure, gaps and order blocks, listed" },
-  { id: "flow", group: "Chart", label: "Flow", icon: "flow", scoped: true, hint: "Liquidations, open interest and funding" },
+  { id: "flow", group: "Chart", label: "Derivatives", icon: "flow", scoped: true, hint: "Liquidations, open interest and funding" },
   { id: "sessions", group: "Chart", label: "Sessions", icon: "sessions", scoped: true, hint: "What is open, and when this symbol moves" },
   { id: "risk", group: "Trade", label: "Risk", icon: "risk", scoped: false, hint: "Sizing, the book, portfolio risk and hedging" },
   { id: "calculator", group: "Trade", label: "Calculator", icon: "calculator", scoped: false, hint: "Lots, pips, margin and cost-adjusted P&L" },
-  { id: "paper", group: "Trade", label: "Paper", icon: "paper", scoped: true, hint: "Practice fills against the live feed" },
-  { id: "agent", group: "Chart", label: "Analyst", icon: "analyst", scoped: false, hint: "Ask about what is on screen" },
+  { id: "paper", group: "Trade", label: "Paper trading", icon: "paper", scoped: true, hint: "Practice fills against the live feed" },
+  { id: "agent", group: "Chart", label: "Ask AI", icon: "analyst", scoped: false, hint: "Ask about what is on screen" },
 
   /* Research — you steer · AI assists. */
-  { id: "study", group: "Research", label: "Analyse", icon: "study", scoped: true, hint: "Pick an asset, pick what it is measured against, pick how much history, and measure it" },
+  { id: "study", group: "Research", label: "Studies", icon: "study", scoped: true, hint: "Pick an asset, pick what it is measured against, pick how much history, and measure it" },
   { id: "quant", group: "Research", label: "Quant", icon: "quant", scoped: true, hint: "GARCH, causal inference and calibrated probabilities" },
-  { id: "knowledge", group: "Research", label: "Knowledge", icon: "learn", scoped: false, hint: "What replaying history has measured, sliced by the conditions it happened in" },
-  { id: "survey", group: "Research", label: "Conditions", icon: "survey", scoped: false, hint: "Which style works in which market condition, across markets" },
-  { id: "connections", group: "Research", label: "Connections", icon: "channel", scoped: false, hint: "Which markets move together, and whether that is still holding" },
+  { id: "knowledge", group: "Research", label: "Edge stats", icon: "learn", scoped: false, hint: "What replaying history has measured, sliced by the conditions it happened in" },
+  { id: "survey", group: "Research", label: "Market regime", icon: "survey", scoped: false, hint: "Which style works in which market condition, across markets" },
+  { id: "connections", group: "Research", label: "Correlation", icon: "channel", scoped: false, hint: "Which markets move together, and whether that is still holding" },
   { id: "data", group: "Research", label: "Data", icon: "data", scoped: false, hint: "The local archive and what is in it" },
 
   /* Strategy — built together. */
-  { id: "strategy", group: "Strategy", label: "Strategy", icon: "strategy", scoped: true, hint: "Sweep, walk-forward and overfitting" },
+  { id: "strategy", group: "Strategy", label: "Strategy tester", icon: "strategy", scoped: true, hint: "Sweep, walk-forward and overfitting" },
   { id: "playbook", group: "Strategy", label: "Playbook", icon: "playbook", scoped: true, hint: "Rule sets you can read, edit and test" },
-  { id: "signals", group: "Trade", label: "Signals", icon: "signals", scoped: true, hint: "Alerts and what has fired" },
+  { id: "signals", group: "Trade", label: "Alerts", icon: "signals", scoped: true, hint: "Alerts and what has fired" },
   /* v62.6. Scoped: it opens on the market the chart is showing when it has
      studied one, which is a default and not a lock — you can pick any of
      them. `scoped: false` would hide the symbol box on a desk whose whole
@@ -119,12 +119,12 @@ export const VIEWS = [
   /* ACROSS EVERY MARKET, which is why it is not `scoped`. Every other
      strategy desk answers about the chart in front of you; this one answers
      about the whole book of work, and scoping it would make it lie. */
-  { id: "results", group: "Strategy", label: "Results", icon: "learn", scoped: false, hint: "Every search that has run, on every market \u2014 including the ones that found nothing" },
-  { id: "simulation", group: "Strategy", label: "Simulation", icon: "strategy", scoped: true, hint: "What the terminal studied on its own, and what it would have done to a real balance" },
+  { id: "results", group: "Strategy", label: "Test results", icon: "learn", scoped: false, hint: "Every search that has run, on every market \u2014 including the ones that found nothing" },
+  { id: "simulation", group: "Strategy", label: "Walk-forward", icon: "strategy", scoped: true, hint: "What the terminal studied on its own, and what it would have done to a real balance" },
 
   /* Review — AI finds · you judge. */
   { id: "journal", group: "Review", label: "Journal", icon: "playbook", scoped: true, hint: "What you actually did, and what it measured" },
-  { id: "learn", group: "Review", label: "Learning", icon: "learn", scoped: false, hint: "What it claimed, what happened, and what it keeps" },
+  { id: "learn", group: "Review", label: "Track record", icon: "learn", scoped: false, hint: "What it claimed, what happened, and what it keeps" },
   /* System belongs in Review, not Research: "what did this machine do" sits
      beside "what did I do" and "what did it learn". It lived inside Research
      ▸ Data for two releases, which is why nobody could find it. */
@@ -133,7 +133,7 @@ export const VIEWS = [
      Chart block, and the workspace ORDER is read off first appearance in
      this list - so Review jumped ahead of Research on the desk bar while
      every test about grouping passed. A row's position is data too. */
-  { id: "workspace", group: "Review", label: "Workspace", icon: "workspace", scoped: false, hint: "Layouts, panes and linked symbols" },
+  { id: "workspace", group: "Review", label: "Layouts", icon: "workspace", scoped: false, hint: "Layouts, panes and linked symbols" },
 ] as const;
 
 /**
