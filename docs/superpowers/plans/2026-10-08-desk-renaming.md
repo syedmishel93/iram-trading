@@ -268,7 +268,7 @@ it("names every desk a word a trader would type", () => {
   const expected: Record<string, string> = {
     screener: "Scanner",          decision: "Confluence",
     flow: "Derivatives",          agent: "Ask AI",
-    study: "Research",            knowledge: "Edge stats",
+    study: "Studies",             knowledge: "Edge stats",
     survey: "Market regime",      connections: "Correlation",
     strategy: "Strategy tester",  signals: "Alerts",
     results: "Test results",      simulation: "Walk-forward",
@@ -309,13 +309,12 @@ Expected: FAIL on the 15 current labels, and **FAIL on the group collision** —
 
 - [ ] **Step 3: Resolve the group collision, then apply the renames**
 
-> **OPEN DECISION — the owner's call, not the implementer's.** The spec approved
-> `study` → **"Research"**. The groups are `Today · Chart · Trade · Research ·
-> Strategy · Review`, so that produces **Research › Research** in the All tools
-> menu — a desk that looks like a duplicate of its own heading. The group cannot
-> move here; regrouping is stage 2's job. Default if nobody says otherwise:
-> **"Studies"**, which keeps the searchable sense and matches the id. Confirm
-> before implementing this step.
+> **DECIDED by the owner, 2026-10-08: `study` → "Studies".** The spec had
+> approved "Research", and the groups are `Today · Chart · Trade · Research ·
+> Strategy · Review` — so that would have produced **Research › Research** in
+> the All tools menu, a desk looking like a duplicate of its own heading. The
+> group could not move; regrouping is stage 2's job. "Studies" keeps the
+> searchable sense and matches the id.
 
 Rename the DESK, not the group. Then apply the other 14 `label:` values in `VIEWS`. Nothing else in `src/` changes.
 
