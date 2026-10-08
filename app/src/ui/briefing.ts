@@ -69,6 +69,7 @@ import { createScanList } from "./today/scanlist";
 import { suggestFocus } from "./today/focus";
 import { whoTag } from "./today/card";
 
+import { deskLabel, type ViewId } from "./shell/views";
 export interface BriefingOptions {
   /** The chart's instrument, so "this chart" names what it is about. */
   readonly symbol: ReadSignal<string>;
@@ -136,12 +137,32 @@ const ROW_CAP = 6;
  * a number here that you cannot get back to its owner from is a number you
  * have to take on trust.
  */
-function ownerLink(label: string, onOpen: () => void): HTMLElement {
+/**
+ * A LINK TO A DESK, NAMED BY THE DESK.
+ *
+ * It used to take a label and a callback and know nothing about where it went,
+ * which is how a link's text comes to name a desk that has been renamed. The
+ * ID is the argument now and the name is derived, so the pair cannot come
+ * apart — and `data-opens` puts the destination in the DOM, where a test can
+ * assert the two against each other.
+ *
+ * `text` OVERRIDES THE NAME, ON PURPOSE. Three of the six links here say
+ * something other than the desk's name — "Open chart", "Full feed", "Risk
+ * desk" — and flattening them all to the bare name would put two links both
+ * reading "Chart" in different cards. The default is the desk's own name, so
+ * the case that can drift is the one that costs an argument.
+ */
+export function ownerLink(
+  id: ViewId,
+  onOpen: (view: string) => void,
+  text: string = deskLabel(id),
+): HTMLElement {
   return h("button", {
     class: "bf-owner",
     type: "button",
-    text: label,
-    onclick: onOpen,
+    "data-opens": id,
+    text,
+    onclick: () => onOpen(id),
   }) as HTMLElement;
 }
 
@@ -304,7 +325,7 @@ export function createBriefing(opts: BriefingOptions) {
   const standCard = card(
     "Where you stand",
     "What is already at risk",
-    ownerLink("Risk desk", () => opts.onOpen("risk")),
+    ownerLink("risk", opts.onOpen, "Risk desk"),
     pkRowsLive(standRows),
   );
 
@@ -375,7 +396,7 @@ export function createBriefing(opts: BriefingOptions) {
   const chartCard = card(
     "This chart",
     "The instrument on screen",
-    ownerLink("Open chart", () => opts.onOpen("chart")),
+    ownerLink("chart", opts.onOpen, "Open chart"),
     h("p", { class: "bf-scope", text: () => `${symbol()} · ${timeframe()}` }) as HTMLElement,
     chartBody,
   );
@@ -413,7 +434,7 @@ export function createBriefing(opts: BriefingOptions) {
   const changedCard = card(
     "What changed",
     "Since you last looked",
-    ownerLink("Full feed", () => opts.onOpen("chart")),
+    ownerLink("chart", opts.onOpen, "Full feed"),
     changedBody,
   );
 
@@ -470,7 +491,7 @@ export function createBriefing(opts: BriefingOptions) {
   const elsewhereCard = card(
     "Where else to look",
     "What the scan found on the rest of your list",
-    ownerLink("Opportunities", () => opts.onOpen("screener")),
+    ownerLink("screener", opts.onOpen),
     elsewhereBody,
     pkWhy(
       "Each row is that symbol's setup, read the same way as the chart. Click one to open it — nothing is traded.",
@@ -506,7 +527,7 @@ export function createBriefing(opts: BriefingOptions) {
   const alertsCard = card(
     "Alerts that fired",
     "What you asked to be told about",
-    ownerLink("Signals", () => opts.onOpen("signals")),
+    ownerLink("signals", opts.onOpen),
     alertsBody,
   );
 
@@ -553,7 +574,7 @@ export function createBriefing(opts: BriefingOptions) {
   const conditionsCard = card(
     "Conditions",
     "What kind of market this is",
-    ownerLink("Sessions", () => opts.onOpen("sessions")),
+    ownerLink("sessions", opts.onOpen),
     conditionsBody,
   );
 

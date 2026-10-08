@@ -243,6 +243,20 @@ describe("deskLabel", () => {
   });
 });
 
+describe("a link to a desk, in the source", () => {
+  it("NAMES NO DESK BY HAND WHERE IT NAVIGATES", () => {
+    /* `shell/decision.ts` raises toasts whose action both NAMES a desk and
+       opens it. Those two sites are the only `label:` literals in that file,
+       so the rule can be exact there without the allowlist a project-wide
+       `label:` sweep would need — 25 of those sites are a command's section
+       or a settings heading, which is a different vocabulary from a desk's
+       name. The DOM half of this lives in `desklink.test.ts`. */
+    const src = readFileSync(join(SRC, "ui/shell/decision.ts"), "utf-8");
+    const offenders = VIEWS.filter((v) => new RegExp(`label:\\s*"${esc(v.label)}"`).test(src));
+    expect(offenders.map((v) => v.label)).toEqual([]);
+  });
+});
+
 describe("the guard: one owner, enforced", () => {
   it("NO DESK MODULE WRITES A DESK NAME AS A LITERAL", () => {
     const { offenders } = scan();
