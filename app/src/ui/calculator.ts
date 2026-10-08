@@ -40,7 +40,8 @@ import {
   type InstrumentSpec,
 } from "../risk/instruments";
 import { calculate, type CalcResult, type CostModel } from "../risk/calculator";
-
+
+import { deskLabel } from "./shell/views";
 export interface CalculatorOptions {
   /** The one owner of balance, equity, leverage and risk. */
   readonly account: AccountStore;
@@ -566,7 +567,7 @@ export function createCalculator(opts: CalculatorOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Trade calculator" }),
+      h("h1", { class: "view-title", text: deskLabel("calculator") }),
       h("p", {
         class: "view-sub",
         text: "Lots, pips, margin, and the profit that survives costs. Arithmetic on your numbers — it does not choose a trade and it cannot place one.",

@@ -28,7 +28,8 @@ import { h, clear } from "./dom";
 import { renderEffect, type ReadSignal } from "../core/signal";
 import { byGroup, leanLabel, type Evidence, type EvidenceGroup } from "../core/evidence";
 import type { Decision } from "../core/decision";
-
+
+import { deskLabel } from "./shell/views";
 const GROUP_LABEL: Record<EvidenceGroup, string> = {
   structure: "Structure",
   trend: "Trend",
@@ -387,7 +388,7 @@ export function createDecisionDesk(opts: DecisionDeskOptions): { el: HTMLElement
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Decision" }),
+      h("h1", { class: "view-title", text: deskLabel("decision") }),
       h("p", {
         class: "view-sub",
         text: "Every source the terminal has, in one shape, with what each one contributes and what it would take to change it. The summary is always walkable back to its inputs.",

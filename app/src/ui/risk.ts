@@ -65,7 +65,8 @@ import {
   type SizeResult,
 } from "../risk/sizing";
 import type { AccountStore } from "../core/account";
-
+
+import { deskLabel } from "./shell/views";
 export interface RiskConfig {
   equity: number;
   riskPct: number;
@@ -1648,7 +1649,7 @@ export function createRisk(opts: RiskDeskOptions): RiskDesk {
          header ROWS in desks.css, and borrowing it here shouted the desk title
          and its whole subtitle in capitals. */
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Risk" }),
+      h("h1", { class: "view-title", text: deskLabel("risk") }),
       h("p", {
         class: "view-sub",
         text: "How much, and whether that is inside the rules you set. Decision support: it reports, it never trades.",

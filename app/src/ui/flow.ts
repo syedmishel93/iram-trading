@@ -36,7 +36,8 @@ import {
   type Liquidation,
   type StreamStatus,
 } from "../data/stream";
-
+
+import { deskLabel } from "./shell/views";
 export interface FlowHandle {
   el: HTMLElement;
   /** Called when the desk becomes visible. Loads if the data is stale. */
@@ -374,7 +375,7 @@ export function createFlow(opts: { symbol: Signal<string> }): FlowHandle {
     h(
       "header",
       { class: "flow-head" },
-      h("h2", { class: "flow-title", text: "Flow" }),
+      h("h2", { class: "flow-title", text: deskLabel("flow") }),
       h("span", {
         class: "flow-sub",
         /* Describes what is being LOOKED FOR, not what the symbol is. */

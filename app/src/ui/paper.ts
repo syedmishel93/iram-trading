@@ -38,7 +38,8 @@ import {
   type CostAssumptions,
   type PaperBook,
 } from "../trade/paper";
-
+
+import { deskLabel } from "./shell/views";
 export interface PaperDeskOptions {
   readonly symbol: Signal<string>;
   readonly kv: KV;
@@ -462,7 +463,7 @@ export function createPaper(opts: PaperDeskOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Paper" }),
+      h("h1", { class: "view-title", text: deskLabel("paper") }),
       h("p", {
         class: "view-sub",
         text: "Practice fills against the real feed. The prices are live; the fills are simulated, and every position here is marked as such.",

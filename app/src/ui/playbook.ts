@@ -69,7 +69,8 @@ import {
   type HybridRejected,
 } from "../backtest/hybrid";
 import { SPECS, STYLE_LABEL } from "../backtest/specs";
-
+
+import { deskLabel } from "./shell/views";
 export interface PlaybookOptions {
   /** The chart's symbol — the DEFAULT for this desk's own picker, not a lock. */
   readonly symbol: Signal<string>;
@@ -1424,7 +1425,7 @@ export function createPlaybook(opts: PlaybookOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Playbook" }),
+      h("h1", { class: "view-title", text: deskLabel("playbook") }),
       h("p", {
         class: "view-sub",
         text: () =>

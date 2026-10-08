@@ -32,7 +32,8 @@ import {
   MIN_CELL_SAMPLES,
   type ActivityGrid,
 } from "../data/sessionmap";
-
+
+import { deskLabel } from "./shell/views";
 export interface SessionsOptions {
   readonly symbol: Signal<string>;
   readonly timeframe: Signal<string>;
@@ -222,7 +223,7 @@ export function createSessions(opts: SessionsOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Sessions" }),
+      h("h1", { class: "view-title", text: deskLabel("sessions") }),
       h("p", {
         class: "view-sub",
         text: "Which markets are open, and when this instrument has actually moved. The clock is a calendar fact; the map below is a measurement of your own archive.",

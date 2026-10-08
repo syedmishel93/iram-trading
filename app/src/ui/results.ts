@@ -45,6 +45,7 @@ import type { AutoResult } from "../data/autorun";
 import type { Discovered } from "../backtest/discovered";
 import type { SweepSummary } from "../backtest/sweepcache";
 
+import { deskLabel } from "./shell/views";
 export interface ResultsOptions {
   /** Everything the terminal has kept. */
   readonly shelf: ReadSignal<readonly Discovered[]>;
@@ -280,7 +281,7 @@ export function createResults(opts: ResultsOptions): { el: HTMLElement } {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Results" }),
+      h("h1", { class: "view-title", text: deskLabel("results") }),
       h("p", {
         class: "view-sub",
         text: "Every search this terminal has run, on every market — including the ones that found nothing. A list of only the winners would tell you nothing about whether any of them work.",

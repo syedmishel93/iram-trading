@@ -29,7 +29,8 @@ import { signal, computed, renderEffect, type Signal } from "../core/signal";
 import type { KV } from "../store/kv";
 import { loadBinanceUniverse } from "../data/binance";
 import type { UniverseEntry } from "../scan/scanner";
-
+
+import { deskLabel } from "./shell/views";
 export interface WatchlistOptions {
   readonly symbol: Signal<string>;
   readonly kv: KV;
@@ -225,7 +226,7 @@ export function createWatchlist(opts: WatchlistOptions) {
   const watchPanel = h(
     "section",
     { class: "dd-panel" },
-    h("h3", { class: "pf-sub", text: "Watchlist" }),
+    h("h3", { class: "pf-sub", text: deskLabel("watchlist") }),
     h(
       "div",
       { class: "wl-add" },
@@ -362,7 +363,7 @@ export function createWatchlist(opts: WatchlistOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Watchlist" }),
+      h("h1", { class: "view-title", text: deskLabel("watchlist") }),
       h("p", {
         class: "view-sub",
         text: "Your list and the wider market, both from one exchange snapshot. A snapshot, not a stream — the time it was taken is at the bottom.",

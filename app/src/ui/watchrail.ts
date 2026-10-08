@@ -37,6 +37,7 @@ import { effect, renderEffect, signal, untrack, type ReadSignal } from "../core/
 import { loadBinanceBars, loadBinanceUniverse } from "../data/binance";
 import { RateLimited, type UniverseEntry } from "../scan/scanner";
 
+import { deskLabel } from "./shell/views";
 // ------------------------------------------------------------------ types ---
 
 export interface WatchSetup {
@@ -269,7 +270,7 @@ export function createWatchRail(opts: WatchRailOptions): { el: HTMLElement; dest
   const el = h(
     "section",
     { class: "watchrail", "aria-label": "Watchlist" },
-    h("header", { class: "wr-head" }, h("h2", { class: "wr-title", text: "Watchlist" }), count),
+    h("header", { class: "wr-head" }, h("h2", { class: "wr-title", text: deskLabel("watchlist") }), count),
     list,
     empty,
   );

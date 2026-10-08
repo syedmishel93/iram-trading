@@ -43,7 +43,8 @@ import {
   type AutoStatus,
 } from "../data/autorun";
 import type { CalibrationBucket, RouterReport } from "../data/router";
-
+
+import { deskLabel } from "./shell/views";
 const pct = (v: number): string => (Number.isFinite(v) ? `${(v * 100).toFixed(1)}%` : "—");
 const money = (v: number): string =>
   Number.isFinite(v) ? `$${v.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "—";
@@ -927,7 +928,7 @@ export function createSimulation(opts: SimulationOptions): HTMLElement {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Simulation" }),
+      h("h1", { class: "view-title", text: deskLabel("simulation") }),
       h("p", {
         class: "view-sub",
         text: "What the terminal found on its own: every shipped rule, over every market you hold enough history for, with what it would have done to a real balance.",
