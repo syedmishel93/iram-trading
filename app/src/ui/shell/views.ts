@@ -136,6 +136,46 @@ export const VIEWS = [
   { id: "workspace", group: "Review", label: "Workspace", icon: "workspace", scoped: false, hint: "Layouts, panes and linked symbols" },
 ] as const;
 
+/**
+ * Every desk id, as a literal union.
+ *
+ * `VIEWS` is `as const`, so this is the twenty-seven ids and nothing else —
+ * derived, never hand-written. A hand-written copy is a second definition of
+ * one fact, and this repository has three defects on record from exactly that.
+ */
+export type ViewId = (typeof VIEWS)[number]["id"];
+
+/** Every id as a set, for a caller holding a string it has not proved is a desk. */
+export const VIEW_IDS: ReadonlySet<string> = new Set(VIEWS.map((v) => v.id));
+
+/** Built once: `deskLabel` is called during render, not at startup. */
+const LABEL_BY_ID = new Map<string, string>(VIEWS.map((v) => [v.id, v.label]));
+
+/**
+ * A DESK'S DISPLAY NAME, AND THE ONLY PLACE IT IS ANSWERED.
+ *
+ * Before this existed a desk's name was written in up to three places — here,
+ * again in the desk's own heading, and a third time by anything linking to it.
+ * Measured: two desks already disagreed with their own tabs. `calculator`
+ * rendered "Trade calculator" under a tab reading "Calculator", and `survey`
+ * rendered "Condition survey" under "Conditions". Nothing was red, because
+ * nothing compared them.
+ *
+ * THE ID IS TYPED, AND THAT IS THE WHOLE SAFETY ARGUMENT. A `deskLabel(id:
+ * string)` that threw on an unknown id would throw inside a render effect —
+ * which `core/signal.ts` catches and logs to `window.__signalErrors`, leaving
+ * the section blank with nothing on screen to say why. One ungradeable row
+ * rendering five markets as none is already on record here. A literal union
+ * moves the error to `tsc`, where it cannot be swallowed.
+ *
+ * The cast is sound rather than convenient: the union and the map are built
+ * from the same array, so every `ViewId` is a key by construction. A caller
+ * holding an unproven string checks `VIEW_IDS` first.
+ */
+export function deskLabel(id: ViewId): string {
+  return LABEL_BY_ID.get(id) as string;
+}
+
 /** Who leads in each workspace — shown under the name on its tab. */
 export const WORKSPACE_LEAD: Readonly<Record<string, string>> = {
   Today: "AI briefs · you plan",
