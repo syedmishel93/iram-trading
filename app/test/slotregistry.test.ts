@@ -15,7 +15,9 @@ import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
-import { REGISTRY, entriesOfKind, type SlotKind } from "../src/settings/registry";
+import { REGISTRY, entriesOfKind, registrySettings } from "../src/settings/registry";
+import { createKV, memoryRawStore, type RawStore } from "../src/store/kv";
+import { SECTIONS } from "../src/settings/defs";
 
 /* --------------------------------------------------------------- scanner -- */
 
@@ -197,5 +199,60 @@ describe("keys, and the one duplicate that is allowed", () => {
        — the governor's limits, in the case on record. */
     const src = readFileSync(join(SRC, "core/account.ts"), "utf-8");
     expect(/kv\.write\(\s*LEGACY_/.test(src), "a legacy slot is being written").toBe(false);
+  });
+});
+
+describe("Settings reaches every preference", () => {
+  /** A store that refuses every write, the way localStorage does at ~5MB. */
+  const fullStore = (): RawStore => ({
+    getItem: () => null,
+    setItem: () => {
+      const e = new Error("quota");
+      e.name = "QuotaExceededError";
+      throw e;
+    },
+    removeItem: () => {},
+    key: () => null,
+    length: 0,
+  });
+
+  it("PRODUCES A CONTROL FOR EVERY PREFERENCE, so a registered one cannot be invisible", () => {
+    const defs = registrySettings(createKV(memoryRawStore()));
+    for (const e of entriesOfKind("preference")) {
+      expect(defs.find((d) => d.id.endsWith(e.key)), `${e.label} has no control`).toBeDefined();
+    }
+  });
+
+  it("REACHES THE FIVE SETTINGS COULD NOT", () => {
+    /* The whole point. `risk.config` is the governor: daily loss limit, trades
+       per day, losses in a row — editable only on the Risk desk until now. */
+    const ids = registrySettings(createKV(memoryRawStore())).map((d) => d.id);
+    for (const key of ["risk.config", "autosearch", "library.budget-gb", "learn.enabled", "research.topup"]) {
+      expect(ids.some((id) => id.endsWith(key)), `${key} still unreachable`).toBe(true);
+    }
+  });
+
+  it("GIVES EVERY DEF A SECTION THAT EXISTS", () => {
+    const known = new Set(SECTIONS.map((x) => x.id));
+    for (const d of registrySettings(createKV(memoryRawStore()))) {
+      expect(known.has(d.section), `${d.id} is filed under "${d.section}"`).toBe(true);
+    }
+  });
+
+  it("REPORTS A WRITE THE STORE REFUSED, rather than silently doing nothing", () => {
+    /* `kv.write` RETURNS a result; localStorage is ~5MB and throws on quota.
+       A swallowed result is a setting that appears to change and does not. */
+    const defs = registrySettings(createKV(fullStore()));
+    const toggle = defs.find((d) => d.control.kind === "toggle");
+    expect(toggle, "no toggle to exercise").toBeDefined();
+    toggle?.write?.("true");
+    expect(toggle?.unavailable?.()).toMatch(/full|space|quota|room/i);
+  });
+
+  it("NEVER OFFERS A CONTROL FOR A SECRET OR FOR ACCUMULATED STATE", () => {
+    const ids = registrySettings(createKV(memoryRawStore())).map((d) => d.id);
+    for (const e of [...entriesOfKind("secret"), ...entriesOfKind("state")]) {
+      expect(ids.some((id) => id.endsWith(e.key)), `${e.label} became a setting`).toBe(false);
+    }
   });
 });

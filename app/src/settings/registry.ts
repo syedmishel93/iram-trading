@@ -47,7 +47,8 @@
  */
 
 import type { Slot } from "../store/kv";
-import type { SettingControl } from "./schema";
+import type { KV } from "../store/kv";
+import type { SettingControl, SettingDef } from "./schema";
 import { SECTIONS } from "./defs";
 
 /* ------------------------------------------------------------ the slots -- */
@@ -393,4 +394,66 @@ export const REGISTRY: readonly SlotEntry[] = [
 
 export function entriesOfKind(kind: SlotKind): readonly SlotEntry[] {
   return REGISTRY.filter((e) => e.kind === kind);
+}
+
+/* ----------------------------------------------------- settings, derived -- */
+
+/**
+ * A `SettingDef` for every preference, built FROM THE REGISTRY.
+ *
+ * The defect this replaces: `buildSettings` was handed a list assembled by
+ * hand, so a preference reached Settings only if somebody remembered to add
+ * it. Five never were. Iterating the registry means the next one cannot be
+ * forgotten — it is in Settings the moment it is registered, or the guard
+ * fails because it was not registered at all.
+ *
+ * TWO CONTROLS ARE AN `action`, AND THAT IS NOT A SHORTCUT. The governor's
+ * limits and the twenty-nine detector switches are edited through surfaces
+ * that already do the job well; a generic widget would be a worse version of a
+ * working desk. The entry still exists, so Settings ACCOUNTS for the
+ * preference and can point at where it lives. Only what genuinely is one value
+ * — a toggle, a number — gets a control that reads and writes here.
+ */
+export function registrySettings(kv: KV): readonly SettingDef[] {
+  const out: SettingDef[] = [];
+
+  for (const e of entriesOfKind("preference")) {
+    const control = e.control;
+    const section = e.section;
+    if (control === undefined || section === undefined) continue;
+
+    /* A refused write is REMEMBERED and reported through `unavailable`.
+       `kv.write` returns a result rather than throwing, so the easy bug is to
+       ignore it: the control moves, nothing is stored, and the next reload
+       puts it back with no explanation. */
+    let refused: string | null = null;
+
+    const base = { id: `${section}.${e.key}`, section, label: e.label, hint: e.what, control };
+
+    if (control.kind === "action" || e.slot === undefined) {
+      out.push({ ...base, read: () => e.what, unavailable: () => refused });
+      continue;
+    }
+
+    const slot = e.slot;
+    out.push({
+      ...base,
+      read: () => String(kv.read(slot).value),
+      write: (v: string) => {
+        const next =
+          control.kind === "toggle" ? v === "true" : control.kind === "number" ? Number(v) : v;
+        const res = kv.write(slot, next as never);
+        refused = res.ok
+          ? null
+          : res.reason === "quota"
+            ? "This machine is out of room for settings. Clear something on the System desk and try again."
+            : res.reason === "newer-on-disk"
+              ? "A newer version of this setting is already stored — reload before changing it."
+              : "This setting could not be stored on this machine.";
+      },
+      unavailable: () => refused,
+    });
+  }
+
+  return out;
 }

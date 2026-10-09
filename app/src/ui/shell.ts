@@ -2369,6 +2369,9 @@ export function mountShell(root: HTMLElement): void {
   const settings = lazyDesk(() => createSettings({
     sections: SECTIONS,
     settings: buildSettings({
+      /* So every REGISTERED preference reaches the dialog, not only the
+         ones written out below. `settings/registry.ts` argues why. */
+      kv,
       account,
       /* The SAME signal the chart renders from, not a copy — a period changed
          in Settings is the period the next repaint uses. */

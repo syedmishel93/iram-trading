@@ -13,6 +13,8 @@
  */
 
 import type { SectionDef, SettingDef } from "./schema";
+import { registrySettings } from "./registry";
+import type { KV } from "../store/kv";
 import type { AccountStore } from "../core/account";
 import type { Signal } from "../core/signal";
 import { RULE_LIMITS, rulesAreDefault, type GateRules } from "../setup/rules";
@@ -166,6 +168,15 @@ export const SECTIONS: readonly SectionDef[] = [
 ];
 
 export interface DefDeps {
+  /**
+   * The store, so every registered preference reaches this dialog.
+   *
+   * OPTIONAL, and that is a decision rather than convenience: the tests
+   * build `DefDeps` by hand and requiring it would make each declare a
+   * store it does not exercise. Absent, the registry-derived settings are
+   * simply not added and the hand-written ones behave exactly as before.
+   */
+  readonly kv?: KV;
   readonly account: AccountStore;
   readonly theme: Signal<string>;
   readonly themes: readonly string[];
@@ -443,7 +454,7 @@ export function buildSettings(d: DefDeps): SettingDef[] {
     return out;
   };
 
-  return [
+  const all: SettingDef[] = [
     // ------------------------------------------------------------ backend ---
     /**
      * ONE ADDRESS, AND THE OVERRIDES BELOW IT.
@@ -1295,5 +1306,21 @@ export function buildSettings(d: DefDeps): SettingDef[] {
        disagree with the code that actually runs the indicators. */
     ...indicatorDefs(d),
     ...driverDefs(d),
+
+
+    /* EVERY REGISTERED PREFERENCE, so one cannot be forgotten again. Five
+
+       were, the governor's own limits among them. De-duplicated below, so a
+
+       preference already written out by hand keeps its richer control and
+
+       only the missing ones arrive. */
+
+    ...(d.kv === undefined ? [] : registrySettings(d.kv)),
   ];
+
+  /* FIRST WRITER WINS. The hand-built defs come first and are the better
+     ones wherever both exist; the registry supplies what nobody wrote. */
+  const seen = new Set<string>();
+  return all.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
 }
