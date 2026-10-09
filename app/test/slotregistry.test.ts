@@ -1,14 +1,25 @@
 /**
  * ONE OWNER FOR EVERY STORED SLOT.
  *
- * Thirty-four things persist to key-value storage. The Settings dialog reached
- * a list passed by hand at `ui/shell.ts`, so five preferences existed, worked,
- * persisted, and could not be found — the governor's own limits among them.
- * Twenty-one of the thirty-four are not settings at all; they are data the
- * product accumulated, and what they need is a place to be seen, sized,
- * exported and cleared.
+ * Thirty-eight things persist to key-value storage. The Settings dialog
+ * reached a list passed by hand, so five preferences existed, worked,
+ * persisted and could not be found — the governor's own limits among them.
+ * Most of the rest are not settings at all; they are data the product
+ * accumulated, and they needed somewhere to be seen, sized and cleared.
  *
- * The registry is the list. This file is what stops it falling behind.
+ * ────────────────────────────────────────────────────────────────────────────
+ * THE SCANNER MATCHES SHAPE, NOT NAME, AND THAT IS THE SECOND VERSION
+ *
+ * The first matched `const <NAME>_SLOT`. That is a NAMING CONVENTION, not the
+ * thing itself, and it missed five slots declared as a plain `SLOT` or through
+ * `listSlot` — including `journal.entries`, which holds what the operator
+ * wrote about their own trades. A guard whose entire job is to enumerate was
+ * under-counting by five, and nothing said so.
+ *
+ * Two real shapes, and both are matched:
+ *
+ *     const X = { key: "a.b", version: 1, ... }
+ *     const X = listSlot<T>("a.b", 1, isT)
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -24,19 +35,8 @@ import { SECTIONS } from "../src/settings/defs";
 /** `fileURLToPath`, because this checkout's path contains spaces. */
 const SRC = fileURLToPath(new URL("../src", import.meta.url));
 
-/**
- * Match the NAME only, and slice the window separately.
- *
- * The first version of this captured a 400-character tail inside the same
- * regex — and `matchAll` is non-overlapping, so any declaration sitting within
- * 400 characters of another was swallowed whole and never seen. Four of thirty
- * went missing that way, every one of them a few lines from a sibling slot. An
- * audit that quietly sees less than exists is the failure this repository has
- * shipped four times.
- */
-const DECL = /\b(?:export\s+)?const\s+([A-Z][A-Z0-9_]*_SLOT)\b/g;
-const KEY_FIELD = /\bkey\s*:\s*"([^"]+)"/;
-const LIST_SLOT = /listSlot\s*(?:<[^>]*>)?\s*\(\s*"([^"]+)"/;
+const OBJ_SLOT = /key:\s*"([^"]+)"\s*,\s*\n\s*version:\s*\d+/g;
+const LIST_SLOT = /listSlot\s*(?:<[^>]*>)?\s*\(\s*\n?\s*"([^"]+)"/g;
 
 /** Comments only. The thing being sought IS a string literal. */
 function strip(src: string): string {
@@ -45,8 +45,7 @@ function strip(src: string): string {
     .replace(/\/\/[^\n]*/g, (m) => " ".repeat(m.length));
 }
 
-export interface FoundSlot {
-  readonly name: string;
+interface FoundSlot {
   readonly key: string;
   readonly file: string;
 }
@@ -68,13 +67,11 @@ function scan(): { slots: FoundSlot[]; filesRead: number } {
   const slots: FoundSlot[] = [];
   for (const abs of files) {
     const body = strip(readFileSync(abs, "utf-8"));
-    if (!body.includes("_SLOT")) continue;
+    if (!body.includes("key:") && !body.includes("listSlot")) continue;
     const file = relative(SRC, abs).split(/[\\/]/).join("/");
-    DECL.lastIndex = 0;
-    for (const m of body.matchAll(DECL)) {
-      const window = body.slice((m.index ?? 0) + m[0].length, (m.index ?? 0) + m[0].length + 400);
-      const k = LIST_SLOT.exec(window) ?? KEY_FIELD.exec(window);
-      slots.push({ name: m[1] as string, key: k ? (k[1] as string) : "<<unreadable>>", file });
+    for (const rx of [OBJ_SLOT, LIST_SLOT]) {
+      rx.lastIndex = 0;
+      for (const m of body.matchAll(rx)) slots.push({ key: m[1] as string, file });
     }
   }
   CACHED = { slots, filesRead: files.length };
@@ -84,44 +81,60 @@ function scan(): { slots: FoundSlot[]; filesRead: number } {
 /**
  * The keys as they ship, captured once by reading the tree.
  *
- * A KEY IS THE OPERATOR'S DATA. Change one and the stored value is orphaned,
- * with nothing on screen to say why. This list is evidence that none moved; it
- * is not regenerated after a change, because then it would prove nothing.
+ * A KEY IS THE OPERATOR'S DATA. Change one and the stored value is orphaned
+ * with nothing on screen to say why. This list is the evidence that none moved;
+ * it is not regenerated after a change, because then it would prove nothing.
  */
 const KEYS_AS_SHIPPED: readonly string[] = [
   "account.v1", "agent.briefs", "agent.credential", "alerts.book", "autosearch",
   "calculator.v1", "catalogue.symbols", "commands.recent", "discovered.v1",
-  "drawings.book", "fundamentals.markets", "learn.claims", "learn.enabled",
-  "learn.knowledge", "learn.runs", "library.budget-gb", "research.topup",
-  "risk.book", "risk.config", "risk.config", "risk.today", "screener.watch",
-  "scripts", "setup.exitRules", "setup.rules", "shell.appearance", "shell.prefs",
-  "strategy.flow", "studies", "study-timings", "sweep.v1", "today.plan",
-  "verdict.says", "workspace.layout",
+  "drawings.book", "fundamentals.markets", "journal.entries", "learn.claims",
+  "learn.enabled", "learn.knowledge", "learn.runs", "library.budget-gb",
+  "paper.v1", "playbook.v1", "research.topup", "review.rules", "risk.book",
+  "risk.config", "risk.today", "screener.watch", "scripts", "setup.exitRules",
+  "setup.rules", "shell.appearance", "shell.prefs", "strategy.flow", "studies",
+  "study-timings", "sweep.v1", "today.plan", "verdict.says", "watchlist.v1",
+  "workspace.layout",
+];
+
+/**
+ * ONE KEY, TWO DECLARATIONS — allowed only here, and only with a reason.
+ *
+ * Both are the account's migration reading a key a CURRENT desk writes. The
+ * plan called these "legacy" and asked for them to be deleted once their
+ * migration path was dead; it is not dead (it runs on every profile with no
+ * `account.v1`) and they are not legacy (they read live keys). Recorded as
+ * what they are rather than removed or quietly relabelled.
+ */
+const TWO_DECLARATIONS: readonly { key: string; why: string }[] = [
+  {
+    key: "risk.config",
+    why:
+      "ui/risk.ts writes the governor's limits here on every change; core/account.ts reads the same key as a pre-v40 account shape when no account.v1 exists. RiskConfig DOES carry equity and riskPct, so the account seeds itself from the Risk desk — accidentally, because the reader believes it is reading an old shape.",
+  },
+  {
+    key: "calculator.v1",
+    why:
+      "ui/calculator.ts writes the calculator's saved inputs here; core/account.ts reads the same key as a pre-v40 calculator shape. Same mechanism as risk.config, and the two together are what migrateAccount reports conflicts between — which are really disagreements between two live desks.",
+  },
 ];
 
 /* ----------------------------------------------------------------- tests -- */
 
 describe("the registry knows the tree", () => {
-  it("READS EVERY SLOT'S KEY — an unreadable one is a scanner that has stopped working", () => {
-    expect(scan().slots.filter((s) => s.key === "<<unreadable>>")).toEqual([]);
-  });
-
   it("PRINTS WHAT IT PARSED, and fails on a zero", () => {
-    /* An audit whose pattern has stopped matching reports a clean tree. */
     const { slots, filesRead } = scan();
     expect(filesRead, "the scanner read no source files").toBeGreaterThan(50);
-    expect(slots).toHaveLength(34);
+    expect(new Set(slots.map((s) => s.key)).size).toBe(38);
   });
 
   it("KNOWS EVERY SLOT IN THE SOURCE", () => {
-    const keys = new Set(REGISTRY.map((e) => e.key));
-    const missing = scan().slots.filter((s) => !keys.has(s.key));
-    expect(missing.map((s) => `${s.file}  ${s.name}  ${s.key}`)).toEqual([]);
+    const known = new Set(REGISTRY.map((e) => e.key));
+    const missing = scan().slots.filter((s) => !known.has(s.key));
+    expect([...new Set(missing.map((s) => `${s.file}  ${s.key}`))]).toEqual([]);
   });
 
   it("HAS NO STALE ENTRY — a registered slot that no longer exists", () => {
-    /* An entry naming a slot that is gone weakens the guard silently and for
-       ever: it can never fail again for the thing it was written to catch. */
     const found = new Set(scan().slots.map((s) => s.key));
     expect(REGISTRY.filter((e) => !found.has(e.key)).map((e) => e.label)).toEqual([]);
   });
@@ -129,15 +142,48 @@ describe("the registry knows the tree", () => {
   it("NEVER CHANGES A KEY — a changed key orphans the operator's data", () => {
     expect(REGISTRY.map((e) => e.key).sort()).toEqual([...KEYS_AS_SHIPPED].sort());
   });
+
+  it("GIVES EVERY KEY EXACTLY ONE ENTRY", () => {
+    /* The registry describes STORAGE, which is keyed by key. Two code
+       declarations on one key is a fact about the code, checked below. */
+    const keys = REGISTRY.map((e) => e.key);
+    expect(keys.length).toBe(new Set(keys).size);
+  });
 });
 
-describe("the four kinds", () => {
-  it("COUNTS FOUR WAYS, and the four add up", () => {
+describe("a key declared twice", () => {
+  it("IS EXPLAINED, OR IT FAILS", () => {
+    const counts = new Map<string, number>();
+    for (const s of scan().slots) counts.set(s.key, (counts.get(s.key) ?? 0) + 1);
+    const doubled = [...counts].filter(([, n]) => n > 1).map(([k]) => k).sort();
+    expect(doubled).toEqual([...TWO_DECLARATIONS.map((d) => d.key)].sort());
+  });
+
+  it("CARRIES A REASON SOMEBODY COULD ACT ON", () => {
+    for (const d of TWO_DECLARATIONS) expect(d.why.length).toBeGreaterThan(60);
+  });
+
+  it("IS NEVER WRITTEN THROUGH THE MIGRATION SIDE", () => {
+    /* The overlap is only survivable because the account side only READS. A
+       writer there would overwrite the governor's limits or the calculator's
+       inputs with a shape neither desk expects. */
+    const src = readFileSync(join(SRC, "core/account.ts"), "utf-8");
+    expect(/kv\.write\(\s*LEGACY_/.test(src), "the migration side writes").toBe(false);
+  });
+});
+
+describe("the kinds", () => {
+  it("COUNTS BY KIND, and the counts add up", () => {
     expect(entriesOfKind("preference")).toHaveLength(10);
     expect(entriesOfKind("secret")).toHaveLength(1);
-    expect(entriesOfKind("state")).toHaveLength(21);
-    expect(entriesOfKind("legacy")).toHaveLength(2);
-    expect(REGISTRY).toHaveLength(34);
+    expect(entriesOfKind("state")).toHaveLength(27);
+    expect(REGISTRY).toHaveLength(38);
+  });
+
+  it("HAS NO `legacy` ENTRY, because neither candidate turned out to be one", () => {
+    /* The kind stays in the type for a migration that really is dead one day.
+       Both slots that wore the label read keys a current desk writes. */
+    expect(entriesOfKind("legacy")).toEqual([]);
   });
 
   it("GIVES EVERY PREFERENCE A SECTION AND A CONTROL", () => {
@@ -155,50 +201,12 @@ describe("the four kinds", () => {
     }
   });
 
-  it("OFFERS NEITHER A SECTION NOR A CONTROL TO ANYTHING THAT IS NOT A PREFERENCE", () => {
-    /* A secret with a control is a credential in a text box; a state slot with
-       one is the alert book rendered as a setting. Both are category errors. */
-    for (const kind of ["secret", "state", "legacy"] as const) {
+  it("OFFERS NO CONTROL TO ANYTHING THAT IS NOT A PREFERENCE", () => {
+    for (const kind of ["secret", "state"] as const) {
       for (const e of entriesOfKind(kind)) {
         expect(e.control, `${e.label} is ${kind} and has a control`).toBeUndefined();
       }
     }
-  });
-});
-
-describe("keys, and the one duplicate that is allowed", () => {
-  it("GIVES NO TWO LIVE SLOTS THE SAME KEY", () => {
-    /* Two live slots on one key is one shadowing the other, with nothing to
-       say so. `legacy` is excluded because a migration slot is a read-only
-       VIEW of another slot's key — see the next test, which requires that. */
-    const live = REGISTRY.filter((e) => e.kind !== "legacy").map((e) => e.key);
-    expect(live.length).toBe(new Set(live).size);
-  });
-
-  it("REQUIRES A LEGACY SLOT TO NAME A KEY SOMETHING STILL WRITES", () => {
-    /* MEASURED, and the reason the plan's flat uniqueness rule was wrong:
-       LEGACY_RISK_SLOT and CONFIG_SLOT both hold "risk.config". That is
-       deliberate — the legacy one is read once, never written, to migrate an
-       old shape into the account. Turning the duplicate into a CHECKED
-       relationship also catches the opposite defect: a legacy slot reading a
-       key nobody writes any more is dead migration code pretending to be a
-       safeguard. */
-    const live = new Set(REGISTRY.filter((e) => e.kind !== "legacy").map((e) => e.key));
-    const orphans = entriesOfKind("legacy").filter((e) => !live.has(e.key));
-    for (const o of orphans) {
-      expect(
-        KEYS_AS_SHIPPED.filter((k) => k === o.slot.key).length,
-        `${o.label} migrates from a key nothing writes`,
-      ).toBeGreaterThan(0);
-    }
-  });
-
-  it("NEVER WRITES THROUGH A LEGACY SLOT", () => {
-    /* The duplicate is only safe because the legacy side is read-only. If one
-       ever gains a writer it would overwrite the live slot that shares its key
-       — the governor's limits, in the case on record. */
-    const src = readFileSync(join(SRC, "core/account.ts"), "utf-8");
-    expect(/kv\.write\(\s*LEGACY_/.test(src), "a legacy slot is being written").toBe(false);
   });
 });
 
@@ -224,10 +232,14 @@ describe("Settings reaches every preference", () => {
   });
 
   it("REACHES THE FIVE SETTINGS COULD NOT", () => {
-    /* The whole point. `risk.config` is the governor: daily loss limit, trades
-       per day, losses in a row — editable only on the Risk desk until now. */
     const ids = registrySettings(createKV(memoryRawStore())).map((d) => d.id);
-    for (const key of ["risk.config", "autosearch", "library.budget-gb", "learn.enabled", "research.topup"]) {
+    for (const key of [
+      "risk.config",
+      "autosearch",
+      "library.budget-gb",
+      "learn.enabled",
+      "research.topup",
+    ]) {
       expect(ids.some((id) => id.endsWith(key)), `${key} still unreachable`).toBe(true);
     }
   });
@@ -240,10 +252,7 @@ describe("Settings reaches every preference", () => {
   });
 
   it("REPORTS A WRITE THE STORE REFUSED, rather than silently doing nothing", () => {
-    /* `kv.write` RETURNS a result; localStorage is ~5MB and throws on quota.
-       A swallowed result is a setting that appears to change and does not. */
-    const defs = registrySettings(createKV(fullStore()));
-    const toggle = defs.find((d) => d.control.kind === "toggle");
+    const toggle = registrySettings(createKV(fullStore())).find((d) => d.control.kind === "toggle");
     expect(toggle, "no toggle to exercise").toBeDefined();
     toggle?.write?.("true");
     expect(toggle?.unavailable?.()).toMatch(/full|space|quota|room/i);

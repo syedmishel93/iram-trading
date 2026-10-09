@@ -53,7 +53,7 @@ import { SECTIONS } from "./defs";
 
 /* ------------------------------------------------------------ the slots -- */
 
-import { ACCOUNT_SLOT, LEGACY_CALC_SLOT, LEGACY_RISK_SLOT } from "../core/account";
+import { ACCOUNT_SLOT } from "../core/account";
 import { ALERT_BOOK_SLOT } from "../alert/store";
 import { DISCOVERED_SLOT } from "../backtest/discovered";
 import { SWEEP_SLOT } from "../backtest/sweepcache";
@@ -369,26 +369,49 @@ export const REGISTRY: readonly SlotEntry[] = [
     what: "The markets you are keeping an eye on, and how they are sorted.",
   },
 
-  /* ---- legacy ----
-     BOTH ARE READ-ONLY VIEWS OF AN OLDER SHAPE, and `LEGACY_RISK_SLOT` shares
-     its key with the live `CONFIG_SLOT` deliberately: it reads "risk.config"
-     once, never writes it, to fold an old account shape into `ACCOUNT_SLOT`.
-     The guard allows that duplicate only for `legacy`, requires the key to be
-     one something still writes, and fails if a legacy slot ever gains a
-     writer — which would overwrite the governor's limits. */
+  /* ---- the six the name-based guard could not see ----
+     Its pattern was `const <NAME>_SLOT`, which is a NAMING CONVENTION and
+     not the thing itself; these are declared as a plain `SLOT` or through
+     `listSlot`. One of them holds what the operator wrote about their own
+     trades, and it was invisible to the list whose job is to enumerate. */
   {
-    key: LEGACY_RISK_SLOT.key,
-    slot: anySlot(LEGACY_RISK_SLOT),
-    kind: "legacy",
-    label: "Old risk settings",
-    what: "A pre-v40 account shape, read once to migrate it forward.",
+    key: "journal.entries",
+    kind: "state",
+    label: "Journal",
+    what: "Every trade you recorded, with the plan you wrote before taking it.",
   },
   {
-    key: LEGACY_CALC_SLOT.key,
-    slot: anySlot(LEGACY_CALC_SLOT),
-    kind: "legacy",
-    label: "Old calculator settings",
-    what: "A pre-v40 calculator shape, read once to migrate it forward.",
+    key: "review.rules",
+    kind: "state",
+    label: "Review rules",
+    what: "Rules you committed to after reviewing your own trades.",
+  },
+  {
+    key: "watchlist.v1",
+    kind: "state",
+    label: "Watchlist contents",
+    what: "The markets on your list. Separate from how that list is sorted.",
+  },
+  {
+    key: "playbook.v1",
+    kind: "state",
+    label: "Playbook",
+    what: "Rule sets you wrote or edited by hand, as opposed to ones found by a search.",
+  },
+  {
+    key: "paper.v1",
+    kind: "state",
+    label: "Paper trades",
+    what: "Practice fills taken against the live feed, and their results.",
+  },
+  {
+    /* READ BY THE ACCOUNT MIGRATION TOO, which believes it is a pre-v40
+       shape and is in fact this desk's current saved inputs. Recorded in
+       the guard's TWO_DECLARATIONS with the full reasoning. */
+    key: "calculator.v1",
+    kind: "state",
+    label: "Calculator inputs",
+    what: "What the calculator was last set to, so it opens where you left it.",
   },
 ];
 
