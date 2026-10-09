@@ -888,7 +888,7 @@ export function menuEntries(d: CommandDeps): MenuBarEntry[] {
         {
           label: "Alerts",
           items: [
-            { id: "view.signals", label: "Open the Signals desk" },
+            { id: "view.signals", label: "Open the Alerts desk" },
             { kind: "separator" as const },
             { id: "alerts.sound" },
             { id: "alerts.desktop" },
@@ -902,7 +902,7 @@ export function menuEntries(d: CommandDeps): MenuBarEntry[] {
             { id: "agent.open" },
             { id: "agent.brief" },
             { kind: "separator" as const },
-            { id: "view.agent", label: "Open the Analyst desk" },
+            { id: "view.agent", label: "Open the Ask AI desk" },
           ],
         },
         { kind: "separator" },

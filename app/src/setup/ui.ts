@@ -767,7 +767,7 @@ export function createSetupCard(opts: SetupCardOptions): HTMLElement {
             h("button", {
               class: "ghost-btn setup-ev-open",
               type: "button",
-              text: "Open the Decision desk",
+              text: "Open the Confluence desk",
               onclick: () => opts.onOpenDecision(),
             }),
           ),

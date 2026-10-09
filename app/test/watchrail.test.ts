@@ -20,6 +20,7 @@ import {
 import { reactionCount, signal } from "../src/core/signal";
 import { flushFrames } from "../src/core/frame";
 import { RateLimited, type UniverseEntry } from "../src/scan/scanner";
+import { deskLabel } from "../src/ui/shell/views";
 
 const entry = (symbol: string, lastPrice: number, changePct: number): UniverseEntry => ({
   symbol,
@@ -211,7 +212,15 @@ describe("createWatchRail", () => {
     await settle();
     const empty = rail.el.querySelector(".wr-empty") as HTMLElement;
     expect(empty.hidden).toBe(false);
-    expect(empty.textContent).toBe("Add symbols from Opportunities or with the palette.");
+    /* PINS THE FACT, NOT THE SENTENCE. This asserted the exact string, so it
+       held the empty state at "Add symbols from Opportunities" for every
+       release after the desk stopped being called that — a test keeping a
+       stale name alive rather than catching it. `deskLabel` is the owner, so
+       the name cannot drift from the desk bar again, and the rest of the
+       assertion is what the line is FOR: it invites rather than blanking. */
+    expect(empty.textContent).toContain(deskLabel("screener"));
+    expect(empty.textContent).toMatch(/^Add symbols/);
+    expect(empty.textContent).toContain("palette");
     expect(rail.el.querySelectorAll(".wr-row").length).toBe(0);
   });
 

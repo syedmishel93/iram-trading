@@ -160,6 +160,13 @@ class Audits(unittest.TestCase):
                               "doing that against the operator's store is the rule "
                               "this project has broken six times. Gated form: "
                               "tests/test_post_body_shape.py"),
+            "retired.py": ("measures which visible strings still name a desk by a "
+                           "name it no longer has, and prints the three buckets it "
+                           "sorts them into -- including the ones that are ordinary "
+                           "English colliding with a retired label, which a reader "
+                           "has to judge. The GUARD it led to is real and is gated: "
+                           "app/test/desklabel.test.ts fails on any visible string "
+                           "carrying a retired name, with a reasoned allowlist."),
             "classundeclared.py": ("reports classes the TS applies that no sheet "
                                    "declares. NOT gated: most are querySelector "
                                    "hooks that need no rule, and a check whose "

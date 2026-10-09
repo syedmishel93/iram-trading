@@ -266,7 +266,7 @@ export function createWatchRail(opts: WatchRailOptions): { el: HTMLElement; dest
 
   const count = h("span", { class: "wr-count" });
   const list = h("div", { class: "wr-list" });
-  const empty = h("p", { class: "wr-empty", text: "Add symbols from Opportunities or with the palette." });
+  const empty = h("p", { class: "wr-empty", text: "Add symbols from the Scanner or with the palette." });
   const el = h(
     "section",
     { class: "watchrail", "aria-label": "Watchlist" },

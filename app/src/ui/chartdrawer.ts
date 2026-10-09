@@ -672,7 +672,7 @@ export function createChartDrawer(deps: ChartDrawerDeps): HTMLElement {
               }),
       ),
       answer,
-      h("button", { class: "cd-link", type: "button", text: "Open the full Analyst", onclick: () => deps.onOpenAnalyst() }),
+      h("button", { class: "cd-link", type: "button", text: "Open the full Ask AI", onclick: () => deps.onOpenAnalyst() }),
     );
   }
 

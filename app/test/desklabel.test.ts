@@ -416,3 +416,166 @@ describe("the guard: one owner, enforced", () => {
     }
   });
 });
+
+/* ------------------------------------------------------- the old names -- */
+
+/**
+ * WHAT EACH DESK USED TO BE CALLED, as data.
+ *
+ * Taken from the rename commit's own diff of `ui/shell/views.ts`, not retyped
+ * from memory. The guard above asks "does any module write a CURRENT label by
+ * hand"; this asks the question the rename actually got wrong — does any
+ * sentence still use an OLD one. Eleven did, and both existing guards were
+ * structurally unable to see them: one matches `text: "<exact label>"`, and the
+ * other's `label:` sweep was scoped to a single file.
+ *
+ * The one the owner would have met first was the watch rail's empty state:
+ * "Add symbols from Opportunities or with the palette", on a desk that has not
+ * been called Opportunities since the rename.
+ */
+const RETIRED: ReadonlyArray<{ was: string; now: string }> = [
+  { was: "Opportunities", now: "Scanner" },
+  { was: "Decision", now: "Confluence" },
+  { was: "Flow", now: "Derivatives" },
+  { was: "Paper", now: "Paper trading" },
+  { was: "Analyst", now: "Ask AI" },
+  { was: "Analyse", now: "Studies" },
+  { was: "Knowledge", now: "Edge stats" },
+  { was: "Conditions", now: "Market regime" },
+  { was: "Connections", now: "Correlation" },
+  { was: "Strategy", now: "Strategy tester" },
+  { was: "Signals", now: "Alerts" },
+  { was: "Results", now: "Test results" },
+  { was: "Simulation", now: "Walk-forward" },
+  { was: "Learning", now: "Track record" },
+  { was: "Workspace", now: "Layouts" },
+];
+
+/**
+ * THE SAME WORD, ORDINARY ENGLISH.
+ *
+ * Six of the fifteen retired labels are everyday nouns and three of those are a
+ * PREFIX OF THEIR OWN REPLACEMENT — "Strategy tester" contains "Strategy" — so
+ * a bare sweep would have reported the fix as the defect. Every exemption names
+ * the exact text and says why, and `HAS NO STALE RETIRED EXEMPTION` fails when
+ * one stops matching, so an exemption cannot outlive the string it was written
+ * for.
+ */
+const ALLOWED: ReadonlyArray<{ text: string; why: string }> = [
+  {
+    text: "Analyst",
+    why: "a LAYOUT PRESET's name in settings/presets.ts, and its id is persisted. The blurb is about the rail and the inspector, not about the desk",
+  },
+  {
+    text: "Strategy draft",
+    why: "a draft STRATEGY — the noun, not the desk. The slot holds a rule set somebody was part way through building",
+  },
+  {
+    text: "Paper trades",
+    why: "paper trading is the activity's ordinary name and predates the desk being called it",
+  },
+  {
+    text: "Strategy",
+    why: "the Playbook's section heading for choosing a rule set. It names the thing being chosen, not a place to go",
+  },
+  {
+    text: "Simulation",
+    why: "a STEP in the Strategy flow (data-step=\"simulation\"), which is the activity. The desk now called Walk-forward is a different surface",
+  },
+  {
+    text: "Decision support only. Positioning data describes what the crowd has done, not what price will do next.",
+    why: "\"decision support\" is the standing phrase this product uses to say it does not trade for you",
+  },
+  {
+    text: "How much, and whether that is inside the rules you set. Decision support: it reports, it never trades.",
+    why: "as above — the Risk desk's own subtitle",
+  },
+  {
+    text: "Decision support only. Nothing here is a recommendation, and nothing here places an order.",
+    why: "as above — the Scanner's footer",
+  },
+];
+
+/** Every visible string in the tree, with where it is. */
+function visibleStrings(): Array<{ file: string; line: number; text: string }> {
+  const re = /\b(?:text|label|title|detail|placeholder|hint|aria-label)\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  const out: Array<{ file: string; line: number; text: string }> = [];
+  for (const abs of sourceFiles()) {
+    const rel = relative(SRC, abs).split(/[\\/]/).join("/");
+    const lines = strip(readFileSync(abs, "utf-8")).split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      re.lastIndex = 0;
+      let m: RegExpExecArray | null;
+      while ((m = re.exec(lines[i] as string)) !== null) {
+        out.push({ file: rel, line: i + 1, text: m[1] as string });
+      }
+    }
+  }
+  return out;
+}
+
+describe("a desk's OLD name, in the source", () => {
+  const strings = visibleStrings();
+  const allowed = new Set(ALLOWED.map((a) => a.text));
+
+  const stale = strings.filter((s) =>
+    RETIRED.some(
+      ({ was, now }) =>
+        new RegExp(`\\b${esc(was)}\\b`).test(s.text) &&
+        /* "Strategy tester" contains "Strategy": the replacement being present
+           means the string was already brought up to date. */
+        !new RegExp(`\\b${esc(now)}\\b`).test(s.text) &&
+        !allowed.has(s.text),
+    ),
+  );
+
+  it("PRINTS WHAT IT PARSED, and fails on a zero", () => {
+    /* An audit script that parses nothing reports success — the defect this
+       repository has now recorded in three separate checkers, including one
+       written to find defects. */
+    expect(sourceFiles().length).toBeGreaterThan(200);
+    expect(strings.length, "read no visible strings at all").toBeGreaterThan(1000);
+  });
+
+  it("NAMES NO DESK BY A NAME IT NO LONGER HAS", () => {
+    expect(
+      stale.map((s) => `${s.file}:${s.line}  ${s.text.slice(0, 90)}`),
+      "a visible string still uses a retired desk name",
+    ).toEqual([]);
+  });
+
+  it("SEES A SENTENCE, not only an exact label", () => {
+    /* The reason the eleven survived: `text: "<exact label>"` cannot match
+       "Open the Signals desk". Proved against a synthetic line rather than by
+       reading the regex, because a guard whose own claim is untested is the
+       thing it exists to prevent. */
+    const re = /\b(?:text|label|title|detail|placeholder|hint|aria-label)\s*:\s*"((?:[^"\\]|\\.)*)"/;
+    const m = re.exec('h("button", { text: "Open the Signals desk" })');
+    expect(m?.[1]).toBe("Open the Signals desk");
+    expect(new RegExp("\\bSignals\\b").test(m?.[1] ?? "")).toBe(true);
+  });
+
+  it("HAS NO STALE RETIRED EXEMPTION", () => {
+    /* An exemption that no longer matches anything is a weakening of the guard
+       that nobody can see. */
+    const present = new Set(strings.map((s) => s.text));
+    for (const a of ALLOWED) {
+      expect(present.has(a.text), `nothing says "${a.text}" any more — drop the exemption`).toBe(true);
+    }
+  });
+
+  it("GIVES EVERY EXEMPTION A REASON", () => {
+    for (const a of ALLOWED) expect(a.why.length, `${a.text} is exempt for no stated reason`).toBeGreaterThan(30);
+  });
+
+  it("KEEPS EVERY RETIRED NAME PAIRED WITH A LABEL VIEWS REALLY HOLDS", () => {
+    /* Otherwise the list rots: a `now` that no desk is called means the
+       superseded-in-place exception stops firing and the guard starts
+       reporting correct strings. */
+    const labels = new Set(VIEWS.map((v) => v.label));
+    for (const r of RETIRED) {
+      expect(labels.has(r.now), `${r.was} is said to be ${r.now}; no desk is called that`).toBe(true);
+      expect(labels.has(r.was), `${r.was} is still a live desk name`).toBe(false);
+    }
+  });
+});

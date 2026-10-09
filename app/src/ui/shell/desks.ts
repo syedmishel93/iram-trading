@@ -350,7 +350,7 @@ export function createDesks(ctx: ShellContext, deps: DesksDeps) {
       return last ? last.c : 0;
     },
     bars: () => bars(),
-    notify: (msg) => toaster.push({ level: "info", title: "Paper desk", body: msg }),
+    notify: (msg) => toaster.push({ level: "info", title: "Paper trading desk", body: msg }),
   }));
 
   const knowledge = lazyDesk(() => createKnowledge({
