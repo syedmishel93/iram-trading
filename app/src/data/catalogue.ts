@@ -187,7 +187,7 @@ interface CachedCatalogue {
   readonly entries: readonly SymbolEntry[];
 }
 
-const CATALOGUE_SLOT = {
+export const CATALOGUE_SLOT = {
   key: "catalogue.symbols",
   /* v3: entries gained `cls` and `name`. Discarded rather than migrated, the
      same as v1 -> v2: one cheap refetch, and a cache without classes would

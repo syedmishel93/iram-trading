@@ -52,7 +52,7 @@ import { sweep, type SweepReport } from "./resolve";
 export const MAX_CLAIMS = 4000;
 export const MAX_RUNS = 400;
 
-const CLAIMS_SLOT = {
+export const CLAIMS_SLOT = {
   key: "learn.claims",
   version: 1,
   fallback: (): Claim[] => [],
@@ -67,7 +67,7 @@ const CLAIMS_SLOT = {
   },
 };
 
-const RUNS_SLOT = {
+export const RUNS_SLOT = {
   key: "learn.runs",
   version: 1,
   fallback: (): ModelRun[] => [],
@@ -83,7 +83,7 @@ const RUNS_SLOT = {
 };
 
 /** Whether the terminal writes its reads down at all. */
-const ENABLED_SLOT = {
+export const ENABLED_SLOT = {
   key: "learn.enabled",
   version: 1,
   fallback: (): boolean => true,

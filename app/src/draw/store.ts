@@ -22,7 +22,7 @@ import { sanitizeDrawing, visibleOn, type Drawing } from "./model";
 /** Undo depth. Deep enough to recover a session's work, bounded so it cannot grow. */
 export const UNDO_DEPTH = 60;
 
-const DRAWINGS_SLOT = listSlot<Drawing>(
+export const DRAWINGS_SLOT = listSlot<Drawing>(
   "drawings.book",
   1,
   /* The slot validates each entry through the same sanitiser the vault and sync

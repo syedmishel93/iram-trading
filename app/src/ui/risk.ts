@@ -87,7 +87,7 @@ export const DEFAULT_RISK_CONFIG: RiskConfig = {
   guards: DEFAULT_GUARDS,
 };
 
-const CONFIG_SLOT = {
+export const CONFIG_SLOT = {
   key: "risk.config",
   version: 1,
   fallback: (): RiskConfig => DEFAULT_RISK_CONFIG,
@@ -115,7 +115,7 @@ const CONFIG_SLOT = {
   },
 };
 
-const BOOK_SLOT = {
+export const BOOK_SLOT = {
   key: "risk.book",
   version: 1,
   fallback: (): Position[] => [],
@@ -139,7 +139,7 @@ const BOOK_SLOT = {
   },
 };
 
-const DAY_SLOT = {
+export const DAY_SLOT = {
   key: "risk.today",
   version: 1,
   fallback: (): { day: string; realised: number } => ({ day: "", realised: 0 }),

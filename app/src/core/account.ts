@@ -165,7 +165,7 @@ export const ACCOUNT_SLOT = {
 };
 
 /** Read-only views of the two slots we migrate from. */
-const LEGACY_RISK_SLOT = {
+export const LEGACY_RISK_SLOT = {
   key: "risk.config",
   version: 1,
   fallback: (): LegacyRisk => ({}),
@@ -173,7 +173,7 @@ const LEGACY_RISK_SLOT = {
     v !== null && typeof v === "object" ? (v as LegacyRisk) : null,
 };
 
-const LEGACY_CALC_SLOT = {
+export const LEGACY_CALC_SLOT = {
   key: "calculator.v1",
   version: 1,
   fallback: (): LegacyCalculator => ({}),

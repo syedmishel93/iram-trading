@@ -69,7 +69,7 @@ const PAGE_SIZE = 250;
 /** Fundamentals move on the timescale of a funding round, not a candle. */
 export const FUNDAMENTALS_TTL_MS = 60 * 60 * 1000;
 
-const FUNDAMENTALS_SLOT = {
+export const FUNDAMENTALS_SLOT = {
   key: "fundamentals.markets",
   version: 1,
   fallback: (): { at: number; rows: Fundamentals[] } => ({ at: 0, rows: [] }),
