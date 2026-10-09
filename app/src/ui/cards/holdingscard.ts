@@ -1,5 +1,5 @@
 /**
- * WHAT THIS TERMINAL HOLDS — the twenty-one stored things that are not settings.
+ * WHAT THIS TERMINAL HOLDS — the thirty stored things that are not settings.
  *
  * The Data desk answers this for BARS: how many series, how much disk, what it
  * costs to keep. Nothing answered it for the key-value store, where your
@@ -16,20 +16,48 @@
  */
 
 import { h, clear } from "../dom";
-import { clearPlan, heldBytes, inventory, type Holding } from "../../settings/holdings";
+import { downloadText } from "../download";
+import { clearPlan, exportable, heldBytes, inventory, type Holding } from "../../settings/holdings";
 import type { KV } from "../../store/kv";
 
 export interface HoldingsCardDeps {
   readonly kv: KV;
   /**
-   * Called after anything is cleared.
+   * Called after anything is cleared, with the keys that were emptied.
    *
    * A desk rendering from a slot that has just been emptied keeps showing data
-   * that no longer exists, and the operator has no way to tell. The card does
-   * not know who is reading what, so it says "something went" and lets the
-   * shell re-read.
+   * that no longer exists — and worse, writes its stale copy back. Only four
+   * modules subscribe to the store for their own key; the rest read once into
+   * a signal at construction and write the whole signal back on any change, so
+   * clearing the alert book and then touching one alert restored the book. The
+   * clear was silently undone.
+   *
+   * The card cannot know who is reading what, so it reports what went and the
+   * caller decides. In this product the caller RELOADS, which re-seeds every
+   * store at once, and the confirmation says so before anything is deleted.
+   *
+   * Absent, the clear still happens and the card still re-renders; what is
+   * lost is every OTHER surface's knowledge of it, which is why the production
+   * caller passes one and a test can watch it.
    */
-  readonly onCleared?: () => void;
+  readonly onCleared?: (keys: readonly string[]) => void;
+  /** Injected so a test can watch a download without a navigator. */
+  readonly save?: (name: string, text: string) => void;
+}
+
+export interface HoldingsCard {
+  readonly el: HTMLElement;
+  /**
+   * Re-read the store.
+   *
+   * The card was built once and never refreshed, on a store its own notes
+   * describe as written many times a minute — so every size, every "last
+   * written" time and every `held` flag froze at first construction, and a
+   * slot first written since read "Nothing stored yet." with no checkbox to
+   * clear it. The System desk refreshed its seven other cards and could not
+   * refresh this one, because it was handed a bare element.
+   */
+  refresh(): void;
 }
 
 const BYTES = ["B", "KB", "MB"];
@@ -55,7 +83,7 @@ function when(ms: number | null): string {
   return hrs < 48 ? `${hrs}h ago` : `${Math.round(hrs / 24)}d ago`;
 }
 
-export function createHoldingsCard(deps: HoldingsCardDeps): HTMLElement {
+export function createHoldingsCard(deps: HoldingsCardDeps): HoldingsCard {
   const picked = new Set<string>();
   const body = h("div", { class: "hd-body" }) as HTMLElement;
   const foot = h("div", { class: "hd-foot" }) as HTMLElement;
@@ -78,15 +106,19 @@ export function createHoldingsCard(deps: HoldingsCardDeps): HTMLElement {
   function exportOne(holding: Holding): void {
     const env = deps.kv.rawEnvelope(holding.key);
     if (env === null) return;
-    const blob = new Blob([JSON.stringify(env, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = h("a", { href: url, download: `${holding.key}.json` }) as HTMLAnchorElement;
-    a.click();
-    URL.revokeObjectURL(url);
+    (deps.save ?? downloadText)(`${holding.key}.json`, JSON.stringify(env, null, 2));
   }
 
   function render(): void {
     const rows = inventory(deps.kv);
+    /* A SELECTION OF SOMETHING THAT IS NO LONGER THERE IS STILL A SELECTION.
+       `picked` survived every re-render, so a key emptied elsewhere — by
+       another tab, by the owning desk, by a previous clear — stayed in it: the
+       foot offered "Clear 1…" against a row that had no checkbox, and a
+       selection with nothing clearable in it rendered "This empties . It
+       cannot be undone." on the one destructive control in this view. */
+    const clearable = new Set(rows.filter((r) => r.held).map((r) => r.key));
+    for (const key of [...picked]) if (!clearable.has(key)) picked.delete(key);
     clear(body);
     clear(foot);
     total.textContent = `${rows.filter((r) => r.held).length} of ${rows.length} holding ${size(heldBytes(rows))}`;
@@ -128,10 +160,10 @@ export function createHoldingsCard(deps: HoldingsCardDeps): HTMLElement {
         h("span", { class: "hd-what", text: r.what }),
         h("span", { class: "hd-size num", text: size(r.bytes) }),
         h("span", { class: "hd-when num", text: when(r.touchedAt) }),
-        /* NO EXPORT FOR SOMETHING THAT DID NOT READ. Handing somebody a file
-           that fails its own validator is handing them a file they cannot put
-           back, and it looks like a backup. */
-        r.held && r.readable !== false
+        /* NO EXPORT FOR SOMETHING THAT DID NOT READ — `exportable` owns that
+           rule now, so it is arithmetic a test can check rather than a
+           condition inside a DOM expression. */
+        exportable(r)
           ? (h("button", {
               class: "ghost-btn tiny",
               type: "button",
@@ -180,7 +212,10 @@ export function createHoldingsCard(deps: HoldingsCardDeps): HTMLElement {
       h("p", {
         class: "hd-confirm",
         "data-confirm": "1",
-        text: `This empties ${plan.labels.join(", ")}. It cannot be undone.`,
+        /* THE RELOAD IS PART OF THE PROMISE, so it is part of the sentence.
+           Without it the clear is undone the moment the owning desk saves
+           anything, which is worse than refusing to clear at all. */
+        text: `This empties ${plan.labels.join(", ")}. It cannot be undone, and the terminal reloads afterwards so no desk can write its own copy back.`,
       }),
     );
     if (plan.unknown.length > 0) {
@@ -198,10 +233,19 @@ export function createHoldingsCard(deps: HoldingsCardDeps): HTMLElement {
         "data-act": "clear-confirm",
         text: "Clear them",
         onclick: () => {
-          for (const key of picked) if (clearPlan([key]).labels.length > 0) deps.kv.remove(key);
+          const gone: string[] = [];
+          for (const key of picked) {
+            if (clearPlan([key]).labels.length === 0) continue;
+            deps.kv.remove(key);
+            gone.push(key);
+          }
           picked.clear();
-          deps.onCleared?.();
           render();
+          /* AFTER the re-render, so the card is correct even if the caller
+             reloads — and only with what was really removed, because a
+             refusal reported as a deletion is the shape of a bulk action
+             that silently does less than it says. */
+          if (gone.length > 0) deps.onCleared?.(gone);
         },
       }),
     );
@@ -217,5 +261,5 @@ export function createHoldingsCard(deps: HoldingsCardDeps): HTMLElement {
   }
 
   render();
-  return el;
+  return { el, refresh: render };
 }
