@@ -21,4 +21,26 @@ export default defineConfig({
     rollupOptions: { output: { inlineDynamicImports: true } },
   },
   server: { port: 5173, strictPort: false },
+
+  /*
+   * THE SUITE'S TIMEOUT IS A PROPERTY OF THE SUITE, NOT OF EACH TEST.
+   *
+   * Vitest defaults to 5,000ms and there was no `test` block here at all, so
+   * that default governed 5,000 tests across 243 files. MEASURED: the suite
+   * spawns a worker per file at roughly 640ms of startup each, and under that
+   * load tests whose own work is genuinely seconds long began failing on time
+   * rather than on behaviour — `opportunity` takes 3,703ms ALONE on an idle
+   * machine, 74% of the budget before any neighbour is running.
+   *
+   * The tell that it was load and not a defect: WHICH test failed moved from
+   * run to run — opportunity, then deskrender, then confidence, then survey —
+   * while each passed on its own, and the same suite was green on main.
+   * Chasing them one at a time means a per-test timeout on every heavy test in
+   * the repository, added one incident at a time by whoever is unlucky.
+   *
+   * 20s is headroom, not blindness: a test that genuinely hangs still fails,
+   * four seconds later than it used to. A test that is slow enough to need
+   * this is a finding worth making deliberately, not by stopwatch.
+   */
+  test: { testTimeout: 20_000, hookTimeout: 20_000 },
 })

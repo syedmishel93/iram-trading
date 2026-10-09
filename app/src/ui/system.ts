@@ -35,7 +35,8 @@ import { notifyCard } from "./cards/notifycard";
 import { h } from "./dom";
 import { watchedSymbols } from "./watchlist";
 import type { KV } from "../store/kv";
-
+
+import { createHoldingsCard } from "./cards/holdingscard";
 export interface SystemDeskOptions {
   readonly kv: KV;
 }
@@ -67,6 +68,14 @@ export function createSystemDesk(opts: SystemDeskOptions): {
      effect. */
   const serverSettings = createServerSettingsCard();
 
+  /* WHAT IS ACTUALLY STORED IN THE BROWSER, which the archive card answers
+     for BARS and nothing answered for the key-value store: your alerts,
+     drawings, claims ledger, journal notes and the rules the search found.
+     Until now the only way to learn what was on this machine was to open
+     developer tools. It sits under the archive card because the two answer
+     one question in two stores. */
+  const holdings = createHoldingsCard({ kv: opts.kv });
+
   const el = h(
     "section",
     { class: "dd sys-desk" },
@@ -80,6 +89,7 @@ export function createSystemDesk(opts: SystemDeskOptions): {
       }),
     ),
     archive.el,
+    holdings,
     services.el,
     activity.el,
     connections.el,
