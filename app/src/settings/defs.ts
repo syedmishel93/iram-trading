@@ -13,12 +13,13 @@
  */
 
 import type { SectionDef, SettingDef } from "./schema";
-import { registrySettings } from "./registry";
 import type { KV } from "../store/kv";
 import type { AccountStore } from "../core/account";
-import type { Signal } from "../core/signal";
+import { signal, type Signal } from "../core/signal";
 import { RULE_LIMITS, rulesAreDefault, type GateRules } from "../setup/rules";
 import { EXIT_LIMITS, exitRulesAreDefault, type ExitRules } from "../setup/exit";
+import { DEFAULT_GUARDS, type GuardConfig } from "../risk/sizing";
+import { BUDGET_SLOT, DEFAULT_BUDGET_GB } from "../data/library";
 import {
   PARAMS,
   clampParam,
@@ -238,11 +239,59 @@ export interface DefDeps {
   readonly studyParams: Signal<Record<string, IndicatorParams>>;
   /** The instrument the driver section describes. */
   readonly symbol: () => string;
+  /**
+   * THE FIVE PREFERENCES THAT PERSISTED AND COULD NOT BE FOUND.
+   *
+   * `settings/registry.ts` enumerates every stored slot and names, for each
+   * preference, the definition that edits it. Five named nothing: the
+   * governor's own limits, whether the terminal keeps a record of its own
+   * calls, whether an unsearched market is swept unasked, the disk budget, and
+   * the background top-up. They are wired here, to THEIR OWNERS — a kv write
+   * would be a second owner, and for four of the five the owner is a signal
+   * that reads kv exactly once.
+   *
+   * Optional, like the three layout signals above and for the same reason: a
+   * build that has not wired one still compiles, and the definition says so
+   * rather than reporting a preference it cannot read.
+   */
+  readonly riskGuards?: () => GuardConfig;
+  setRiskGuard?(patch: Partial<GuardConfig>): void;
+  /** `learn/store.ts`. Written through `setEnabled`, never by writing kv. */
+  readonly recordClaims?: () => boolean;
+  setRecordClaims?(on: boolean): void;
+  /** The shell's own switch, which also ticks its revision counter. */
+  readonly autoSearch?: Signal<boolean>;
   openKeyboardSheet(): void;
   openNotificationLog(): void;
   exportVault(): void;
   resetGovernor(): void;
 }
+
+const GUARD_SUFFIX =
+  "Checked before a position is sized, on the Risk desk and in the pre-trade checks.";
+
+/**
+ * One of the governor's three limits, read and written through its OWNER.
+ *
+ * The Risk desk holds `config` as a signal and mirrors it to storage through an
+ * effect. Writing storage from here instead would be a second owner, and the
+ * desk would overwrite it the next time anything touched the signal — the
+ * equity defect, rebuilt.
+ */
+const guard = (
+  d: DefDeps,
+  key: keyof GuardConfig,
+): Pick<SettingDef, "read" | "write" | "unavailable"> => ({
+  read: () => String(d.riskGuards === undefined ? DEFAULT_GUARDS[key] : d.riskGuards()[key]),
+  write: (v: string) => {
+    const n = Number(v);
+    if (Number.isFinite(n)) d.setRiskGuard?.({ [key]: n });
+  },
+  unavailable: () =>
+    d.riskGuards === undefined
+      ? "This build has not wired the risk limits to Settings. The Risk desk still edits them."
+      : null,
+});
 
 const bool = (s: Signal<boolean>) => ({
   read: () => String(s()),
@@ -402,6 +451,11 @@ function lookSummary(d: DefDeps): string {
 }
 
 export function buildSettings(d: DefDeps): SettingDef[] {
+  /* THE ONE VALUE ON THIS SCREEN WITH NO OWNER ELSEWHERE, so the dialog holds
+     it. `library.budget-gb` is read by nothing in the tree; a thunk reading the
+     store directly would never re-render, because a store read is not reactive.
+     Seeded once, written through. */
+  const budget = signal<number>(d.kv === undefined ? DEFAULT_BUDGET_GB : d.kv.get(BUDGET_SLOT));
   const a = d.account;
   /* The six token-only preferences. Owned by ui/appearance.ts, which is where
      the note about why they are not in `shell.prefs` lives. */
@@ -1284,6 +1338,115 @@ export function buildSettings(d: DefDeps): SettingDef[] {
     },
 
     // -------------------------------------------------------------- about ---
+    // ------------------------------------------------- the governor's limits ---
+    /**
+     * THREE NUMBERS THAT STOP YOU TRADING, and they were nowhere.
+     *
+     * `risk.config` is as close to a setting as anything in this product and
+     * was editable only on the Risk desk, which is a desk you open to size a
+     * trade rather than to decide what you will not do. Read and written
+     * through the desk's own `config` signal, which mirrors itself to storage —
+     * so these and the desk's fields are one value with two surfaces, not two
+     * copies of one number. Absent the wiring they say so instead of reading
+     * zero, because a limit of zero is a limit that blocks everything.
+     */
+    {
+      id: "account.dailyLoss",
+      section: "account",
+      label: "Stop for the day after losing",
+      hint: `A realised loss this far below where the day started stops new trades. Default ${DEFAULT_GUARDS.dailyLossPct}%. ${GUARD_SUFFIX}`,
+      control: { kind: "number", min: 0.5, max: 25, step: 0.5, unit: "% of equity" },
+      keywords: ["governor", "guard", "daily loss", "circuit breaker", "risk desk", "limits"],
+      ...guard(d, "dailyLossPct"),
+    },
+    {
+      id: "account.maxHeat",
+      section: "account",
+      label: "Most risk open at once",
+      hint: `A new position that would push the total risk on the book past this is refused. Default ${DEFAULT_GUARDS.maxHeatPct}%. ${GUARD_SUFFIX}`,
+      control: { kind: "number", min: 1, max: 50, step: 0.5, unit: "% of equity" },
+      keywords: ["governor", "guard", "heat", "exposure", "risk desk", "limits"],
+      ...guard(d, "maxHeatPct"),
+    },
+    {
+      id: "account.maxPositions",
+      section: "account",
+      label: "Most positions at once",
+      hint: `Counted across everything open, not per market. Default ${DEFAULT_GUARDS.maxPositions}. ${GUARD_SUFFIX}`,
+      control: { kind: "number", min: 1, max: 50, step: 1 },
+      keywords: ["governor", "guard", "positions", "concentration", "risk desk", "limits"],
+      ...guard(d, "maxPositions"),
+    },
+
+    {
+      id: "rules.autosearch",
+      section: "rules",
+      label: "Search a market you have not searched before",
+      hint: "The first time you open a market, sweep it without being asked. It spends about thirty seconds of this machine's processor. The same switch is on the card that reports the result.",
+      control: { kind: "toggle" },
+      keywords: ["autonomous", "sweep", "unasked", "automatic", "first open"],
+      read: () => (d.autoSearch === undefined ? "false" : String(d.autoSearch())),
+      write: (v: string) => d.autoSearch?.set(v === "true"),
+      unavailable: () =>
+        d.autoSearch === undefined ? "This build has not wired the autonomous search to Settings." : null,
+    },
+
+    {
+      id: "privacy.record",
+      section: "privacy",
+      label: "Keep a record of what this terminal says",
+      hint: "Every call it makes is written down and later graded against what the market did. Off means nothing new is recorded; what is already stored is kept and still shown. Without it the track record cannot be scored, so every claim stands on nothing but its own confidence.",
+      control: { kind: "toggle" },
+      keywords: ["claims", "ledger", "track record", "calibration", "learn", "scoring"],
+      read: () => (d.recordClaims === undefined ? "false" : String(d.recordClaims())),
+      write: (v: string) => d.setRecordClaims?.(v === "true"),
+      unavailable: () =>
+        d.recordClaims === undefined ? "This build has not wired the claims ledger to Settings." : null,
+    },
+
+    {
+      id: "data.budget",
+      section: "data",
+      label: "Disk this machine may give to price history",
+      /* THE CAVEAT IS IN THE HINT, NOT IN `unavailable`, AND THAT IS NOT A
+         PRESENTATION CHOICE. `settings/ui.ts` DISABLES a control whose
+         `unavailable()` answers anything — so stating the caveat there would
+         have greyed out the only field that sets this, which is a worse
+         version of the dead button this change exists to remove. `unavailable`
+         is for "you cannot set this"; a standing limitation of what the value
+         DOES belongs where the operator reads what it is. Found by reading the
+         renderer, which is the only thing that would have shown it. */
+      hint: `Bars for the whole cross-asset spine are under a gigabyte; anything past that is a choice. Default ${DEFAULT_BUDGET_GB} GB. Stored, but nothing reads it yet — the sweep that deletes old history runs on the server against its own budget.`,
+      control: { kind: "number", min: 1, max: 500, step: 1, unit: "GB" },
+      read: () => String(budget()),
+      write: (v: string) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n <= 0) return;
+        budget.set(n);
+        if (d.kv !== undefined) void d.kv.write(BUDGET_SLOT, n);
+      },
+      keywords: ["storage", "archive", "library", "gigabytes", "quota", "eviction", "disk"],
+    },
+
+    {
+      id: "data.topup",
+      section: "data",
+      label: "Keeping history topped up",
+      /**
+       * A NOTE, AND THAT IS THE HONEST CONTROL HERE.
+       *
+       * `setTopup` writes the preference AND adds or removes an hourly kernel
+       * job. A switch here that wrote storage would record the choice and never
+       * start or stop the work, which is a preference that lies about itself.
+       * So this says where the one working switch is — which is what makes the
+       * preference findable from the search box, the thing it never was.
+       */
+      control: { kind: "note" },
+      keywords: ["background", "download", "top up", "archive", "data desk", "hourly"],
+      read: () =>
+        "Switched on the Data desk, beside the series it keeps current. The switch there also starts and stops the hourly job, which is why it is the only one.",
+    },
+
     {
       id: "about.version",
       section: "about",
@@ -1306,21 +1469,12 @@ export function buildSettings(d: DefDeps): SettingDef[] {
        disagree with the code that actually runs the indicators. */
     ...indicatorDefs(d),
     ...driverDefs(d),
-
-
-    /* EVERY REGISTERED PREFERENCE, so one cannot be forgotten again. Five
-
-       were, the governor's own limits among them. De-duplicated below, so a
-
-       preference already written out by hand keeps its richer control and
-
-       only the missing ones arrive. */
-
-    ...(d.kv === undefined ? [] : registrySettings(d.kv)),
   ];
 
-  /* FIRST WRITER WINS. The hand-built defs come first and are the better
-     ones wherever both exist; the registry supplies what nobody wrote. */
-  const seen = new Set<string>();
-  return all.filter((x) => (seen.has(x.id) ? false : (seen.add(x.id), true)));
+  /* A DUPLICATE ID IS A BUG, NOT SOMETHING TO FILTER OUT.
+     The previous version appended registry-derived definitions and dropped any
+     whose id was already taken, which meant a collision between two hand-
+     written definitions would also have been swallowed in silence. Two
+     definitions of one setting is a defect; let it be visible. */
+  return all;
 }

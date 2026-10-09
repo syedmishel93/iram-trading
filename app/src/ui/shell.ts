@@ -2385,6 +2385,15 @@ export function mountShell(root: HTMLElement): void {
       },
       exitRules: () => exitRules(),
       setExitRule,
+      /* THE FIVE THAT PERSISTED AND COULD NOT BE FOUND, each wired to the
+         thing that actually owns it. `settings/registry.ts` records why a
+         store write would have been a second owner for four of them. */
+      riskGuards: () => riskDesk.config().guards,
+      setRiskGuard: (patch) =>
+        riskDesk.config.update((c) => ({ ...c, guards: { ...c.guards, ...patch } })),
+      recordClaims: () => learn.enabled(),
+      setRecordClaims: (on) => learn.setEnabled(on),
+      autoSearch,
       resetExitRules: () => setExitRule(DEFAULT_EXIT_RULES),
       /**
        * Read fresh each time the panel is built, so a source the breaker parked
@@ -5189,7 +5198,7 @@ export function mountShell(root: HTMLElement): void {
                 level: "success",
                 title: "Alert armed",
                 body: `${state.symbol.peek()} ${above ? "crosses above" : "crosses below"} ${shown}`,
-                action: { label: "Signals desk", run: () => state.view.set("signals") },
+                action: { label: "Alerts desk", run: () => state.view.set("signals") },
               });
             },
           },

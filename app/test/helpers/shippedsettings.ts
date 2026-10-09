@@ -20,6 +20,8 @@ import { DEFAULT_RULES, type GateRules } from "../../src/setup/rules";
 import { DEFAULT_EXIT_RULES, type ExitRules } from "../../src/setup/exit";
 import { DEFAULT_ACCOUNT, type Account } from "../../src/core/account";
 import type { SettingDef } from "../../src/settings/schema";
+import { DEFAULT_GUARDS, type GuardConfig } from "../../src/risk/sizing";
+import { createKV, memoryRawStore } from "../../src/store/kv";
 
 /**
  * A working account store, because the definitions genuinely read it.
@@ -43,6 +45,15 @@ export function stubDeps(over: Partial<DefDeps> = {}): DefDeps {
   let rules: GateRules = { ...DEFAULT_RULES };
   let exits: ExitRules = { ...DEFAULT_EXIT_RULES };
   let volumeHeight = 48;
+  /* THE FIVE PREFERENCES THAT HAD NO ROUTE INTO SETTINGS, stubbed the way the
+     three layout signals above are: they are optional on `DefDeps`, so a stub
+     that left them out would make every test here blind to the definitions
+     that depend on them — which is the exact mechanism that let five
+     preferences persist, work, and be invisible. The guards are MUTABLE so a
+     test can prove a write is read back; a frozen stub would pass against a
+     control that only looks like it moved. */
+  let guards: GuardConfig = { ...DEFAULT_GUARDS };
+  let recording = true;
 
   const s = <T>(v: T): Signal<T> => signal<T>(v);
 
@@ -101,6 +112,17 @@ export function stubDeps(over: Partial<DefDeps> = {}): DefDeps {
     sourceEnabled: () => true,
     studyParams: s({}),
     symbol: () => "BTCUSDT",
+    /* A real store, because the disk budget's only owner IS the store. */
+    kv: createKV(memoryRawStore()),
+    riskGuards: () => guards,
+    setRiskGuard: (patch) => {
+      guards = { ...guards, ...patch };
+    },
+    recordClaims: () => recording,
+    setRecordClaims: (on) => {
+      recording = on;
+    },
+    autoSearch: s(true),
     openKeyboardSheet: () => {},
     openNotificationLog: () => {},
     exportVault: () => {},

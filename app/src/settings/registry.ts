@@ -4,9 +4,16 @@
  * ────────────────────────────────────────────────────────────────────────────
  * WHY THIS EXISTS
  *
- * Thirty-four things persist to key-value storage. The Settings dialog was
- * handed a list built by hand in `ui/shell.ts`, so five preferences existed,
- * worked, persisted and could not be found anywhere — including `risk.config`,
+ * FORTY-TWO things persist to key-value storage, and the count moved three
+ * times while this file was being written — 33 by grep, 34 by reading the
+ * declarations, 38 once the guard matched shape instead of a naming
+ * convention, 42 once it could see a key passed as an argument. Every revision
+ * was upward, which is the direction an enumeration is wrong in. Run the guard
+ * rather than quoting this sentence.
+ *
+ * The Settings dialog was handed a list built by hand in `ui/shell.ts`, so five
+ * preferences existed, worked, persisted and could not be found anywhere —
+ * including `risk.config`,
  * the governor's own limits: daily loss, max trades, losses in a row. As close
  * to a setting as anything in this product, editable only on the Risk desk.
  *
@@ -19,17 +26,22 @@
  * FOUR KINDS, AND THE SPLIT IS THE DESIGN
  *
  * Adding the five missing ones to the settings list would have been the wrong
- * fix, because the thirty-four are not one population:
+ * fix, because the forty-two are not one population:
  *
- *   preference (10)  a choice that changes behaviour      -> a Settings control
- *   secret      (1)  a credential         -> never rendered, never exported
- *   state      (21)  data the product accumulated  -> seen, sized, exported,
+ *   preference (10)  a choice that changes behaviour  -> a Settings definition
+ *   secret      (2)  a credential         -> never rendered, never exported
+ *   state      (30)  data the product accumulated  -> seen, sized, exported,
  *                                                     cleared; NOT a control
- *   legacy      (2)  migration leftovers   -> deleted once the path is dead
+ *   legacy      (0)  none: both candidates turned out to be live
  *
- * Putting the alert book in Settings as a control is a category error. Twenty
- * one of the thirty-four are not settings at all, and what they need is a
- * holdings view — which exists today for bars and for nothing in this store.
+ * Putting the alert book in Settings as a control is a category error. THIRTY
+ * of the forty-two are not settings at all, and what they need is a holdings
+ * view — which exists today for bars and for nothing in this store.
+ *
+ * The second SECRET is why the count matters rather than being bookkeeping:
+ * `sync.credential` is a bearer token, it was invisible to the list whose
+ * whole job is to find exactly that, and a secret nobody has enumerated is a
+ * secret that reaches an export.
  *
  * ────────────────────────────────────────────────────────────────────────────
  * ONE CENTRAL LIST, NOT `register()` CALLS IN EACH MODULE
@@ -47,9 +59,6 @@
  */
 
 import type { Slot } from "../store/kv";
-import type { KV } from "../store/kv";
-import type { SettingControl, SettingDef } from "./schema";
-import { SECTIONS } from "./defs";
 
 /* ------------------------------------------------------------ the slots -- */
 
@@ -72,13 +81,16 @@ import { BOOK_SLOT, CONFIG_SLOT, DAY_SLOT } from "../ui/risk";
 import { AUTO_SEARCH_SLOT, PREFS_SLOT, RULES_SLOT } from "../ui/shell/prefs";
 import { FLOW_SLOT } from "../ui/strategy/draft";
 import { TODAY_PLAN_SLOT } from "../ui/today/focus";
+import { JOURNAL_SLOT } from "../journal/store";
+import { RULES as REVIEW_RULES_SLOT, JUDGEMENTS as JUDGEMENTS_SLOT } from "../journal/review";
+import { WATCHLIST_SLOT } from "../ui/watchlist";
+import { PLAYBOOK_SLOT } from "../ui/playbook";
+import { PAPER_SLOT } from "../ui/paper";
+import { CALC_SLOT } from "../ui/calculator";
 
 /* ------------------------------------------------------------- the shape -- */
 
 export type SlotKind = "preference" | "secret" | "state" | "legacy";
-
-/** Derived, never restated: a section that does not exist is a compile error. */
-export type SectionId = (typeof SECTIONS)[number]["id"];
 
 export interface SlotEntry {
   /**
@@ -99,18 +111,38 @@ export interface SlotEntry {
   readonly label: string;
   /** One line in the operator's words — never the field name restated. */
   readonly what: string;
-  /** Preference only. */
-  readonly section?: SectionId;
   /**
-   * Preference only.
+   * Preference only: the id of the Settings definition that edits this.
    *
-   * `SettingControl` is the repository's own type, not a parallel one. Two of
-   * the ten take `action`: the governor's limits and the twenty-nine detector
-   * switches are edited through surfaces that already do the job properly, and
-   * a generic widget would be a worse version of a working desk. The entry
-   * still exists, so Settings ACCOUNTS for them and can send you there.
+   * ──────────────────────────────────────────────────────────────────────────
+   * WHY THE REGISTRY DOES NOT BUILD THE CONTROL ITSELF
+   *
+   * It did, for one release, and every control it built was inert. The reason
+   * is not a missing re-render: `kv` IS NOT THE OWNER of any of these ten.
+   *
+   *   risk.config        the Risk desk holds `config: Signal<RiskConfig>` and
+   *                      mirrors it to kv through an effect, so a kv write is
+   *                      overwritten the next time anything touches the signal
+   *   learn.enabled      a signal seeded from kv once, written back in
+   *                      `setEnabled`
+   *   research.topup     `setTopup` writes kv AND adds or removes a kernel
+   *                      job, so a kv write stores the preference without
+   *                      starting the work it is a preference about
+   *   autosearch         kv is the owner, but the shell reads it through its
+   *                      own private revision counter
+   *
+   * The obvious fix — a revision counter here, so the control re-reads after
+   * its own write — would have made the switch MOVE ON SCREEN while the thing
+   * it configures carried on ignoring it. That is worse than the dead button,
+   * because it looks like it worked. One fact, one owner.
+   *
+   * So a preference reaches Settings through a definition that reads and
+   * writes ITS OWNER, written in `settings/defs.ts` beside the forty others
+   * that already work that way, and this field is the link. A test asserts the
+   * id names a definition `buildSettings` really emits, which is what makes
+   * "five preferences are unreachable" a question the gate can answer.
    */
-  readonly control?: SettingControl;
+  readonly coveredBy?: string;
 }
 
 /** A slot's own generic is irrelevant to the registry; only its key is read. */
@@ -126,17 +158,15 @@ export const REGISTRY: readonly SlotEntry[] = [
     kind: "preference",
     label: "Account and risk",
     what: "Your balance, leverage and how much of it one trade may risk.",
-    section: "account",
-    control: { kind: "action", button: "Open" },
+    coveredBy: "account.equity",
   },
   {
     key: CONFIG_SLOT.key,
     slot: anySlot(CONFIG_SLOT),
     kind: "preference",
     label: "Trading limits",
-    what: "Daily loss limit, trades per day, losses in a row before it stops you.",
-    section: "account",
-    control: { kind: "action", button: "Open the Risk desk" },
+    what: "Daily loss limit, how much risk may be open at once, and how many positions.",
+    coveredBy: "account.dailyLoss",
   },
   {
     key: RULES_SLOT.key,
@@ -144,26 +174,23 @@ export const REGISTRY: readonly SlotEntry[] = [
     kind: "preference",
     label: "Pre-trade checks",
     what: "Which checks have to pass before a setup is called tradable.",
-    section: "rules",
-    control: { kind: "action", button: "Edit the checks" },
+    coveredBy: "rules.coverage",
   },
   {
     /* Declared inside a function; no binding to import. Key only. */
-        key: "setup.exitRules",
+    key: "setup.exitRules",
     kind: "preference",
     label: "Exits",
     what: "Where the stop and the targets go when a plan is built for you.",
-    section: "exits",
-    control: { kind: "action", button: "Edit the exits" },
+    coveredBy: "exits.breakeven",
   },
   {
     key: ENABLED_SLOT.key,
     slot: anySlot(ENABLED_SLOT),
     kind: "preference",
-    label: "Detectors",
-    what: "Which structure detectors run on the chart and feed the scan.",
-    section: "indicators",
-    control: { kind: "action", button: "Choose detectors" },
+    label: "Keep a record of what the terminal says",
+    what: "Write down every call it makes, so it can be scored against what happened.",
+    coveredBy: "privacy.record",
   },
   {
     key: APPEARANCE_SLOT.key,
@@ -171,17 +198,15 @@ export const REGISTRY: readonly SlotEntry[] = [
     kind: "preference",
     label: "Appearance",
     what: "Theme, density and the type scale the whole terminal is drawn at.",
-    section: "appearance",
-    control: { kind: "action", button: "Open" },
+    coveredBy: "appearance.theme",
   },
   {
     key: PREFS_SLOT.key,
     slot: anySlot(PREFS_SLOT),
     kind: "preference",
     label: "Panels",
-    what: "Whether the dock, the watch rail and the news strip are shown.",
-    section: "appearance",
-    control: { kind: "action", button: "Open" },
+    what: "Whether the dock, the watch rail and the news strip are shown, and which detectors run.",
+    coveredBy: "appearance.dock",
   },
   {
     key: AUTO_SEARCH_SLOT.key,
@@ -189,8 +214,7 @@ export const REGISTRY: readonly SlotEntry[] = [
     kind: "preference",
     label: "Search a new market unasked",
     what: "Sweep a market you have not searched before, the first time you open it.",
-    section: "rules",
-    control: { kind: "toggle" },
+    coveredBy: "rules.autosearch",
   },
   {
     key: BUDGET_SLOT.key,
@@ -198,8 +222,7 @@ export const REGISTRY: readonly SlotEntry[] = [
     kind: "preference",
     label: "Disk budget",
     what: "How many gigabytes of price history this machine may keep.",
-    section: "data",
-    control: { kind: "number", min: 1, max: 200, step: 1, unit: "GB" },
+    coveredBy: "data.budget",
   },
   {
     key: TOPUP_SLOT.key,
@@ -207,17 +230,16 @@ export const REGISTRY: readonly SlotEntry[] = [
     kind: "preference",
     label: "Keep history topped up",
     what: "Fetch new bars for enrolled markets while the terminal is open.",
-    section: "data",
-    control: { kind: "toggle" },
+    coveredBy: "data.topup",
   },
 
   /* ---- secret ---- */
   {
     /* Declared inside a function; no binding to import. Key only. */
-        key: "agent.credential",
+    key: "agent.credential",
     kind: "secret",
-    label: "Analyst credential",
-    what: "An API key for the analyst. Never shown and never included in an export.",
+    label: "Ask AI credential",
+    what: "An API key for Ask AI. Never shown and never included in an export.",
   },
 
   /* ---- state: what the product has accumulated ---- */
@@ -244,7 +266,7 @@ export const REGISTRY: readonly SlotEntry[] = [
   },
   {
     /* Declared inside a function; no binding to import. Key only. */
-        key: "agent.briefs",
+    key: "agent.briefs",
     kind: "state",
     label: "Saved briefs",
     what: "Analyst write-ups you kept, with the chart they were written about.",
@@ -314,14 +336,14 @@ export const REGISTRY: readonly SlotEntry[] = [
   },
   {
     /* Declared inside a function; no binding to import. Key only. */
-        key: "workspace.layout",
+    key: "workspace.layout",
     kind: "state",
     label: "Saved layouts",
     what: "Your pane arrangements and which symbols are linked together.",
   },
   {
     /* Declared inside a function; no binding to import. Key only. */
-        key: "commands.recent",
+    key: "commands.recent",
     kind: "state",
     label: "Recent symbols",
     what: "What you have looked at lately, for the command palette.",
@@ -363,7 +385,7 @@ export const REGISTRY: readonly SlotEntry[] = [
   },
   {
     /* Declared inside a function; no binding to import. Key only. */
-        key: "screener.watch",
+    key: "screener.watch",
     kind: "state",
     label: "Watchlist",
     what: "The markets you are keeping an eye on, and how they are sorted.",
@@ -376,30 +398,35 @@ export const REGISTRY: readonly SlotEntry[] = [
      trades, and it was invisible to the list whose job is to enumerate. */
   {
     key: "journal.entries",
+    slot: anySlot(JOURNAL_SLOT),
     kind: "state",
     label: "Journal",
     what: "Every trade you recorded, with the plan you wrote before taking it.",
   },
   {
     key: "review.rules",
+    slot: anySlot(REVIEW_RULES_SLOT),
     kind: "state",
     label: "Review rules",
     what: "Rules you committed to after reviewing your own trades.",
   },
   {
     key: "watchlist.v1",
+    slot: anySlot(WATCHLIST_SLOT),
     kind: "state",
     label: "Watchlist contents",
     what: "The markets on your list. Separate from how that list is sorted.",
   },
   {
     key: "playbook.v1",
+    slot: anySlot(PLAYBOOK_SLOT),
     kind: "state",
     label: "Playbook",
     what: "Rule sets you wrote or edited by hand, as opposed to ones found by a search.",
   },
   {
     key: "paper.v1",
+    slot: anySlot(PAPER_SLOT),
     kind: "state",
     label: "Paper trades",
     what: "Practice fills taken against the live feed, and their results.",
@@ -409,74 +436,47 @@ export const REGISTRY: readonly SlotEntry[] = [
        shape and is in fact this desk's current saved inputs. Recorded in
        the guard's TWO_DECLARATIONS with the full reasoning. */
     key: "calculator.v1",
+    slot: anySlot(CALC_SLOT),
     kind: "state",
     label: "Calculator inputs",
     what: "What the calculator was last set to, so it opens where you left it.",
+  },
+
+  /* ---- FOUND BY REVIEW, after the scanner was widened a third time ----
+     The guard matched a naming convention, then a key literal, and still
+     could not see a key passed as an argument, a key held in a constant, or
+     a key handed to a factory at runtime. Four real persisted things sat
+     behind those shapes, including a bearer token. */
+  {
+    key: "review.judgements",
+    slot: anySlot(JUDGEMENTS_SLOT),
+    kind: "state",
+    label: "Review verdicts",
+    what: "What you concluded about your own trading patterns, trade by trade.",
+  },
+  {
+    /* A CREDENTIAL, so it is never listed, never sized and never exported.
+       The spec said this product held ONE secret; it holds two, and the
+       second was invisible to the list whose job is to find them. */
+    key: "sync.credential",
+    kind: "secret",
+    label: "Sync credential",
+    what: "The token this terminal uses to reach your own sync server. Never shown or exported.",
+  },
+  {
+    key: "sync.state",
+    kind: "state",
+    label: "Sync state",
+    what: "What has already been sent to your sync server, so it is not sent twice.",
+  },
+  {
+    key: "screener.views",
+    kind: "state",
+    label: "Saved scans",
+    what: "Screener filters you named and kept, to run again without rebuilding them.",
   },
 ];
 
 export function entriesOfKind(kind: SlotKind): readonly SlotEntry[] {
   return REGISTRY.filter((e) => e.kind === kind);
-}
-
-/* ----------------------------------------------------- settings, derived -- */
-
-/**
- * A `SettingDef` for every preference, built FROM THE REGISTRY.
- *
- * The defect this replaces: `buildSettings` was handed a list assembled by
- * hand, so a preference reached Settings only if somebody remembered to add
- * it. Five never were. Iterating the registry means the next one cannot be
- * forgotten — it is in Settings the moment it is registered, or the guard
- * fails because it was not registered at all.
- *
- * TWO CONTROLS ARE AN `action`, AND THAT IS NOT A SHORTCUT. The governor's
- * limits and the twenty-nine detector switches are edited through surfaces
- * that already do the job well; a generic widget would be a worse version of a
- * working desk. The entry still exists, so Settings ACCOUNTS for the
- * preference and can point at where it lives. Only what genuinely is one value
- * — a toggle, a number — gets a control that reads and writes here.
- */
-export function registrySettings(kv: KV): readonly SettingDef[] {
-  const out: SettingDef[] = [];
-
-  for (const e of entriesOfKind("preference")) {
-    const control = e.control;
-    const section = e.section;
-    if (control === undefined || section === undefined) continue;
-
-    /* A refused write is REMEMBERED and reported through `unavailable`.
-       `kv.write` returns a result rather than throwing, so the easy bug is to
-       ignore it: the control moves, nothing is stored, and the next reload
-       puts it back with no explanation. */
-    let refused: string | null = null;
-
-    const base = { id: `${section}.${e.key}`, section, label: e.label, hint: e.what, control };
-
-    if (control.kind === "action" || e.slot === undefined) {
-      out.push({ ...base, read: () => e.what, unavailable: () => refused });
-      continue;
-    }
-
-    const slot = e.slot;
-    out.push({
-      ...base,
-      read: () => String(kv.read(slot).value),
-      write: (v: string) => {
-        const next =
-          control.kind === "toggle" ? v === "true" : control.kind === "number" ? Number(v) : v;
-        const res = kv.write(slot, next as never);
-        refused = res.ok
-          ? null
-          : res.reason === "quota"
-            ? "This machine is out of room for settings. Clear something on the System desk and try again."
-            : res.reason === "newer-on-disk"
-              ? "A newer version of this setting is already stored — reload before changing it."
-              : "This setting could not be stored on this machine.";
-      },
-      unavailable: () => refused,
-    });
-  }
-
-  return out;
 }
