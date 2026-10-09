@@ -65,14 +65,14 @@ interface Saved {
  * The library enrols what you watch — a market you are watching is one you will
  * want history for — and that needs the list without constructing the desk,
  * which is lazy and may never be opened. A function rather than an exported
- * SLOT so this file keeps owning the shape; a second reader of the raw slot
+ * WATCHLIST_SLOT so this file keeps owning the shape; a second reader of the raw slot
  * would be a second definition of what a watchlist is.
  */
-export function watchedSymbols(kv: { read(slot: typeof SLOT): { value: Saved } }): string[] {
-  return [...kv.read(SLOT).value.list];
+export function watchedSymbols(kv: { read(slot: typeof WATCHLIST_SLOT): { value: Saved } }): string[] {
+  return [...kv.read(WATCHLIST_SLOT).value.list];
 }
 
-const SLOT = {
+export const WATCHLIST_SLOT = {
   key: "watchlist.v1",
   version: 1,
   fallback: (): Saved => ({ list: [...DEFAULT_LIST], quote: "USDT" }),
@@ -106,7 +106,7 @@ const compactVol = (n: number): string => {
 };
 
 export function createWatchlist(opts: WatchlistOptions) {
-  const stored = opts.kv.read(SLOT).value;
+  const stored = opts.kv.read(WATCHLIST_SLOT).value;
 
   const list = signal<string[]>(stored.list);
   const quote = signal<string>(stored.quote);
@@ -117,7 +117,7 @@ export function createWatchlist(opts: WatchlistOptions) {
   const draft = signal("");
 
   const persist = (): void => {
-    opts.kv.write(SLOT, { list: list(), quote: quote() });
+    opts.kv.write(WATCHLIST_SLOT, { list: list(), quote: quote() });
   };
 
   const bySymbol = computed<ReadonlyMap<string, UniverseEntry>>(

@@ -41,7 +41,7 @@ export interface CommittedRule {
 
 const PATTERN_IDS: readonly string[] = ["news", "trend", "early-exit", "session", "holding", "after-loss", "passes"];
 
-const JUDGEMENTS = recordSlot("review.judgements", 1);
+export const JUDGEMENTS = recordSlot("review.judgements", 1);
 
 const isRule = (v: unknown): v is CommittedRule => {
   if (v === null || typeof v !== "object") return false;
@@ -57,7 +57,7 @@ const isRule = (v: unknown): v is CommittedRule => {
   );
 };
 
-const RULES = listSlot<CommittedRule>("review.rules", 1, isRule);
+export const RULES = listSlot<CommittedRule>("review.rules", 1, isRule);
 
 /** The server key a committed rule list is mirrored to. */
 export const SERVER_KEY = "review.rules";

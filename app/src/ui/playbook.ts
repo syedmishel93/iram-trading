@@ -129,7 +129,7 @@ interface Saved {
   combine?: string;
 }
 
-const SLOT = {
+export const PLAYBOOK_SLOT = {
   key: "playbook.v1",
   version: 1,
   fallback: (): Saved => ({ custom: [], selected: SPECS[0]?.id ?? "" }),
@@ -158,7 +158,7 @@ const pct = (n: number, dp = 1): string => (Number.isFinite(n) ? `${(n * 100).to
 const fixed = (n: number, dp = 2): string => (Number.isFinite(n) ? n.toFixed(dp) : "—");
 
 export function createPlaybook(opts: PlaybookOptions) {
-  const stored = opts.kv.read(SLOT).value;
+  const stored = opts.kv.read(PLAYBOOK_SLOT).value;
 
   const custom = signal<RuleSpec[]>(stored.custom);
   const selectedId = signal(stored.selected);
@@ -769,7 +769,7 @@ export function createPlaybook(opts: PlaybookOptions) {
   });
 
   const persist = (): void => {
-    opts.kv.write(SLOT, {
+    opts.kv.write(PLAYBOOK_SLOT, {
       custom: custom(),
       selected: selectedId(),
       symbol: symbol(),

@@ -55,7 +55,7 @@ interface Saved {
   costs: CostAssumptions;
 }
 
-const SLOT = {
+export const PAPER_SLOT = {
   key: "paper.v1",
   version: 1,
   fallback: (): Saved => ({ book: emptyBook(10_000), costs: DEFAULT_ASSUMPTIONS }),
@@ -85,7 +85,7 @@ const signedMoney = (n: number): string =>
 const pct = (n: number): string => (Number.isFinite(n) ? `${(n * 100).toFixed(2)}%` : "—");
 
 export function createPaper(opts: PaperDeskOptions) {
-  const stored = opts.kv.read(SLOT).value;
+  const stored = opts.kv.read(PAPER_SLOT).value;
 
   const book = signal<PaperBook>(stored.book);
   const costs = signal<CostAssumptions>(stored.costs);
@@ -95,7 +95,7 @@ export function createPaper(opts: PaperDeskOptions) {
   const message = signal("");
 
   const persist = (): void => {
-    opts.kv.write(SLOT, { book: book(), costs: costs() });
+    opts.kv.write(PAPER_SLOT, { book: book(), costs: costs() });
   };
 
   /** Marks for open positions. Only the charted symbol has a live price. */

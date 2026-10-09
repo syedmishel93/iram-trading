@@ -80,7 +80,7 @@ const DEFAULTS: Saved = {
   crossRate: 0,
 };
 
-const SLOT = {
+export const CALC_SLOT = {
   key: "calculator.v1",
   version: 1,
   fallback: (): Saved => ({ ...DEFAULTS }),
@@ -134,7 +134,7 @@ function priceDecimals(spec: InstrumentSpec): number {
 }
 
 export function createCalculator(opts: CalculatorOptions) {
-  const stored = opts.kv.read(SLOT).value;
+  const stored = opts.kv.read(CALC_SLOT).value;
 
   const symbol = signal(stored.symbol);
   /**
@@ -164,7 +164,7 @@ export function createCalculator(opts: CalculatorOptions) {
   const slippagePips = signal(stored.slippagePips);
 
   const persist = (): void => {
-    opts.kv.write(SLOT, {
+    opts.kv.write(CALC_SLOT, {
       symbol: symbol(),
       balance: balance(),
       equity: equity(),
