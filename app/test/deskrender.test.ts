@@ -103,7 +103,27 @@ function scan(root: HTMLElement): { text: string; what: string }[] {
   return found;
 }
 
-describe("a mounted desk renders no defect signature", () => {
+/**
+ * SIXTY SECONDS, AND THE REASON IS THE DYNAMIC IMPORTS.
+ *
+ * Every test in these blocks does `await import("../src/ui/<desk>")` INSIDE
+ * its own body, which is the right shape — each test loads only the desk it
+ * mounts, so the file does not pull the whole frontend in to check one.
+ * The cost is that Vite's TRANSFORM of that module is billed to the test's
+ * own timeout, and these are the largest modules in the repository:
+ * `ui/data.ts` alone is some 1,800 lines.
+ *
+ * MEASURED: `the Data library, with an EMPTY archive` runs in 2,721ms alone
+ * and passed 11/11 three times in isolation, while failing roughly one run in
+ * three inside the full suite — at 5,000ms AND then at 20,000ms. The suite's
+ * cumulative transform is about 82 seconds across 243 files; one cold heavy
+ * module under that contention exceeds twenty.
+ *
+ * So the number is not a guess at how slow the ASSERTIONS are. It is headroom
+ * for work that happens before them and is not what is being tested. A desk
+ * that genuinely hangs still fails.
+ */
+describe("a mounted desk renders no defect signature", { timeout: 60_000 }, () => {
   it("the Calculator", async () => {
     const { createCalculator } = await import("../src/ui/calculator");
     const kv = createKV(memoryRawStore());
@@ -157,7 +177,7 @@ describe("a mounted desk renders no defect signature", () => {
   });
 });
 
-describe("more desks, each with a dependency surface small enough to stub honestly", () => {
+describe("more desks, each with a dependency surface small enough to stub honestly", { timeout: 60_000 }, () => {
   /* EACH ONE IS NAMED AND ITS STUBS ARE REAL SHAPES, not `as any`. A stub that
      satisfies a call site and then disagrees with the definition has caused
      three defects in this project; where a desk needs a chart engine or a live

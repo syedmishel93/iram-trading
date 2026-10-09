@@ -1,4 +1,8 @@
-import { defineConfig } from 'vite'
+// `vitest/config`, NOT `vite`: the `test` block below is not part of Vite's
+// own config type, and importing from 'vite' makes `tsc` reject it. Caught by
+// running the type check after the config changed, which is the only reason
+// this was not shipped red.
+import { defineConfig } from 'vitest/config'
 import { viteSingleFile } from 'vite-plugin-singlefile'
 
 // The shipped artefact is ONE self-contained index.html: it must open from a
