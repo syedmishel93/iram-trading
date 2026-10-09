@@ -115,8 +115,12 @@ export const REGISTRY: readonly SlotEntry[] = [ /* one entry per slot, 33 today 
 
 `SectionId` is derived from the existing `SECTIONS` in `settings/defs.ts`
 (`(typeof SECTIONS)[number]["id"]`), never restated — so a preference filed
-under a section that does not exist is a compile error. `ControlShape` is the
-smallest set the ten preferences actually need:
+under a section that does not exist is a compile error. **CORRECTED 2026-10-09, while planning:** `settings/schema.ts` already exports
+`SettingControl` with `number | text | toggle | colour | select | note |
+action` and a preview kind. The registry uses THAT. A `ControlShape` here
+would be a second definition of a type this repository already owns, which is
+the mistake its own rules name. The shape below is kept only to record what
+was proposed and why it was dropped:
 
 ```ts
 export type ControlShape =
