@@ -105,6 +105,27 @@ export interface DeskBarOptions {
    * would make every tab twice as wide, and the row is measured to fit.
    */
   readonly leads?: Readonly<Record<string, string>>;
+  /**
+   * WHERE YOU WERE IN EACH WORKSPACE, ACROSS A RESTART.
+   *
+   * `lastIn` below was a bare `Map`, so it lived exactly as long as the page.
+   * Every morning put every workspace back on its FIRST desk — and this file's
+   * own header argues that a desk two clicks away is a desk nobody uses. A
+   * workspace that forgets is that, daily.
+   *
+   * BOTH OPTIONAL, AND NO DEFAULT. A default that reached the real store is the
+   * rule this repository has broken six times through three doors: four test
+   * files missing an env var, a history client defaulting to the live bars
+   * route, a backup transport defaulting to the live one. There is no spelling
+   * of this call that touches storage unless the caller passes these, which a
+   * default can never promise.
+   *
+   * `remember` is handed the WHOLE map rather than one pair, because the shell
+   * persists preferences as one snapshot written on change; a per-pair callback
+   * would make the caller rebuild the map anyway.
+   */
+  readonly recall?: () => Readonly<Record<string, string>>;
+  readonly remember?: (map: Readonly<Record<string, string>>) => void;
 }
 
 /** Used only until the button has been laid out and can report its own width. */
@@ -138,10 +159,29 @@ export function createDeskBar(opts: DeskBarOptions): HTMLElement {
    * already in opens its menu.
    */
   const lastIn = new Map<string, string>();
+
+  /* SEEDED FROM THE STORE, AND EVERY STORED PAIR IS CHECKED.
+     A desk id is persisted and desks get renamed, retired and re-grouped — so
+     a stored pair can name a desk that no longer exists (a blank view), or a
+     real desk filed under the wrong workspace (a click on Trade that lands on
+     a Review desk, with the bar highlighting neither). Both are worse than
+     forgetting. Only a pair whose desk is really IN that group survives. */
+  if (opts.recall !== undefined) {
+    const stored = opts.recall();
+    for (const g of groups) {
+      const want = stored[g.id];
+      if (want !== undefined && g.desks.some((d) => d.id === want)) lastIn.set(g.id, want);
+    }
+  }
+
   effect(() => {
     const cur = opts.current();
     const g = groupOf.get(cur);
-    if (g) lastIn.set(g.id, cur);
+    if (!g || lastIn.get(g.id) === cur) return;
+    lastIn.set(g.id, cur);
+    /* Written here rather than by a later effect: a preference that is not
+       durable at the moment it changes is not a preference (`learn/store.ts`). */
+    opts.remember?.(Object.fromEntries(lastIn));
   });
   const entryOf = (g: DeskGroup): string => lastIn.get(g.id) ?? (g.desks[0] as DeskDef).id;
 

@@ -67,6 +67,14 @@ export interface CommandBarDeps {
   readonly broker: ReturnType<typeof createBrokerModel>;
   /** Opens the chart with the inspector on one card — for "All tools". */
   readonly revealCard: (id: string) => void;
+  /**
+   * Which desk each workspace reopens on, persisted.
+   *
+   * Passed through rather than read here: the shell writes every preference as
+   * ONE snapshot, and a second writer to that slot would be a second owner of
+   * it. See `ui/deskbar.ts` for why both halves are optional.
+   */
+  readonly workspaceDesks: Signal<Readonly<Record<string, string>>>;
 }
 
 /** Build the command bar. Returns the row; keeps nothing. */
@@ -120,6 +128,8 @@ export function createCommandBar(ctx: ShellContext, d: CommandBarDeps) {
       ctx: { commands, keymap },
       commandFor: (id) => `view.${id}`,
       leads: WORKSPACE_LEAD,
+      recall: () => d.workspaceDesks(),
+      remember: (map) => d.workspaceDesks.set(map),
     }),
 
     /**

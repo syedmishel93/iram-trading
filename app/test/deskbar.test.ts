@@ -166,3 +166,94 @@ describe("the v59 workspaces themselves", () => {
     expect(new Set(grouped).size).toBe(grouped.length);
   });
 });
+
+type Recalled = Readonly<Record<string, string>>;
+
+describe("where you were, after a restart", () => {
+  /** A second mount, as a reload is: a new bar over the same stored map. */
+  function mountWith(start: string, recall: () => Recalled, remember: (m: Recalled) => void) {
+    const current = signal(start);
+    const selected: string[] = [];
+    const el = createDeskBar({
+      desks: DESKS,
+      current: () => current(),
+      onSelect: (id: string) => {
+        selected.push(id);
+        current.set(id);
+      },
+      ctx: { commands: createCommands(), keymap: createKeymap() },
+      recall,
+      remember,
+    });
+    document.body.appendChild(el);
+    return {
+      current,
+      selected,
+      tab: (group: string) => el.querySelector(`[data-desk="${group}"]`) as HTMLButtonElement,
+    };
+  }
+
+  it("REMEMBERS THE DESK, so the morning does not start with re-navigating", async () => {
+    /* MEASURED before this: `lastIn` is a `new Map()` inside the factory, so a
+       reload puts every workspace back on its FIRST desk. The bar's own header
+       argues that a desk two clicks away is a desk nobody uses; a workspace
+       that forgets is exactly that, every morning. */
+    const store: Record<string, string> = {};
+    const recall = (): Recalled => store;
+    const remember = (m: Recalled): void => void Object.assign(store, m);
+
+    const first = mountWith("briefing", recall, remember);
+    first.current.set("flow");
+    await flush();
+    /* `briefing` has no group, so it IS its own workspace and records itself —
+       `groupDesks` keys a lone desk by its own id. Pinned rather than filtered
+       out: a solo workspace remembering itself is the behaviour, not noise. */
+    expect(store["Trade"], "nothing was stored when the desk changed").toBe("flow");
+    expect(store["briefing"]).toBe("briefing");
+
+    /* The reload. */
+    const again = mountWith("briefing", recall, remember);
+    again.tab("Trade").click();
+    expect(again.selected.at(-1), "the workspace forgot where you were").toBe("flow");
+  });
+
+  it("IGNORES A STORED DESK THAT NO LONGER EXISTS", () => {
+    /* A desk id is persisted, and desks get renamed and retired. A stored id
+       that names nothing must fall back to the workspace's first desk rather
+       than selecting a view the shell cannot render — the blank-desk failure
+       `views.ts` already guards its ids against. */
+    const store: Record<string, string> = { Trade: "a-desk-that-went-away", Review: "learn" };
+    const m = mountWith("briefing", () => store, () => {});
+    m.tab("Trade").click();
+    expect(m.selected.at(-1)).toBe("chart");
+    m.tab("Review").click();
+    expect(m.selected.at(-1), "a stored id that IS real should still be honoured").toBe("learn");
+  });
+
+  it("IGNORES A STORED DESK FILED UNDER THE WRONG WORKSPACE", () => {
+    /* Re-grouping moves desks between workspaces, and the stored map is keyed
+       by workspace. "Trade: journal" is a real desk in the wrong bucket, which
+       would send a click on Trade to a Review desk — worse than forgetting,
+       because then the bar highlights neither. */
+    const store: Record<string, string> = { Trade: "journal" };
+    const m = mountWith("briefing", () => store, () => {});
+    m.tab("Trade").click();
+    expect(m.selected.at(-1)).toBe("chart");
+  });
+
+  it("STILL WORKS WITH NOTHING PASSED, because the store is opt-in", async () => {
+    /* No `recall`, no `remember`: the old in-memory behaviour exactly. A
+       default that reached a real store is the rule this repository has broken
+       six times through three different doors. */
+    const { current, selected, tab } = mount("briefing");
+    current.set("flow");
+    await flush();
+    /* Step OUT of Trade before clicking it. A click on the workspace you are
+       standing in opens its menu and selects nothing, which is correct and is
+       what the first version of this test got wrong. */
+    current.set("journal");
+    await flush();
+    tab("Trade").click();
+    expect(selected.at(-1)).toBe("flow");
+  });
+});

@@ -603,6 +603,24 @@ export function mountShell(root: HTMLElement): void {
     scheduleFrame(() => setupMount.el?.scrollIntoView?.({ block: "start" }));
   };
 
+  /**
+   * WHICH DESK EACH WORKSPACE REOPENS ON.
+   *
+   * The desk bar held this in a bare `Map`, so it lived exactly as long as the
+   * page: every morning put every workspace back on its first desk, and that
+   * file's own header argues a desk two clicks away is a desk nobody uses.
+   *
+   * Seeded from the snapshot read at boot. A stored pair naming a desk that no
+   * longer exists, or a real desk filed under the wrong workspace, is dropped
+   * by the bar rather than here — it is the bar that knows the grouping.
+   */
+  const storedWorkspaces = prefs["workspaceDesks"];
+  const workspaceDesks = signal<Readonly<Record<string, string>>>(
+    storedWorkspaces !== null && typeof storedWorkspaces === "object" && !Array.isArray(storedWorkspaces)
+      ? (storedWorkspaces as Readonly<Record<string, string>>)
+      : {},
+  );
+
   /** What every user-facing dock control writes: the screen AND the intent. */
   const dockToggle = boolSignal(
     () => state.dockOpen(),
@@ -657,6 +675,7 @@ export function mountShell(root: HTMLElement): void {
       detectMinConfidence: detectMinConfidence(),
       detectDensity: detectDensity(),
       detectDirection: detectDirection(),
+      workspaceDesks: workspaceDesks(),
     };
     const res = kv.write(PREFS_SLOT, snapshot);
     // Quota is worth saying out loud once: the user's next question is why the
@@ -2609,6 +2628,7 @@ export function mountShell(root: HTMLElement): void {
     dockToggle,
     settings,
     palette,
+    workspaceDesks,
     broker,
     /* The dock's cards are built further down; this runs at click time. */
     revealCard: (id: string) => {

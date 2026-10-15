@@ -39,6 +39,10 @@ export type PrefValue =
   | boolean
   | string[]
   | Readonly<Record<string, Readonly<Record<string, number>>>>
+  /* workspace -> the desk last open in it. A flat string map rather than two
+     fields packed into one string: an opaque key that has to be split is how a
+     chain id ends up in an address column, which this repository records. */
+  | Readonly<Record<string, string>>
   | null;
 
 /**

@@ -7,7 +7,7 @@ import {
   type RawStore,
   type Slot,
 } from "../src/store/kv";
-import { PREFS_SLOT } from "../src/ui/shell/prefs";
+import { PREFS_SLOT, loadPrefs } from "../src/ui/shell/prefs";
 
 const numberSlot = (version: number, migrations?: Record<number, (v: unknown) => unknown>): Slot<{ n: number }> => ({
   key: "thing",
@@ -315,5 +315,33 @@ describe("shell.prefs v1 -> v2 — the news bar default", () => {
     const report = kv.read(PREFS_SLOT);
     expect(report.outcome).toBe("hit");
     expect(report.value["newsBar"] !== false).toBe(false);
+  });
+});
+
+describe("the preferences bag holds a workspace map", () => {
+  it("ROUND-TRIPS WORKSPACE -> DESK through the real store", () => {
+    /* The desk bar remembers which desk each workspace reopens on, and the
+       shell persists it inside the preferences snapshot. `PrefValue` had no arm
+       that a flat string map fitted, so this pins the arm that was added for
+       it: stored, read back identical, and still a string map after the
+       validator has seen it.
+
+       The alternative was packing two fields into one string ("Trade:chart"),
+       which is the opaque-key trap this repository records — an address column
+       that silently held a chain id. */
+    const kv = createKV(memoryRawStore());
+    const map = { Trade: "chart", Review: "journal", briefing: "briefing" };
+    expect(kv.write(PREFS_SLOT, { workspaceDesks: map }).ok).toBe(true);
+
+    const back = loadPrefs(kv)["workspaceDesks"];
+    expect(back).toEqual(map);
+  });
+
+  it("SURVIVES A SECOND READER, which is what a reload is", () => {
+    const raw = memoryRawStore();
+    const first = createKV(raw);
+    first.write(PREFS_SLOT, { workspaceDesks: { Trade: "flow" } });
+    /* A fresh store over the same bytes. */
+    expect(loadPrefs(createKV(raw))["workspaceDesks"]).toEqual({ Trade: "flow" });
   });
 });
