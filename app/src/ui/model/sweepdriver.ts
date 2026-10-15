@@ -29,7 +29,8 @@ import { checkHistory } from "../../backtest/sweepplan";
 import { createStudyRunner } from "../../backtest/labrunner";
 import { scheduleFrame } from "../../core/frame";
 import { signal } from "../../core/signal";
-import { hashCosts, hashField, staleness, summarise, sweepKey } from "../../backtest/sweepcache";
+import { hashBar, hashCosts, hashField, staleness, summarise, sweepKey } from "../../backtest/sweepcache";
+import type { PromotionBar } from "../../backtest/promote";
 import type { SweepCache, SweepSummary } from "../../backtest/sweepcache";
 import type { AutoRunDeps, AutoRunReport, RunProgress } from "../../backtest/autorun";
 import type { BarView } from "../../chart/series";
@@ -45,6 +46,17 @@ export interface SweepDriverDeps {
   /** Fetches the study window. `ui/strategy/load.ts` `loadStudyBars`. */
   readonly load: (symbol: string, timeframe: string, hooks: LoadHooks) => Promise<LoadedBars>;
   readonly costs: () => Costs;
+  /**
+   * The promotion bar every survivor has to clear.
+   *
+   * OPTIONAL, so a caller that does not set one keeps `promote`'s published
+   * standard and the cache key it already had — no stored sweep is orphaned by
+   * this existing. When it IS passed, it goes into the key: what survived
+   * depends on the bar as much as on the costs, and serving a verdict reached
+   * at thirty out-of-sample trades to somebody who has lowered the floor to
+   * five is a conclusion nobody reached.
+   */
+  readonly bar?: () => PromotionBar;
   /** Risk per trade as a FRACTION, not a percentage. */
   readonly riskPerTrade: () => number;
   /** Rules the operator retired on this market, which must not re-enter. */
@@ -130,7 +142,14 @@ export function createSweepDriver(deps: SweepDriverDeps): SweepDriver {
       ...(deps.maxHybrids === undefined ? {} : { maxHybrids: deps.maxHybrids }),
       ...(exclude.length === 0 ? {} : { exclude }),
     });
-    return sweepKey(symbol, timeframe, hashField(built.entrants), hashCosts(deps.costs()));
+    const bar = deps.bar?.();
+    return sweepKey(
+      symbol,
+      timeframe,
+      hashField(built.entrants),
+      hashCosts(deps.costs()),
+      bar === undefined ? "" : hashBar(bar),
+    );
   };
 
   function recall(symbol: string, timeframe: string, lastBar: number): SweepSummary | null {
@@ -192,7 +211,14 @@ export function createSweepDriver(deps: SweepDriverDeps): SweepDriver {
          and this terminal usually is one. */
       await new Promise((r) => scheduleFrame(() => scheduleFrame(() => r(null))));
 
-      const studyOpts = { costs, riskPerTrade: risk, coverage: got.coverage, containsDemo: got.demo };
+      const bar = deps.bar?.();
+      const studyOpts = {
+        costs,
+        riskPerTrade: risk,
+        coverage: got.coverage,
+        containsDemo: got.demo,
+        ...(bar === undefined ? {} : { bar }),
+      };
       const runStudies = deps.makeRunner
         ? deps.makeRunner(got.bars, local.signal)
         : createStudyRunner({ bars: got.bars, opts: studyOpts, signal: local.signal });

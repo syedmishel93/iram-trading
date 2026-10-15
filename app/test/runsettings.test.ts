@@ -34,7 +34,8 @@ import {
   type RunSettings,
 } from "../src/backtest/settings";
 import { DEFAULT_COSTS } from "../src/backtest/engine";
-import { MAX_PBO, MIN_OOS_TRADES, MIN_RETENTION } from "../src/backtest/promote";
+import { MAX_PBO, MIN_OOS_TRADES, MIN_RETENTION, STANDARD_BAR } from "../src/backtest/promote";
+import { barOf } from "../src/backtest/settings";
 import { buildSettings, type DefDeps } from "../src/settings/defs";
 import { stubDeps } from "./helpers/shippedsettings";
 import { createSettingsStore } from "../src/backtest/settingsstore";
@@ -266,5 +267,29 @@ describe("the Backtesting section in Settings", () => {
     const defs = built({ backtest: undefined });
     expect(defs.filter((x) => x.id.startsWith("backtest.") && x.control.kind === "number")).toEqual([]);
     expect(defs.find((x) => x.id === "backtest.preset")?.unavailable?.()).toBeTruthy();
+  });
+});
+
+describe("the bar the gate is handed", () => {
+  it("IS THE GATE'S OWN PUBLISHED STANDARD, for the standard settings", () => {
+    /* A projection that quietly differed from the gate's own default would
+       re-decide every strategy on the shelf for a reason nobody chose — the
+       same guarantee `toBacktestOptions(STANDARD)` carries for the costs. */
+    expect(barOf(STANDARD)).toEqual(STANDARD_BAR);
+  });
+
+  it("CARRIES AN EDITED BAR THROUGH", () => {
+    const edited: RunSettings = { ...STANDARD, bar: { ...STANDARD.bar, minTrades: 7, maxPbo: 0.8 } };
+    expect(barOf(edited)).toEqual({ minTrades: 7, maxPbo: 0.8, minRetention: STANDARD.bar.minRetention });
+  });
+
+  it("LEAVES THE SEARCH CHARGE OUT, because it is a different question", () => {
+    /* `chargeForSearch` belongs to the best-of-N hurdle, not the promotion
+       gate: one asks whether the winner beat what luck scores over the field,
+       the other whether this strategy held up out of sample at all. One object
+       holding both would invite switching off the wrong one. */
+    const off: RunSettings = { ...STANDARD, bar: { ...STANDARD.bar, chargeForSearch: false } };
+    expect(barOf(off)).toEqual(barOf(STANDARD));
+    expect(Object.keys(barOf(STANDARD)).sort()).toEqual(["maxPbo", "minRetention", "minTrades"]);
   });
 });

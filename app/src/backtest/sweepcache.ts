@@ -38,6 +38,7 @@
 import { intervalMs } from "../data/history";
 import type { AutoRunReport, Entrant } from "./autorun";
 import type { Costs } from "./engine";
+import type { PromotionBar } from "./promote";
 import type { KV, Slot } from "../store/kv";
 
 /** New bars before a cached sweep is worth re-running. */
@@ -142,8 +143,36 @@ export function hashCosts(costs: Costs): string {
   return digest(keys.map((k) => `${k}=${costs[k]}`).join("|"));
 }
 
-export function sweepKey(symbol: string, timeframe: string, field: string, costs: string): string {
-  return `${symbol.toUpperCase()}|${timeframe}|${field}|${costs}`;
+/**
+ * The promotion bar, as part of the question too.
+ *
+ * What survived a sweep depends on the bar it had to clear every bit as much
+ * as on the costs it was charged, and the three thresholds became something the
+ * operator can move. A verdict reached at thirty out-of-sample trades, served
+ * back to somebody who has since lowered the floor to five, is a conclusion
+ * nobody reached — the same defect as the financing the cost hash used to omit,
+ * caught before it could ship rather than after.
+ *
+ * Derived from `Object.keys`, for the reason the costs hash now is: the
+ * hand-written list is what goes wrong.
+ */
+export function hashBar(bar: PromotionBar): string {
+  const keys = Object.keys(bar).sort() as Array<keyof PromotionBar>;
+  return digest(keys.map((k) => `${k}=${bar[k]}`).join("|"));
+}
+
+export function sweepKey(
+  symbol: string,
+  timeframe: string,
+  field: string,
+  costs: string,
+  bar = "",
+): string {
+  /* `bar` defaults to empty so every existing caller keeps the key it had and
+     no stored sweep is orphaned by the signature alone. A caller that passes
+     one gets a key that distinguishes the bar; one that does not is exactly
+     where it was. */
+  return `${symbol.toUpperCase()}|${timeframe}|${field}|${costs}${bar === "" ? "" : `|${bar}`}`;
 }
 
 export interface Staleness {

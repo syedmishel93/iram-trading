@@ -73,9 +73,43 @@ export interface PromotionCheck {
   readonly text: string;
 }
 
+/**
+ * THE THREE THRESHOLDS, AS A VALUE THE OPERATOR MAY MOVE.
+ *
+ * This file argues that a gate you cannot argue with is a gate you learn to
+ * switch off — and these were module constants, so the only way to disagree
+ * with them was to stop using the gate. They stay here as the published
+ * standard and the default; `backtest/settings.ts` is where the operator's
+ * version lives.
+ *
+ * TWO OF THE FIVE CHECKS TAKE NO THRESHOLD AND NEVER WILL. Losing money out of
+ * sample, and one good period out of three, are not settings — they are the
+ * thing a gate IS. There is no bar that buys past either, and a test says so.
+ */
+export interface PromotionBar {
+  readonly minTrades: number;
+  readonly maxPbo: number;
+  readonly minRetention: number;
+}
+
+export const STANDARD_BAR: PromotionBar = {
+  minTrades: MIN_OOS_TRADES,
+  maxPbo: MAX_PBO,
+  minRetention: MIN_RETENTION,
+};
+
 export interface Promotion {
   readonly promoted: boolean;
   readonly checks: readonly PromotionCheck[];
+  /**
+   * Which bar this was judged against.
+   *
+   * "Promoted" earned at one out-of-sample trade is not the same claim as
+   * "Promoted" at thirty, and a badge that reads the same either way is the
+   * false claim this product exists to refuse. So a promotion bought by
+   * loosening declares the purchase, here and in the summary.
+   */
+  readonly bar: { readonly standard: boolean; readonly moved: readonly string[] };
   /** One line, for a desk row. */
   readonly summary: string;
   /** Out-of-sample metrics, so a caller never has to reach for in-sample ones. */
@@ -94,17 +128,37 @@ const r = (v: number): string => `${v >= 0 ? "+" : ""}${v.toFixed(2)}R`;
  * applicable rather than silently passed — a check nobody ran is not a check
  * that passed, and folding it into a pass is how a gate becomes decoration.
  */
-export function promote(wf: WalkForwardResult, pbo?: PboResult): Promotion {
+export function promote(
+  wf: WalkForwardResult,
+  pbo?: PboResult,
+  bar: PromotionBar = STANDARD_BAR,
+): Promotion {
   const oos = wf.aggregate;
   const checks: PromotionCheck[] = [];
 
-  const enough = oos.trades >= MIN_OOS_TRADES;
+  /* WHAT MOVED, IN THE OPERATOR'S WORDS. Computed before the checks so the
+     summary can admit it, and compared against the PUBLISHED STANDARD rather
+     than against the last run: "looser than last time" is not the claim that
+     matters, "looser than the standard" is. Tightening is not listed — a
+     stricter bar needs no confession. */
+  const moved: string[] = [];
+  if (bar.minTrades < MIN_OOS_TRADES) {
+    moved.push(`needs ${bar.minTrades} out-of-sample trades instead of ${MIN_OOS_TRADES}`);
+  }
+  if (bar.maxPbo > MAX_PBO) {
+    moved.push(`allows ${pctOf(bar.maxPbo)} overfit risk instead of ${pctOf(MAX_PBO)}`);
+  }
+  if (bar.minRetention < MIN_RETENTION) {
+    moved.push(`needs ${pctOf(bar.minRetention)} of the edge to survive instead of ${pctOf(MIN_RETENTION)}`);
+  }
+
+  const enough = oos.trades >= bar.minTrades;
   checks.push({
     id: "sample",
     passed: enough,
     text: enough
       ? `${oos.trades} out-of-sample trades — enough to read.`
-      : `${oos.trades} out-of-sample trades, under ${MIN_OOS_TRADES}. Nothing below this line means anything yet.`,
+      : `${oos.trades} out-of-sample trades, under ${bar.minTrades}. Nothing below this line means anything yet.`,
   });
 
   const positive = oos.expectancyR > 0;
@@ -119,12 +173,12 @@ export function promote(wf: WalkForwardResult, pbo?: PboResult): Promotion {
   /* Retention is only meaningful when the in-sample edge was positive to
      begin with. A strategy that lost in sample and lost less out of sample has
      a flattering ratio and no edge. */
-  const held = Number.isFinite(wf.degradation) && wf.degradation >= MIN_RETENTION && positive;
+  const held = Number.isFinite(wf.degradation) && wf.degradation >= bar.minRetention && positive;
   checks.push({
     id: "retention",
     passed: held,
     text: Number.isFinite(wf.degradation)
-      ? `${pctOf(wf.degradation)} of the in-sample edge survived out of sample${held ? "." : `, under the ${pctOf(MIN_RETENTION)} floor — most of it was a description of the training slice.`}`
+      ? `${pctOf(wf.degradation)} of the in-sample edge survived out of sample${held ? "." : `, under the ${pctOf(bar.minRetention)} floor — most of it was a description of the training slice.`}`
       : "No usable in-sample edge to degrade from.",
   });
 
@@ -137,13 +191,13 @@ export function promote(wf: WalkForwardResult, pbo?: PboResult): Promotion {
   });
 
   if (pbo !== undefined) {
-    const ok = pbo.pbo <= MAX_PBO;
+    const ok = pbo.pbo <= bar.maxPbo;
     checks.push({
       id: "pbo",
       passed: ok,
       /* The check on the SELECTION, not on this strategy. A candidate can be
          individually sound and still be one the sweep had no ability to pick. */
-      text: `PBO ${pctOf(pbo.pbo)}${ok ? " — the selection carries information." : ` — above ${pctOf(MAX_PBO)}, so choosing the best of this set is not distinguishable from choosing at random. That is a fact about the SET, not about this strategy.`}`,
+      text: `PBO ${pctOf(pbo.pbo)}${ok ? " — the selection carries information." : ` — above ${pctOf(bar.maxPbo)}, so choosing the best of this set is not distinguishable from choosing at random. That is a fact about the SET, not about this strategy.`}`,
     });
   } else {
     checks.push({
@@ -156,12 +210,16 @@ export function promote(wf: WalkForwardResult, pbo?: PboResult): Promotion {
   const promoted = checks.every((c) => c.passed);
   const failed = checks.filter((c) => !c.passed).length;
 
+  const standard = moved.length === 0;
   return {
     promoted,
     checks,
+    bar: { standard, moved },
     outOfSample: oos,
     summary: promoted
-      ? `Promoted — ${r(oos.expectancyR)} over ${oos.trades} out-of-sample trades, ${pctOf(wf.degradation)} of the edge retained.`
+      ? `Promoted — ${r(oos.expectancyR)} over ${oos.trades} out-of-sample trades, ${pctOf(wf.degradation)} of the edge retained.${
+          standard ? "" : ` Against a LOOSENED bar: ${moved.join("; ")}.`
+        }`
       : `Not promoted — ${failed} of ${checks.length} checks failed.`,
   };
 }

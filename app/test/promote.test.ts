@@ -424,3 +424,87 @@ describe("the v49 structural specs", () => {
     }
   });
 });
+
+describe("the bar the operator set, and the parts of it that are not theirs", () => {
+  /**
+   * WHY THE GATE TAKES A BAR AT ALL.
+   *
+   * This file's own argument is that a gate you cannot argue with is a gate you
+   * learn to switch off — and the three thresholds were module constants, so
+   * the only way to disagree with them was to stop using the gate. They stay
+   * here as the published standard and the default; the operator may move them.
+   *
+   * WHAT MOVING THEM MUST COST: the promotion has to say so. "Promoted" earned
+   * at one out-of-sample trade is not the same claim as "Promoted" at thirty,
+   * and a badge that reads the same either way is the false claim this whole
+   * product exists to refuse.
+   *
+   * AND TWO CHECKS ARE NOT NEGOTIABLE. Losing money out of sample, and one good
+   * period out of three, are not thresholds — they are the thing a gate is.
+   * No bar can buy past them.
+   */
+
+  it("BEHAVES EXACTLY AS BEFORE WHEN NO BAR IS PASSED", () => {
+    /* The no-change guarantee. Every existing call site passes two arguments,
+       and a gate that quietly moved under them would re-decide every strategy
+       on the shelf for a reason nobody chose. */
+    const thin = wf({ aggregate: metrics({ trades: 12, expectancyR: 2 }) });
+    expect(promote(thin, pboOf(0.1)).promoted).toBe(false);
+    expect(promote(wf(), pboOf(0.2)).promoted).toBe(true);
+    expect(promote(wf(), pboOf(0.9)).promoted).toBe(false);
+  });
+
+  it("SAYS THE BAR WAS THE STANDARD ONE WHEN IT WAS", () => {
+    const p = promote(wf(), pboOf(0.2));
+    expect(p.bar.standard).toBe(true);
+    expect(p.bar.moved).toEqual([]);
+  });
+
+  it("LETS A TIGHTER BAR FAIL WHAT THE STANDARD PASSES", () => {
+    const p = promote(wf(), pboOf(0.2), { minTrades: 200, maxPbo: MAX_PBO, minRetention: MIN_RETENTION });
+    expect(p.promoted).toBe(false);
+    expect(p.checks.find((c) => c.id === "sample")?.text).toMatch(/200/);
+  });
+
+  it("LETS A LOOSER BAR PASS WHAT THE STANDARD FAILS, AND NAMES WHAT MOVED", () => {
+    /* The important half. A promotion bought by loosening must declare the
+       purchase, or the word "Promoted" stops carrying information. */
+    const thin = wf({ aggregate: metrics({ trades: 12, expectancyR: 0.25, winRate: 0.45 }) });
+    expect(promote(thin, pboOf(0.2)).promoted).toBe(false);
+
+    const loose = promote(thin, pboOf(0.2), { minTrades: 5, maxPbo: MAX_PBO, minRetention: MIN_RETENTION });
+    expect(loose.promoted).toBe(true);
+    expect(loose.bar.standard, "a loosened bar reported itself as the standard").toBe(false);
+    expect(loose.bar.moved.join(" ")).toMatch(/trades/i);
+    expect(loose.summary, "the summary does not admit the bar was moved").toMatch(/loosened|moved|lowered/i);
+  });
+
+  it("NEVER PROMOTES SOMETHING THAT LOST MONEY OUT OF SAMPLE, AT ANY BAR", () => {
+    /* Not a threshold. `promote.ts`'s header says it never promotes on
+       in-sample numbers "at any threshold, for any reason", and this is the
+       same sentence: there is no setting that buys past a negative
+       out-of-sample expectancy. */
+    const losing = wf({ aggregate: metrics({ trades: 500, expectancyR: -0.4 }), degradation: 0.9 });
+    const anything = { minTrades: 1, maxPbo: 1, minRetention: 0 };
+    const p = promote(losing, pboOf(0.99), anything);
+    expect(p.promoted).toBe(false);
+    expect(p.checks.find((c) => c.id === "expectancy")?.passed).toBe(false);
+  });
+
+  it("NEVER PROMOTES ON ONE GOOD PERIOD, AT ANY BAR", () => {
+    /* "One good period is not a strategy" is this file's own words, and the
+       fold majority has no threshold to move. */
+    const oneGood = wf({ folds: [fold(0.5, 0), fold(-0.2, 1), fold(-0.3, 2)], degradation: 0.9 });
+    const p = promote(oneGood, pboOf(0.01), { minTrades: 1, maxPbo: 1, minRetention: 0 });
+    expect(p.promoted).toBe(false);
+    expect(p.checks.find((c) => c.id === "folds")?.passed).toBe(false);
+  });
+
+  it("STILL REFUSES A PBO NOBODY COMPUTED, whatever the bar says", () => {
+    /* A check nobody ran is not a check that passed, and a ceiling of 100%
+       must not turn an absent measurement into a pass. */
+    const p = promote(wf(), undefined, { minTrades: 1, maxPbo: 1, minRetention: 0 });
+    expect(p.checks.find((c) => c.id === "pbo")?.passed).toBe(false);
+    expect(p.promoted).toBe(false);
+  });
+});

@@ -48,7 +48,7 @@
  */
 
 import { DEFAULT_COSTS, type BacktestOptions, type Costs } from "./engine";
-import { MAX_PBO, MIN_OOS_TRADES, MIN_RETENTION } from "./promote";
+import { MAX_PBO, MIN_OOS_TRADES, MIN_RETENTION, type PromotionBar } from "./promote";
 
 /* ----------------------------------------------------------- the shape -- */
 
@@ -264,6 +264,24 @@ export function costsFor(s: RunSettings, measured?: Partial<Costs>): Costs {
     slippage: said.slippage ?? DEFAULT_COSTS.slippage,
     carryPerNight: said.carryPerNight ?? DEFAULT_COSTS.carryPerNight,
   };
+}
+
+/**
+ * This configuration as the promotion gate's bar.
+ *
+ * The gate keeps its three published thresholds and `STANDARD` copies them, so
+ * `barOf(STANDARD)` IS `STANDARD_BAR` — asserted, because a projection that
+ * quietly differed from the gate's own default would re-decide every strategy
+ * on the shelf for a reason nobody chose.
+ *
+ * `chargeForSearch` is deliberately NOT here. It belongs to the best-of-N
+ * hurdle in `study/stats.ts`, which is a different question from the promotion
+ * gate: one asks whether the winner beat what luck would have scored over the
+ * field, the other whether this strategy held up out of sample at all. Folding
+ * them into one object would invite a caller to switch off the wrong one.
+ */
+export function barOf(s: RunSettings): PromotionBar {
+  return { minTrades: s.bar.minTrades, maxPbo: s.bar.maxPbo, minRetention: s.bar.minRetention };
 }
 
 /**

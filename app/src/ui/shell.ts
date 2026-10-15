@@ -136,7 +136,7 @@ import { assetClass } from "../data/sessions";
 import { indexAtOrAfter } from "./shell/bars";
 import { AUTO_SEARCH_SLOT, PIN_MARK, PREFS_SLOT, RULES_SLOT, loadPrefs, viewSignal, boolSignal } from "./shell/prefs";
 import { createSettingsStore } from "../backtest/settingsstore";
-import { costsFor } from "../backtest/settings";
+import { barOf, costsFor } from "../backtest/settings";
 import { createSweepDriver } from "./model/sweepdriver";
 import { createSweepCache } from "../backtest/sweepcache";
 import { enrolledSeries } from "../data/library";
@@ -2745,6 +2745,17 @@ export function mountShell(root: HTMLElement): void {
      * nothing until the operator changes something.
      */
     costs: () => costsFor(backtest.settings()),
+    /**
+     * The bar every survivor has to clear, also the operator's.
+     *
+     * `promote.ts` keeps the three published thresholds and they are still the
+     * default — this only moves when the operator moves it. When they do, the
+     * promotion records WHICH bar it was judged against, so a verdict bought
+     * by loosening cannot read as a standard one; and the bar goes into the
+     * sweep's cache key, so a changed bar misses rather than serving a
+     * conclusion reached against a different one.
+     */
+    bar: () => barOf(backtest.settings()),
     riskPerTrade: () => account.effective().riskPct / 100,
     excludedFor: (sym, tf) =>
       shelf

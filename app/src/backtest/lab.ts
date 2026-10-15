@@ -30,7 +30,7 @@
 import type { BarView } from "../chart/series";
 import { runBacktest, ZERO_COSTS, type BacktestOptions, type BacktestResult } from "./engine";
 import { computeMetrics, type Metrics } from "./metrics";
-import { promote, type Promotion } from "./promote";
+import { STANDARD_BAR, promote, type Promotion, type PromotionBar } from "./promote";
 import { byRegime, type RegimeSlice } from "./regime";
 import {
   compileSpec,
@@ -584,6 +584,16 @@ export interface StudyOptions extends BacktestOptions {
   folds?: number;
   /** CSCV blocks. Must be even; more blocks means more splits and more time. */
   blocks?: number;
+  /**
+   * The promotion bar to judge against.
+   *
+   * Absent means `promote`'s published standard, which is what every caller
+   * got before this existed. Passed, the promotion says so: a result earned
+   * against a loosened bar carries the admission in `promotion.bar.moved` and
+   * in its own summary, because "Promoted" at five out-of-sample trades is not
+   * the same claim as "Promoted" at thirty.
+   */
+  bar?: PromotionBar;
 }
 
 /** Out-of-sample trades below this cannot support any conclusion at all. */
@@ -769,7 +779,10 @@ function sweep(
     overfit,
     headline: judge(configs, walk, overfit, best, grossMetrics),
     grossMetrics,
-    promotion: promote(walk, overfit),
+    /* The operator's bar when they set one, the published standard otherwise.
+       `promote` records which, so a loosened verdict cannot read as a standard
+       one anywhere downstream. */
+    promotion: promote(walk, overfit, opts.bar ?? STANDARD_BAR),
     /* The WINNER's trades, split by entry regime. Not the walk-forward pool:
        those trades come from different configurations fold by fold, so
        splitting them by regime would mix several strategies together and
