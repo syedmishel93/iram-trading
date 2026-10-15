@@ -17,6 +17,7 @@
  */
 
 import { h, clear } from "../dom";
+import { renderEffect } from "../../core/signal";
 import { buildRoutine, summarise, type RoutineInput, type RoutineStep } from "../today/routine";
 import { deskLabel } from "../shell/views";
 import type { ViewId } from "../shell/views";
@@ -114,6 +115,20 @@ export function createRoutineCard(deps: RoutineCardDeps): RoutineCard {
     }
   }
 
-  render();
+  /**
+   * IT RE-READS WHEN ITS ANSWERS CHANGE, and the first version did not.
+   *
+   * MEASURED on the running terminal: the calendar is loaded asynchronously at
+   * boot, so on one reload the step read "17 scheduled, 2 high impact" and on
+   * the next it read "could not check — the calendar did not answer". Same
+   * build, same machine; the card had simply rendered before the feed arrived
+   * and never looked again. It was only ever right by luck of timing.
+   *
+   * `renderEffect` tracks whatever `deps.read()` touches — the bars, the
+   * calendar feed, the plan, the governor's last answer — so an answer that
+   * arrives late reaches the screen. `refresh()` stays for the caller that
+   * wants to force it; this is for the ones that cannot know to.
+   */
+  renderEffect(render);
   return { el, refresh: render };
 }

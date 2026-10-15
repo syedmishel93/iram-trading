@@ -2803,6 +2803,21 @@ export function mountShell(root: HTMLElement): void {
        * the journal store. Two owners of one fact is the defect this terminal
        * keeps paying for.
        */
+      dataAge: () => {
+        const b = bars();
+        const last = b.length === 0 ? undefined : b[b.length - 1];
+        if (last === undefined) return null;
+        /* THE LIMIT COMES FROM THE BAR SIZE, through `intervalMs`, which owns
+           that fact — fourteen minutes is nothing on a daily chart and an
+           outage on a 1m one, so a fixed limit would make this step mean a
+           different thing on every timeframe. Three bars, floored at five
+           minutes so a 1m chart does not report stale between ticks. */
+        const span = intervalMs(state.timeframe());
+        return {
+          ageMin: Math.max(0, (nowMs() - last.t) / 60_000),
+          staleAfterMin: Math.max(5, (span * 3) / 60_000),
+        };
+      },
       govern: () => {
         const r = govCard.state();
         if (r === null || r.state !== "ok") return null;

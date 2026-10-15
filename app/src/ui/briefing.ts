@@ -138,6 +138,14 @@ export interface BriefingOptions {
   readonly govern?: () => { verdict: "allow" | "warn" | "block"; usedOfDailyLoss: number | null } | null;
   readonly calendarToday?: () => { total: number; high: number } | null;
   readonly reviewedLastSession?: () => boolean | null;
+  /**
+   * How old the newest bar is, and how old is too old.
+   *
+   * BOTH, because one without the other decides nothing: fourteen minutes is
+   * nothing on a daily chart and an outage on a 1m one. The limit comes from
+   * the bar size, so the step means the same thing on every timeframe.
+   */
+  readonly dataAge?: () => { ageMin: number; staleAfterMin: number } | null;
 }
 
 /** "Good morning", by the operator's own clock. PURE. */
@@ -220,6 +228,12 @@ function card(title: string, question: string, link: HTMLElement, ...body: HTMLE
  * unreachable service as 0 is the most alarming possible way to say "fine",
  * and rendering it as done is the most dangerous.
  */
+function ageInput(
+  a: { ageMin: number; staleAfterMin: number } | null,
+): { dataAgeMin?: number; dataStaleAfterMin?: number } {
+  return a === null ? {} : { dataAgeMin: a.ageMin, dataStaleAfterMin: a.staleAfterMin };
+}
+
 function govInput(
   g: { verdict: "allow" | "warn" | "block"; usedOfDailyLoss: number | null } | null,
 ): { canTrade?: boolean; dayLossUsed?: number } {
@@ -689,6 +703,7 @@ export function createBriefing(opts: BriefingOptions) {
       scanned: scanned(),
       planWritten: plan.focus().length > 0,
       alertsArmed: fires().length,
+      ...ageInput(opts.dataAge?.() ?? null),
       ...govInput(opts.govern?.() ?? null),
       ...calInput(opts.calendarToday?.() ?? null),
       ...reviewInput(opts.reviewedLastSession?.() ?? null),

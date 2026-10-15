@@ -11,6 +11,8 @@
 
 import { describe, expect, it } from "vitest";
 import { createRoutineCard } from "../src/ui/cards/routinecard";
+import { signal } from "../src/core/signal";
+import { flushFrames } from "../src/core/frame";
 import { deskLabel } from "../src/ui/shell/views";
 import type { RoutineInput } from "../src/ui/today/routine";
 
@@ -109,5 +111,49 @@ describe("the routine card", () => {
     expect(el.querySelector(".rt-count")?.textContent).toBe("0/7");
     expect(el.querySelector(".rt-says")?.textContent).toMatch(/could not be checked/i);
     expect(rows(el).every((r) => r.dataset["state"] === "unknown")).toBe(true);
+  });
+});
+
+describe("an answer that arrives late", () => {
+  it("REACHES THE SCREEN WITHOUT ANYONE CALLING REFRESH", async () => {
+    /* MEASURED on the running terminal before this: the calendar loads
+       asynchronously at boot, so one reload showed "17 scheduled, 2 high
+       impact" and the next showed "could not check — the calendar did not
+       answer". Same build, same machine — the card had rendered before the
+       feed arrived and never looked again. It was only right by luck of
+       timing, which is the worst way for a thing to be right.
+
+       The card reads through signals, so tracking them is the fix; `refresh()`
+       remains for callers that want to force it, and this is for the ones that
+       cannot know to. */
+    const calendar = signal<{ total: number; high: number } | null>(null);
+    /* GOOD carries `eventsToday`, so it has to come out of the base here or
+       the step is answered before the feed lands and the test proves nothing.
+       An expected value that is true before the change is the trap this
+       repository records as "a test that compared the bug to itself". */
+    const { eventsToday: _t, eventsHigh: _h, ...WITHOUT_CALENDAR } = GOOD;
+    const { el } = createRoutineCard({
+      read: () => {
+        const c = calendar();
+        return { ...WITHOUT_CALENDAR, ...(c === null ? {} : { eventsToday: c.total, eventsHigh: c.high }) };
+      },
+    });
+
+    const events = () =>
+      [...el.querySelectorAll(".rt-row")].find((r) => (r.textContent || "").includes("scheduled")) as HTMLElement;
+    expect(events().dataset["state"], "it should not claim an answer it does not have").toBe("unknown");
+
+    /* The feed lands, and nobody tells the card. Effects here are BATCHED, so
+       the redraw is a tick away — checking synchronously reads the old DOM and
+       reports a working card as broken, which is how I first mis-read this. */
+    calendar.set({ total: 17, high: 2 });
+    /* `renderEffect` repaints through `scheduleFrame`, so the redraw is a
+       FRAME away, not a tick. Checking synchronously reads the old DOM and
+       reports a working card as broken, which is how I first mis-read this —
+       and `scheduleFrame` exists precisely because a bare rAF never fires in
+       a tab that is not composited. */
+    flushFrames();
+    expect(events().dataset["state"]).toBe("done");
+    expect(events().querySelector(".rt-says-row")?.textContent).toMatch(/17 scheduled, 2 high impact/);
   });
 });

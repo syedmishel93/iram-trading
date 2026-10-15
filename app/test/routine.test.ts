@@ -214,3 +214,24 @@ describe("a warning is not a refusal", () => {
     expect(saysOf({ ...GOOD, canTrade: true, dayLossUsed: -0.2 }, "limits")).toMatch(/0%/);
   });
 });
+
+describe("stale means something different on every timeframe", () => {
+  it("TAKES THE LIMIT IT WAS GIVEN, rather than one number for every chart", () => {
+    /* Fourteen minutes is nothing on a daily chart and an outage on a 1m one.
+       The limit comes from the bar size, so the step means the same thing
+       everywhere — the alternative is a routine that cries stale on a daily
+       chart every afternoon and never cries at all on a minute one. */
+    const dayChart = { ...GOOD, dataAgeMin: 200, dataStaleAfterMin: 4320 };
+    expect(stateOf(dayChart, "data")).toBe("done");
+
+    const minuteChart = { ...GOOD, dataAgeMin: 200, dataStaleAfterMin: 5 };
+    expect(stateOf(minuteChart, "data")).toBe("blocked");
+    expect(saysOf(minuteChart, "data")).toMatch(/200m.*5m/);
+  });
+
+  it("ROUNDS THE AGE FOR READING, and never shows a negative one", () => {
+    /* A bar stamped slightly ahead of this machine's clock is ordinary — the
+       server stamps it — and "-2m old" reads as a fault in the terminal. */
+    expect(saysOf({ ...GOOD, dataAgeMin: 0.4 }, "data")).toMatch(/0m old/);
+  });
+});
