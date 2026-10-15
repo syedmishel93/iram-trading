@@ -135,6 +135,7 @@ import { SESSIONS } from "../data/sessionmap";
 import { assetClass } from "../data/sessions";
 import { indexAtOrAfter } from "./shell/bars";
 import { AUTO_SEARCH_SLOT, PIN_MARK, PREFS_SLOT, RULES_SLOT, loadPrefs, viewSignal, boolSignal } from "./shell/prefs";
+import { createSettingsStore } from "../backtest/settingsstore";
 import { createSweepDriver } from "./model/sweepdriver";
 import { createSweepCache } from "../backtest/sweepcache";
 import { enrolledSeries } from "../data/library";
@@ -620,6 +621,17 @@ export function mountShell(root: HTMLElement): void {
       ? (storedWorkspaces as Readonly<Record<string, string>>)
       : {},
   );
+
+  /**
+   * HOW THE BACKTESTER IS SET UP — one owner, reachable, persisted.
+   *
+   * `backtest/settings.ts` is the shape, `settingsstore.ts` is the state. Built
+   * here so the control panel, the board and the autonomous loop read ONE
+   * signal: a second owner of "what is this configured to do" is the defect
+   * that put the same cost model in eight places, four of them deciding
+   * something.
+   */
+  const backtest = createSettingsStore(kv);
 
   /** What every user-facing dock control writes: the screen AND the intent. */
   const dockToggle = boolSignal(
@@ -2407,6 +2419,7 @@ export function mountShell(root: HTMLElement): void {
       /* THE FIVE THAT PERSISTED AND COULD NOT BE FOUND, each wired to the
          thing that actually owns it. `settings/registry.ts` records why a
          store write would have been a second owner for four of them. */
+      backtest,
       riskGuards: () => riskDesk.config().guards,
       setRiskGuard: (patch) =>
         riskDesk.config.update((c) => ({ ...c, guards: { ...c.guards, ...patch } })),

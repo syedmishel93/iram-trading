@@ -81,6 +81,7 @@ import { BOOK_SLOT, CONFIG_SLOT, DAY_SLOT } from "../ui/risk";
 import { AUTO_SEARCH_SLOT, PREFS_SLOT, RULES_SLOT } from "../ui/shell/prefs";
 import { FLOW_SLOT } from "../ui/strategy/draft";
 import { TODAY_PLAN_SLOT } from "../ui/today/focus";
+import { BACKTEST_SETTINGS_SLOT } from "../backtest/settingsstore";
 import { JOURNAL_SLOT } from "../journal/store";
 import { RULES as REVIEW_RULES_SLOT, JUDGEMENTS as JUDGEMENTS_SLOT } from "../journal/review";
 import { WATCHLIST_SLOT } from "../ui/watchlist";
@@ -474,6 +475,20 @@ export const REGISTRY: readonly SlotEntry[] = [
     kind: "state",
     label: "Saved scans",
     what: "Screener filters you named and kept, to run again without rebuilding them.",
+  },
+
+  /* ---- how the backtester is set up ----
+     A PREFERENCE, not accumulated state: it changes what the engine does to
+     every strategy. It reaches Settings through its own section, which is
+     derived from the same field list the control panel renders, so the two
+     cannot disagree about what a knob is called. */
+  {
+    key: BACKTEST_SETTINGS_SLOT.key,
+    slot: anySlot(BACKTEST_SETTINGS_SLOT),
+    kind: "preference",
+    label: "How the backtester is set up",
+    what: "Fills, costs, the bar a strategy has to clear, the windows, and which checks run.",
+    coveredBy: "backtest.preset",
   },
 ];
 

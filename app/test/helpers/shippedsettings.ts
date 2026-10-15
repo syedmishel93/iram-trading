@@ -22,6 +22,7 @@ import { DEFAULT_ACCOUNT, type Account } from "../../src/core/account";
 import type { SettingDef } from "../../src/settings/schema";
 import { DEFAULT_GUARDS, type GuardConfig } from "../../src/risk/sizing";
 import { createKV, memoryRawStore } from "../../src/store/kv";
+import { createSettingsStore } from "../../src/backtest/settingsstore";
 
 /**
  * A working account store, because the definitions genuinely read it.
@@ -123,6 +124,11 @@ export function stubDeps(over: Partial<DefDeps> = {}): DefDeps {
       recording = on;
     },
     autoSearch: s(true),
+    /* The backtester's settings, over a memory store. Present here on purpose:
+       it is optional on `DefDeps`, so a stub that left it out would make every
+       test in this suite blind to the Backtesting section — the exact
+       mechanism that let five preferences persist, work, and be invisible. */
+    backtest: createSettingsStore(createKV(memoryRawStore())),
     openKeyboardSheet: () => {},
     openNotificationLog: () => {},
     exportVault: () => {},

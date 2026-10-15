@@ -202,6 +202,8 @@ const KEYS_AS_SHIPPED: readonly string[] = [
   "workspace.layout",
   /* found by review, after the scanner was widened a third time */
   "review.judgements", "screener.views", "sync.credential", "sync.state",
+  /* added with the backtester's one owner for how a run is configured */
+  "backtest.settings",
 ];
 
 /**
@@ -287,14 +289,14 @@ describe("a key declared twice", () => {
 
 describe("the kinds", () => {
   it("COUNTS BY KIND, and the counts add up", () => {
-    expect(entriesOfKind("preference")).toHaveLength(10);
+    expect(entriesOfKind("preference")).toHaveLength(11);
     /* TWO secrets, not one. The spec said this product held a single
        credential; `sync.credential` is a bearer token for the operator's own
        sync server, and it was invisible to the list whose job is to find
        exactly this. */
     expect(entriesOfKind("secret")).toHaveLength(2);
     expect(entriesOfKind("state")).toHaveLength(30);
-    expect(REGISTRY).toHaveLength(42);
+    expect(REGISTRY).toHaveLength(43);
   });
 
   it("HAS NO `legacy` ENTRY, because neither candidate turned out to be one", () => {
