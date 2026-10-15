@@ -66,6 +66,7 @@ import { createKV, type KV } from "../store/kv";
 import { createBriefCard } from "./today/brief";
 import { createPlan } from "./today/plan";
 import { createScanList } from "./today/scanlist";
+import { createRoutineCard } from "./cards/routinecard";
 import { suggestFocus } from "./today/focus";
 import { whoTag } from "./today/card";
 
@@ -119,6 +120,8 @@ export interface BriefingOptions {
   readonly scanRows?: () => readonly ScanRow[];
   /** Where the day's plan is kept. Defaults to the browser store. */
   readonly kv?: KV;
+  /** Takes the routine's rows to the desk that answers them. */
+  readonly onOpenDesk?: (view: string) => void;
 }
 
 /** "Good morning", by the operator's own clock. PURE. */
@@ -616,6 +619,34 @@ export function createBriefing(opts: BriefingOptions) {
     onPick: (sym) => opts.onPick(sym),
   });
 
+  /**
+   * THE MORNING, IN ORDER.
+   *
+   * Every piece of a pre-market routine already existed across six desks; what
+   * was missing was the sequence. The card computes nothing — `today/routine.ts`
+   * does — and it is handed only what this desk can answer TRUTHFULLY.
+   *
+   * THREE STEPS ARE NOT WIRED YET and say so rather than being left out: the
+   * governor's verdict, the economic calendar and whether the last session was
+   * reviewed all live on services this desk does not hold. They render as
+   * "could not check", which is the honest third state and the entire reason
+   * the module has one — a step shown as done because nobody asked is the
+   * "0 of 0 running" strip again.
+   */
+  const routine = createRoutineCard({
+    read: () => ({
+      /* Spread rather than `undefined`, because `exactOptionalPropertyTypes`
+         distinguishes "absent" from "present and undefined" — and so does the
+         routine: an absent watchlist is a step it could not check, which is
+         not the same as a watchlist it read and found empty. */
+      ...(opts.watchlist === undefined ? {} : { watchCount: opts.watchlist().length }),
+      scanned: scanned(),
+      planWritten: plan.focus().length > 0,
+      alertsArmed: fires().length,
+    }),
+    openDesk: (view) => opts.onOpenDesk?.(view),
+  });
+
   // ───────────────────────────────────────────────────────────── layout ───
 
   const el = h(
@@ -631,6 +662,7 @@ export function createBriefing(opts: BriefingOptions) {
       }),
     ),
     h("div", { class: "td-top" }, brief.el, plan.el),
+    routine.el,
     scanList.el,
     h(
       "div",

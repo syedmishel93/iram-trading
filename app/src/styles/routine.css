@@ -1,0 +1,104 @@
+/**
+ * The pre-market routine card.
+ *
+ * `rt-` checked against every other sheet with `scratchpad/classcollide.py`
+ * before a line was written. Every custom property here is one that is really
+ * declared: an undefined `var()` is not an ignored declaration, it INHERITS,
+ * which is how nine names left refusals typeset by their parent and a trust
+ * dot drawn fully transparent.
+ *
+ * `--pos` and `--neg` are the real names. The first draft of this file used
+ * `--buy` and `--sell`, which are declared NOWHERE — the same two names that
+ * once left a trust dot at rgba(0,0,0,0), invisible, doing the one job it had.
+ *
+ * The four states differ in LIGHTNESS as well as hue, because a reader who
+ * cannot separate the greens from the reds still has to be able to work the
+ * list — and the glyph carries the answer on its own in any case.
+ */
+
+.rt-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.rt-count {
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+}
+
+/* The headline: what the morning amounts to, in one line. */
+.rt-says {
+  font-size: var(--fs-4);
+  color: var(--text);
+}
+.rt-says[data-state="done"] { color: var(--pos); }
+.rt-says[data-state="blocked"] { color: var(--neg); }
+
+.rt-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* A 2px left rail, the idiom `.bf-event` already established on this desk —
+   a new card that reuses it looks like it belongs. */
+.rt-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-4);
+  padding: var(--sp-2) var(--sp-3);
+  border-left: 2px solid var(--border);
+  border-radius: 0 var(--r-1) var(--r-1) 0;
+}
+.rt-row[data-state="done"] { border-left-color: var(--pos); }
+.rt-row[data-state="blocked"] { border-left-color: var(--neg); }
+.rt-row[data-state="todo"] { border-left-color: var(--border-hi); }
+.rt-row[data-state="unknown"] { border-left-color: var(--border); }
+
+.rt-mark {
+  flex: 0 0 auto;
+  width: 14px;
+  text-align: center;
+  font-size: var(--fs-2);
+  color: var(--text-faint);
+}
+.rt-row[data-state="done"] .rt-mark { color: var(--pos); }
+.rt-row[data-state="blocked"] .rt-mark { color: var(--neg); }
+
+.rt-what {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.rt-label {
+  color: var(--text);
+  font-size: var(--fs-2);
+}
+
+/* The fact, with its number. One line; the reasoning lives behind the desk
+   this row points at, never here. */
+.rt-says-row {
+  color: var(--text-muted);
+  font-size: var(--fs-1);
+}
+.rt-row[data-state="unknown"] .rt-says-row { color: var(--text-faint); }
+
+.rt-to {
+  flex: 0 0 auto;
+  color: var(--text-faint);
+  font-size: var(--fs-1);
+}
+
+.rt-go {
+  flex: 0 0 auto;
+}
+
+/* A step that is already done does not need to shout where it was done. */
+.rt-row[data-state="done"] .rt-go,
+.rt-row[data-state="done"] .rt-to {
+  opacity: 0.55;
+}

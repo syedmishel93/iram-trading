@@ -2786,6 +2786,10 @@ export function mountShell(root: HTMLElement): void {
     createBriefing({
       symbol: state.symbol,
       timeframe: state.timeframe,
+      /* The routine's rows are one press from the desk that answers them. A
+         list that says what is outstanding and leaves you to find the desk is
+         a list, not a routine. */
+      onOpenDesk: (view) => state.view.set(view),
       account,
       positions: openBook,
       setup: setupView,
