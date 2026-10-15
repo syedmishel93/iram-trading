@@ -185,3 +185,32 @@ describe("a scan whose time nobody kept", () => {
     expect(stateOf({ ...GOOD, scanned: true, scannedAgoMin: 60 * 9 }, "list")).toBe("todo");
   });
 });
+
+describe("a warning is not a refusal", () => {
+  it("LETS A WARN THROUGH, because the governor distinguishes them", () => {
+    /* `GovLevel` is allow | warn | block. Collapsing warn into block would
+       stand the operator down on a day the service only wanted to raise an
+       eyebrow; collapsing it into allow would hide the eyebrow. The routine
+       takes a boolean, so the mapping lives at the boundary and is tested
+       there — the step passes on warn and the reason stays visible on the
+       Risk desk, which is where the reasons are. */
+    expect(stateOf({ ...GOOD, canTrade: true, dayLossUsed: 0.6 }, "limits")).toBe("done");
+    expect(saysOf({ ...GOOD, canTrade: true, dayLossUsed: 0.6 }, "limits")).toMatch(/60%/);
+  });
+
+  it("SAYS THE SENTENCE WITHOUT A NUMBER when the limit cannot be divided by", () => {
+    /* A zero daily-loss limit cannot produce a share. Reporting 0% would read
+       as "nothing spent", which is the most reassuring possible way to say
+       "this cannot be measured". */
+    expect(saysOf({ ...GOOD, canTrade: true, dayLossUsed: undefined }, "limits")).toBe("Inside your limits.");
+    expect(saysOf({ ...GOOD, canTrade: false, dayLossUsed: undefined }, "limits")).toBe("Stopped for the day.");
+  });
+
+  it("CLAMPS THE SHARE, because a day can go past its own limit", () => {
+    /* The governor stops you AT the limit, but a gap or a slipped stop can
+       realise more than the cap. 140% is a true number and a broken bar; the
+       step reports the standing, not the overshoot. */
+    expect(saysOf({ ...GOOD, canTrade: false, dayLossUsed: 1.4 }, "limits")).toMatch(/100%/);
+    expect(saysOf({ ...GOOD, canTrade: true, dayLossUsed: -0.2 }, "limits")).toMatch(/0%/);
+  });
+});

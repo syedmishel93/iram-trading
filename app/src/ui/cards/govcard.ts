@@ -221,7 +221,12 @@ function renderResult(r: GovResult | null, checkedAt: number | null): HTMLElemen
  * document — a detached card (dock closed, card collapsed) skips its turn
  * rather than polling for nobody. `refresh()` asks now.
  */
-export function createGovCard(): { readonly el: HTMLElement; refresh(): void } {
+export function createGovCard(): {
+  readonly el: HTMLElement;
+  refresh(): void;
+  /** The last answer, or null before one arrived. Never a recomputation. */
+  state(): GovResult | null;
+} {
   /* One signal for the answer and when it came, so one poll is one render. */
   const view = signal<{ readonly result: GovResult | null; readonly at: number | null }>({ result: null, at: null });
   let inflight = false;
@@ -245,5 +250,11 @@ export function createGovCard(): { readonly el: HTMLElement; refresh(): void } {
   onShown(el, refresh);
   refresh();
 
-  return { el, refresh };
+  /* THE ANSWER IS READ BY MORE THAN THIS CARD, and it must stay ONE poll.
+     The pre-market routine asks the same question — may I trade — and a second
+     poller would be a second owner of the governor's verdict, which is the
+     defect class this repository keeps recording. So the card owns the poll
+     and hands the result out; it never recomputes the decision and neither
+     does anyone reading this. */
+  return { el, refresh, state: () => view().result };
 }

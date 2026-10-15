@@ -406,6 +406,16 @@ export function mountShell(root: HTMLElement): void {
   const journal = createJournal(kv);
 
   /**
+   * The governor's answer, asked for ONCE.
+   *
+   * The dock card owns the poll; the pre-market routine on the Today desk
+   * reads the same result. A second asker would be a second owner of "may I
+   * trade", and this terminal already records what two owners of one fact
+   * cost.
+   */
+  const govCard = createGovCard();
+
+  /**
    * False until every desk has been constructed. See the gate in the view
    * switch below for what this is protecting against and how it was measured.
    */
@@ -2786,6 +2796,42 @@ export function mountShell(root: HTMLElement): void {
     createBriefing({
       symbol: state.symbol,
       timeframe: state.timeframe,
+      /**
+       * THE ROUTINE'S LAST THREE ANSWERS, each from the owner that already has
+       * it. No second poll: the governor's verdict is the one the dock card
+       * asked for, the calendar is the feed loaded at boot, the review reads
+       * the journal store. Two owners of one fact is the defect this terminal
+       * keeps paying for.
+       */
+      govern: () => {
+        const r = govCard.state();
+        if (r === null || r.state !== "ok") return null;
+        const g = r.value;
+        /* The share of the daily loss limit already spent. `realizedRToday` is
+           negative on a losing day and the limit is published as a POSITIVE
+           number whose meaning is its negative, so the sign is handled here
+           rather than left for a reader to guess at. A zero limit cannot be
+           divided by and reports null, which the routine renders as a sentence
+           without a number rather than as 0%. */
+        const cap = g.limits.maxDailyLossR;
+        const used = cap > 0 ? Math.min(1, Math.max(0, -g.realizedRToday / cap)) : null;
+        return { verdict: g.verdict, usedOfDailyLoss: used };
+      },
+      calendarToday: () => {
+        const feed = calendar();
+        if (feed === null) return null;
+        const DAY = 24 * 60 * 60 * 1000;
+        const ahead = upcoming(feed.events, { withinMs: DAY, now: nowMs() });
+        return { total: ahead.length, high: ahead.filter((e) => e.event.impact === "high").length };
+      },
+      reviewedLastSession: () => {
+        /* Anything written in the last day counts as having looked. The
+           journal is the only thing that knows, and "no entries at all" is a
+           real no rather than an absence — the store answered. */
+        const DAY = 24 * 60 * 60 * 1000;
+        const since = Date.now() - DAY;
+        return journal.entries().some((e) => e.openedAt >= since || (e.closedAt ?? 0) >= since);
+      },
       /* The routine's rows are one press from the desk that answers them. A
          list that says what is outstanding and leaves you to find the desk is
          a list, not a routine. */
@@ -3944,7 +3990,7 @@ export function mountShell(root: HTMLElement): void {
       /* v59.2 — cards over services that ran with no screen. Built even when
          removed from the column, like every panel here, so adding one back is
          instant and keeps its state; each polls only while it is attached. */
-      panel("gov", "Can I trade now?", createGovCard().el),
+      panel("gov", "Can I trade now?", govCard.el),
       panel(
         "alerts", "Price alerts",
         createAlertsCard({

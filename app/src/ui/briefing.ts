@@ -122,6 +122,22 @@ export interface BriefingOptions {
   readonly kv?: KV;
   /** Takes the routine's rows to the desk that answers them. */
   readonly onOpenDesk?: (view: string) => void;
+  /**
+   * THE THREE THE ROUTINE COULD NOT ANSWER, each read from its existing owner.
+   *
+   * None of these polls anything of its own. The governor's verdict comes from
+   * the card that already asks for it, the calendar from the feed the shell
+   * loads at boot, the review from the journal store — because a second
+   * asker is a second owner, and two owners of one fact is the defect this
+   * terminal keeps paying for.
+   *
+   * All optional, and `null` is a real answer meaning "asked, no answer yet".
+   * The routine renders that as "could not check", which is neither a tick
+   * nor a failure.
+   */
+  readonly govern?: () => { verdict: "allow" | "warn" | "block"; usedOfDailyLoss: number | null } | null;
+  readonly calendarToday?: () => { total: number; high: number } | null;
+  readonly reviewedLastSession?: () => boolean | null;
 }
 
 /** "Good morning", by the operator's own clock. PURE. */
@@ -195,6 +211,36 @@ function card(title: string, question: string, link: HTMLElement, ...body: HTMLE
  * reactive prop with an un-owned effect, and a list that rebuilds its rows
  * would leak one per row per rebuild. Same rule the watch rail follows.
  */
+/**
+ * The three readers, turned into routine input.
+ *
+ * EACH RETURNS AN EMPTY OBJECT WHEN IT HAS NOTHING, never a zero and never a
+ * false. `exactOptionalPropertyTypes` makes the difference real: an ABSENT key
+ * is "nobody could answer", a present `false` is "asked, and no". Rendering an
+ * unreachable service as 0 is the most alarming possible way to say "fine",
+ * and rendering it as done is the most dangerous.
+ */
+function govInput(
+  g: { verdict: "allow" | "warn" | "block"; usedOfDailyLoss: number | null } | null,
+): { canTrade?: boolean; dayLossUsed?: number } {
+  if (g === null) return {};
+  return {
+    /* "warn" is not a no. The governor distinguishes them and so does this:
+       collapsing warn into block would stand the operator down on a day the
+       service only wanted to raise an eyebrow. */
+    canTrade: g.verdict !== "block",
+    ...(g.usedOfDailyLoss === null ? {} : { dayLossUsed: g.usedOfDailyLoss }),
+  };
+}
+
+function calInput(c: { total: number; high: number } | null): { eventsToday?: number; eventsHigh?: number } {
+  return c === null ? {} : { eventsToday: c.total, eventsHigh: c.high };
+}
+
+function reviewInput(r: boolean | null): { reviewedYesterday?: boolean } {
+  return r === null ? {} : { reviewedYesterday: r };
+}
+
 function liveList(cls: string, rows: () => readonly HTMLElement[]): HTMLElement {
   const host = h("div", { class: cls }) as HTMLElement;
   renderEffect(() => {
@@ -643,6 +689,9 @@ export function createBriefing(opts: BriefingOptions) {
       scanned: scanned(),
       planWritten: plan.focus().length > 0,
       alertsArmed: fires().length,
+      ...govInput(opts.govern?.() ?? null),
+      ...calInput(opts.calendarToday?.() ?? null),
+      ...reviewInput(opts.reviewedLastSession?.() ?? null),
     }),
     openDesk: (view) => opts.onOpenDesk?.(view),
   });
