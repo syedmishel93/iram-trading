@@ -1346,7 +1346,7 @@ export function createToolset(t: TerminalAccess): ToolDef[] {
     {
       name: "find_opportunities",
       description:
-        "Rank tradeable setups across the venue universe with the Opportunities desk's own " +
+        "Rank tradeable setups across the venue universe with the Scanner desk's own " +
         "pipeline — the Setup card's detectors, setup engine, plan builder and history " +
         "replay, run per symbol on the chart's timeframe. Scans the top `universe` USDT pairs " +
         "by 24h volume (default 30, max 50) and returns the best `limit` rows (default 10, max " +

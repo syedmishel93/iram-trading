@@ -498,16 +498,36 @@ const ALLOWED: ReadonlyArray<{ text: string; why: string }> = [
 
 /** Every visible string in the tree, with where it is. */
 function visibleStrings(): Array<{ file: string; line: number; text: string }> {
-  const re = /\b(?:text|label|title|detail|placeholder|hint|aria-label)\s*:\s*"((?:[^"\\]|\\.)*)"/g;
+  /* EVERY STRING LITERAL, AND THE WIDENING IS THE POINT.
+
+     This matched `text:`/`label:`/`title:` properties holding a double-quoted
+     string, found eleven stale names and reported the class closed. It was
+     not: TWELVE more survived, each in a shape the regex could not reach — a
+     ternary arm, a TEMPLATE LITERAL, and a function argument
+     (`pkEmpty("empty", "…the Signals desk.")`) — and one of them sat in a
+     NOTIFICATION the operator reads outside the app. Matching a property name
+     is a shape, not the question, which is the same mistake as the two guards
+     this one replaced.
+
+     `strip` is deliberately NOT used here: it blanks template literals, which
+     is right for finding a desk name written as a value and wrong for finding
+     one written in a sentence. Comments are still dropped, with their
+     newlines kept so the line numbers stay true — a tool that reports the
+     wrong location is worse than one that reports nothing. */
+  const re = /"((?:[^"\\\n]|\\.)*)"|'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`/g;
   const out: Array<{ file: string; line: number; text: string }> = [];
   for (const abs of sourceFiles()) {
     const rel = relative(SRC, abs).split(/[\\/]/).join("/");
-    const lines = strip(readFileSync(abs, "utf-8")).split("\n");
+    const body = readFileSync(abs, "utf-8").replace(/\/\*[\s\S]*?\*\/|\/\/[^\n]*/g, (m) =>
+      m.replace(/[^\n]/g, " "),
+    );
+    const lines = body.split("\n");
     for (let i = 0; i < lines.length; i++) {
       re.lastIndex = 0;
       let m: RegExpExecArray | null;
       while ((m = re.exec(lines[i] as string)) !== null) {
-        out.push({ file: rel, line: i + 1, text: m[1] as string });
+        const text = m[1] ?? m[2] ?? m[3] ?? "";
+        if (text.length >= 3) out.push({ file: rel, line: i + 1, text });
       }
     }
   }
@@ -518,12 +538,39 @@ describe("a desk's OLD name, in the source", () => {
   const strings = visibleStrings();
   const allowed = new Set(ALLOWED.map((a) => a.text));
 
+  /**
+   * A STRING THAT SENDS YOU SOMEWHERE, not a string that happens to share a word.
+   *
+   * Matching the bare word over every literal reported twenty-five findings and
+   * most were ordinary English — "Conditions", "Results", "Analyse the book",
+   * "Paper trade it". A checker whose normal state is twenty-five findings is
+   * one people learn to ignore, and this repository already records that.
+   *
+   * What is actually wrong is a sentence that tells the operator to GO
+   * somewhere by a name that no longer exists. Both shapes it takes, measured
+   * against the twelve real ones that escaped the first guard:
+   *
+   *   "<Retired> desk"   twelve of the thirteen
+   *   "Open <Retired>"   the thirteenth, "Open Opportunities to scan your list"
+   *
+   * Narrow enough to act on, and it reaches into template literals and
+   * function arguments, which is where the twelve were hiding.
+   */
+  const sendsYouThere = (text: string, was: string): boolean =>
+    new RegExp(`\\b${esc(was)}\\s+desk\\b`).test(text) ||
+    /* A VERB OR A PREPOSITION IN FRONT OF IT. "Open Opportunities to scan your
+       list" has no "desk" in it, and neither does "Rescan on Opportunities" —
+       which was sitting one line above it in the same file, and which the
+       first version of this rule still missed after it had been widened once.
+       The preposition is what turns a word into a destination. */
+    new RegExp(`\\b(?:Open|open|on|from|in|to|at)\\s+(?:the\\s+)?${esc(was)}\\b`).test(text);
+
   const stale = strings.filter((s) =>
     RETIRED.some(
       ({ was, now }) =>
-        new RegExp(`\\b${esc(was)}\\b`).test(s.text) &&
-        /* "Strategy tester" contains "Strategy": the replacement being present
-           means the string was already brought up to date. */
+        sendsYouThere(s.text, was) &&
+        /* "Strategy tester desk" contains "Strategy": the replacement being
+           present means the string was already brought up to date. */
         !new RegExp(`\\b${esc(now)}\\b`).test(s.text) &&
         !allowed.has(s.text),
     ),

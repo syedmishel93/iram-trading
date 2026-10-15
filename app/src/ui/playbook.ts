@@ -2057,7 +2057,7 @@ export function createPlaybook(opts: PlaybookOptions) {
             },
           }),
           pkWhy(
-            "One rule set on one symbol over one window, with costs applied. That is a description of the past, not evidence of an edge — the Strategy desk exists to put a number on how likely this result is to be luck.",
+            "One rule set on one symbol over one window, with costs applied. That is a description of the past, not evidence of an edge — the Strategy tester desk exists to put a number on how likely this result is to be luck.",
             "What this can't tell you",
           ),
         ),

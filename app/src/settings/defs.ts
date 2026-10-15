@@ -1667,7 +1667,7 @@ export function buildSettings(d: DefDeps): SettingDef[] {
       control: { kind: "note", tone: "warn" },
       keywords: ["pbo", "overfit", "backtest", "confluence", "score"],
       read: () =>
-        "PBO 89%: the best in-sample configuration lands below the median out of sample roughly nine times in ten. Treat the confluence score and the Decision desk as a prompt to look, never as a reason to trade, and do not automate anything off either.",
+        "PBO 89%: the best in-sample configuration lands below the median out of sample roughly nine times in ten. Treat the confluence score and the Confluence desk as a prompt to look, never as a reason to trade, and do not automate anything off either.",
     },
 
     /* Generated from the registries rather than written out, so they cannot

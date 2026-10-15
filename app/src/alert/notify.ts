@@ -113,7 +113,7 @@ export function deliver(fires: readonly AlertFire[], opts: DeliverOptions): void
   if (fires.length > 3) {
     try {
       void new Notification(`${opts.symbol} — ${fires.length - 3} more alerts`, {
-        body: "Open the Signals desk for the full list.",
+        body: "Open the Alerts desk for the full list.",
         tag: "iram-overflow",
       });
     } catch {

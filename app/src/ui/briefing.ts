@@ -450,7 +450,7 @@ export function createBriefing(opts: BriefingOptions) {
           "empty",
           scanned()
             ? "Scan done — nothing else on your list worth a plan."
-            : "Not scanned yet. Open Opportunities to scan your list.",
+            : "Not scanned yet. Open the Scanner to scan your list.",
         ),
       ];
     }
@@ -481,7 +481,7 @@ export function createBriefing(opts: BriefingOptions) {
       out.push(
         h("p", {
           class: "bf-note",
-          text: `${rows.length - shown.length} more on the Opportunities desk.`,
+          text: `${rows.length - shown.length} more on the Scanner desk.`,
         }) as HTMLElement,
       );
     }
@@ -505,7 +505,7 @@ export function createBriefing(opts: BriefingOptions) {
     const list = fires();
     if (list.length === 0) {
       return [
-        pkEmpty("empty", "No alerts fired. Set alerts on the Signals desk."),
+        pkEmpty("empty", "No alerts fired. Set alerts on the Alerts desk."),
       ];
     }
     const t = nowMs();

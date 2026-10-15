@@ -117,7 +117,7 @@ export function readFocus(sym: string, i: ScanInputs): FocusRead {
     sees: "not scanned yet",
     side: null,
     checks: null,
-    why: i.scanned ? "Not in the last scan. Rescan on Opportunities." : "Open Opportunities to scan your list.",
+    why: i.scanned ? "Not in the last scan. Rescan on the Scanner." : "Open the Scanner to scan your list.",
     source: "none",
     live: false,
   };

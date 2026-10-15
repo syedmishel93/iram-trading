@@ -165,7 +165,7 @@ export function createResults(opts: ResultsOptions): { el: HTMLElement } {
               class: "res-empty",
               text:
                 rows().length === 0
-                  ? "No search has been recorded yet. Run one from the Strategy desk, or let the autonomous search run, and every attempt will be listed here — including the ones that find nothing."
+                  ? "No search has been recorded yet. Run one from the Strategy tester desk, or let the autonomous search run, and every attempt will be listed here — including the ones that find nothing."
                   : "No subject has that verdict yet.",
             }),
           );
@@ -253,7 +253,7 @@ export function createResults(opts: ResultsOptions): { el: HTMLElement } {
       }),
     ),
     pkWhy(
-      "A classifier that always predicts the commonest outcome scores the base rate exactly \u2014 so an accuracy with no base rate beside it cannot be read at all, and \u201c58% accurate\u201d on a population that is 58% winners has learned nothing. Both numbers are on every row. Learning nothing is an ANSWER about a market and is kept apart from a model that was never fitted. The calibration curve and the fold boundaries are on the Simulation desk, which answers about one market in depth.",
+      "A classifier that always predicts the commonest outcome scores the base rate exactly \u2014 so an accuracy with no base rate beside it cannot be read at all, and \u201c58% accurate\u201d on a population that is 58% winners has learned nothing. Both numbers are on every row. Learning nothing is an ANSWER about a market and is kept apart from a model that was never fitted. The calibration curve and the fold boundaries are on the Walk-forward desk, which answers about one market in depth.",
       "Why accuracy alone is not a result",
     ),
     h("p", {
