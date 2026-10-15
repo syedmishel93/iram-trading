@@ -136,13 +136,13 @@ import { assetClass } from "../data/sessions";
 import { indexAtOrAfter } from "./shell/bars";
 import { AUTO_SEARCH_SLOT, PIN_MARK, PREFS_SLOT, RULES_SLOT, loadPrefs, viewSignal, boolSignal } from "./shell/prefs";
 import { createSettingsStore } from "../backtest/settingsstore";
+import { costsFor } from "../backtest/settings";
 import { createSweepDriver } from "./model/sweepdriver";
 import { createSweepCache } from "../backtest/sweepcache";
 import { enrolledSeries } from "../data/library";
 import { pushEnrolment } from "../data/serverbars";
 import { watchedSymbols } from "./watchlist";
 import { loadStudyBars } from "./strategy/load";
-import { DEFAULT_COSTS } from "../backtest/engine";
 import { DRAW_ICON, abbreviate, clampNum, cursorField, fmt, fmtLike, fmtOrDash, fmtPx, num, num1, num2, qualityLabel } from "./shell/format";
 import type { ShellState } from "./shell/state";
 import { createShellContext, type ShellContext } from "./shell/context";
@@ -2729,10 +2729,22 @@ export function mountShell(root: HTMLElement): void {
     cache: sweepCache,
     load: (symbol, timeframe, hooks) =>
       loadStudyBars(feed.history, symbol, timeframe, sweepDepth.peek(), () => bars.peek(), hooks),
-    /* The costs the Strategy desk's Backtest card sets are its own; a search
-       started from the inspector has no card to read, so it uses the engine's
-       stated defaults and the row it saves records which were charged. */
-    costs: () => DEFAULT_COSTS,
+    /**
+     * WHAT THE OPERATOR CONFIGURED, not a hardcoded assumption.
+     *
+     * This read `() => DEFAULT_COSTS`, and the comment it carried was honest
+     * about why: the Strategy desk's Backtest card sets its own costs, and a
+     * search started from the inspector had no card to read. It has one now —
+     * Settings > Backtesting, one owner, persisted.
+     *
+     * Safe to change because the machinery that makes it safe already exists.
+     * `sweepdriver` hashes the costs into the cache key, so a changed hurdle
+     * MISSES rather than serving a conclusion nobody reached at that price;
+     * the row saved on the shelf records which model was charged; and the
+     * default is `standard`, which IS `DEFAULT_COSTS` — so this changes
+     * nothing until the operator changes something.
+     */
+    costs: () => costsFor(backtest.settings()),
     riskPerTrade: () => account.effective().riskPct / 100,
     excludedFor: (sym, tf) =>
       shelf

@@ -268,7 +268,7 @@ Recorded so it is a decision rather than an oversight.
   | `backtest/spectest.ts` | **what gets promoted** | FIXED v63.17 — `opts.costs`, and its benchmark now prices the same way |
   | `ui/playbook.ts` | one rule, one market | can charge the broker's measured spread (v63.9) |
   | `ui/strategy.ts` | the sweep | already had an editable cost control |
-  | `ui/shell.ts` | a search started from the inspector | **NOT A DEFECT.** A deliberate default, and `discovered.costs` records which model was charged — `sweepdriver` also hashes it into the cache key, so a changed hurdle MISSES rather than serving a conclusion nobody reached |
+  | `ui/shell.ts` | a search started from the inspector | **NOW THE OPERATOR'S.** Was a deliberate default, argued on the grounds that the inspector had no card to read; it has one now — `Settings ▸ Backtesting`, one owner, persisted. `shell.ts` no longer imports `DEFAULT_COSTS` at all. Safe because `discovered.costs` records which model was charged and `sweepdriver` hashes it into the cache key, so a changed hurdle MISSES rather than serving a conclusion nobody reached — **and that key was incomplete**: it hashed spread, commission and slippage and NOT `carryPerNight`, so two models differing only in financing shared a key. Carry is 29% of a five-night swing and 83% of a two-month hold by `engine.ts`'s own measurement, so the stale answer was the flattering half. `hashCosts` now derives from `Object.keys(costs)`, because the hand-written list is what went wrong |
   | `ui/research/steered.ts` | nothing | **NOT A CHARGING SITE.** Display text only; it states the assumption and the direction of the error |
   | `study/steps.ts` | a study's rule tests | FIXED v63.19 — `CostModel` widened to `standard` / `measured` / `none`, wired picker -> spec -> runner -> step -> `studyCosts`, which falls back to the ASSUMPTION on every path that cannot answer |
 
@@ -278,6 +278,28 @@ Recorded so it is a decision rather than an oversight.
   that shows the result**, and do not let the measured figure silently replace the
   assumption — a number that moves under the operator because a service answered
   is worse than a disagreement they can see.
+
+  **AND THE KNOBS NOW HAVE ONE OWNER, WHICH IS WHY THE LIST ABOVE COULD BE
+  CLOSED.** They had been in five places — nine fields on `BacktestOptions`,
+  `StudyOptions` extending it, three module constants in `promote.ts`,
+  `DEFAULT_COSTS`, and the walk-forward window shape passed per call site — so
+  nothing could offer them to the operator, because there was no object to
+  offer. `backtest/settings.ts` is that object and `settingsstore.ts` is its
+  one persisted owner. Two rules came out of building it:
+
+  - **The standard settings must project onto exactly what the engine already
+    does**, asserted first in `runsettings.test.ts` and proved by mutating
+    `STANDARD` and watching it fail. A settings refactor that quietly re-prices
+    every backtest moves every verdict for a reason nobody chose.
+  - **Flattery is a field, not a footnote.** Entering at the signal bar's
+    close, charging nothing, and switching off the search charge are all still
+    OFFERED — the fastest way to learn what a check protects you from is to
+    turn it off and watch every number improve — and `flatteryIn` returns the
+    ways a configuration flatters, in the operator's words, so a result carrying
+    a non-empty list has to say so wherever it is shown. One shipped preset is
+    called "Show me the lie" and its honesty flag is DERIVED from its settings,
+    so a preset cannot claim to be honest while setting something that does not
+    hold up.
 
 - **There is no execution path.** `grep` for `order_send` across `server/`
   returns nothing: the MT5 bridge reads account, positions, deals, ticks and

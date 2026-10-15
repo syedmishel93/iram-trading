@@ -79,6 +79,37 @@ describe("the key", () => {
     expect(a).not.toBe(b);
   });
 
+  it("IS A DIFFERENT KEY WHEN THE FINANCING CHANGES", () => {
+    /* `hashCosts` hashed spread, commission and slippage and NOT
+       `carryPerNight` — so two cost models differing only in financing shared a
+       key, and a cached verdict reached under one hurdle was served as the
+       answer to the other.
+
+       Carry is not a rounding difference. `engine.ts` records that this engine
+       charged no financing at all for its whole life, and that against its own
+       round trip of 0.1200% ex-carry the cost it was treating as zero came to
+       29% of a five-night swing, 54% of a two-week hold and 83% of a
+       two-month one. A swing strategy cached at zero carry and read back at
+       the real rate is the flattering half of that gap, silently.
+
+       It became reachable the moment cost models could be chosen: the
+       "paranoid" preset doubles carry and nothing else about it is visible in
+       the key, and a measured model may override carry alone. */
+    const a = hashCosts(DEFAULT_COSTS);
+    const b = hashCosts({ ...DEFAULT_COSTS, carryPerNight: DEFAULT_COSTS.carryPerNight * 2 });
+    expect(b, "a doubled overnight rate produced the same key").not.toBe(a);
+  });
+
+  it("HASHES EVERY FIELD OF THE COST MODEL, so the next one added cannot be forgotten", () => {
+    /* The guard, rather than four assertions that go stale: every key of
+       `Costs` must change the hash. A field added to the cost model and left
+       out of the key is this same defect again, and it would be just as quiet. */
+    for (const key of Object.keys(DEFAULT_COSTS) as Array<keyof typeof DEFAULT_COSTS>) {
+      const moved = { ...DEFAULT_COSTS, [key]: DEFAULT_COSTS[key] + 0.0007 };
+      expect(hashCosts(moved), `${key} is not in the cache key`).not.toBe(hashCosts(DEFAULT_COSTS));
+    }
+  });
+
   it("is the same key for the same field in the same order", () => {
     expect(hashField(field(["r1", "r2"]))).toBe(hashField(field(["r1", "r2"])));
   });
