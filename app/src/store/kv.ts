@@ -159,6 +159,19 @@ export interface KV {
   keys(): string[];
   /** Raw envelope, for sync and export. Never migrates. */
   rawEnvelope(key: string): Envelope<unknown> | null;
+  /**
+   * What this key OCCUPIES, measured without parsing it.
+   *
+   * `rawEnvelope` parses, and parsing quarantines bytes that will not parse —
+   * so an inventory that sized a holding through it DELETED the corrupt
+   * holding it was describing and then reported zero. Sizing has to be
+   * readable from the outside of the value.
+   *
+   * Same arithmetic as `stats()`: the key counts, and a UTF-16 code unit is
+   * two bytes. Two surfaces reporting one quantity differently is worse than
+   * either figure alone.
+   */
+  rawBytes(key: string): number;
   /** Write a raw envelope, for sync and import. Refuses to go backwards. */
   putEnvelope(key: string, env: Envelope<unknown>): WriteResult;
   stats(): KVStats;
@@ -363,6 +376,12 @@ export function createKV(raw: RawStore = browserRawStore(), now: () => number = 
 
     rawEnvelope(key) {
       return parse(key);
+    },
+
+    rawBytes(key) {
+      const full = `${PREFIX}${key}`;
+      const text = raw.getItem(full);
+      return text === null ? 0 : (full.length + text.length) * 2;
     },
 
     putEnvelope(key, env) {

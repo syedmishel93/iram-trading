@@ -342,6 +342,118 @@ export const SPECS: readonly RuleSpec[] = [
     target: RR2,
     note: "Bollinger has come back out of Keltner and price has left the channel. The squeeze itself says only that expansion is due and NOTHING about direction — the direction here comes from which side price actually left through, not from the squeeze.",
   },
+  /*
+   * ───────────────────────────────────────────────────────────── v63.26
+   * THE FOUR FAMILIES PEOPLE ACTUALLY NAME, now that their detectors are
+   * reachable from a rule.
+   *
+   * MEASURED before any of this: 24 of 29 registered detectors drew on the
+   * chart and could not be named by a rule. Wyckoff springs, volume profile
+   * levels, failed breaks and breaker blocks were every one of them detected,
+   * drawn and explained in prose, with no way to ask whether they made money.
+   *
+   * NOTHING HERE IS A NEW IDEA and none of it is asserted to work. Each is the
+   * published definition written in the vocabulary the engine already
+   * validates, so it gets the walk-forward, the CSCV and the best-of-N hurdle
+   * that everything else here gets. Several of them will not clear it. That is
+   * the point of putting them in rather than describing them.
+   */
+  {
+    id: "wyckoff-spring",
+    name: "Wyckoff spring",
+    style: "swing",
+    long: [["spring", ">", "0"]],
+    short: [["spring", "<", "0"]],
+    exitLong: [["close", "<", "ema21"]],
+    exitShort: [["close", ">", "ema21"]],
+    stop: ATR2,
+    target: RR2,
+    note: "A range low broken and taken back on the close — Wyckoff's terminal shakeout, and the upthrust is its mirror at the top. Fires on the bar the reclaim happened, never on the break. It is the same family as Sweep and reclaim and deliberately a separate rule: a sweep is any level, a spring is the boundary of a NAMED range, and whether that distinction pays is exactly what a record is for.",
+  },
+  {
+    id: "wyckoff-spring-trend",
+    name: "Wyckoff spring, with the trend",
+    style: "swing",
+    long: [["spring", ">", "0"], ["close", ">", "ema200"]],
+    short: [["spring", "<", "0"], ["close", "<", "ema200"]],
+    exitLong: [["close", "<", "ema50"]],
+    exitShort: [["close", ">", "ema50"]],
+    stop: ATR2,
+    target: { type: "rr", value: 3 },
+    note: "The same shakeout, taken only on the side the 200 already allows. Trades far less. Wyckoff would call the unfiltered version the purer reading; if the filter does not beat it, that is worth knowing before adding one by habit.",
+  },
+  {
+    id: "value-area-reversion",
+    name: "Value area reversion",
+    style: "intraday",
+    long: [["close", "crossabove", "val"]],
+    short: [["close", "crossbelow", "vah"]],
+    exitLong: [["close", ">", "poc"]],
+    exitShort: [["close", "<", "poc"]],
+    stop: ATR2,
+    target: { type: "none" },
+    note: "Price coming back INTO the prior period's value area, with the point of control as the target — the standard rotation trade, and the only rule here whose exit is a measured level rather than a multiple of R. The levels are the previous completed 96-bar block's, never the one in progress: a value area is not knowable until its period has closed.",
+  },
+  {
+    id: "value-area-breakout",
+    name: "Value area acceptance",
+    style: "swing",
+    long: [["close", ">", "vah"], ["adx", ">", "20"]],
+    short: [["close", "<", "val"], ["adx", ">", "20"]],
+    exitLong: [["close", "<", "poc"]],
+    exitShort: [["close", ">", "poc"]],
+    stop: ATR2,
+    target: RR2,
+    note: "The opposite hypothesis to the rotation above, on the same two levels: that trading outside value is acceptance rather than an excursion. ADX is the only thing separating them, and running both is the honest way to find out which one this market pays.",
+  },
+  {
+    id: "failed-break",
+    name: "Failed break reversal",
+    style: "swing",
+    long: [["failbreak", ">", "0"]],
+    short: [["failbreak", "<", "0"]],
+    exitLong: [["close", "<", "ema21"]],
+    exitShort: [["close", ">", "ema21"]],
+    stop: ATR2,
+    target: RR2,
+    note: "A break of structure that did not hold, taken against the break. The detector finds both populations — breaks that failed and breaks that held — and this trades only the first; Break retest below trades the second. Two rules over one detector, so the comparison is available rather than assumed.",
+  },
+  {
+    id: "break-retest",
+    name: "Break retested and held",
+    style: "swing",
+    long: [["retest", ">", "0"]],
+    short: [["retest", "<", "0"]],
+    exitLong: [["close", "<", "ema50"]],
+    exitShort: [["close", ">", "ema50"]],
+    stop: ATR2,
+    target: RR2,
+    note: "The other half of the same population: price came back to a broken level and it held. The classic continuation entry, and the one most often described as obvious — which is the reason to measure it.",
+  },
+  {
+    id: "breaker-retest",
+    name: "Breaker block retest",
+    style: "swing",
+    long: [["breaker", ">", "0"]],
+    short: [["breaker", "<", "0"]],
+    exitLong: [["close", "<", "ema21"]],
+    exitShort: [["close", ">", "ema21"]],
+    stop: ATR2,
+    target: RR2,
+    note: "An order block that failed and then held from the other side — demand that became supply. Only blocks price has actually come back to are counted: one that has not been retested is a pending zone, not an event.",
+  },
+  {
+    id: "climax-reversal",
+    name: "Volume climax reversal",
+    style: "intraday",
+    long: [["climax", "<", "0"], ["close", ">", "low"]],
+    short: [["climax", ">", "0"], ["close", "<", "high"]],
+    exitLong: [["close", ">", "ema21"]],
+    exitShort: [["close", "<", "ema21"]],
+    stop: ATR2,
+    target: RR15,
+    note: "A bar of extreme volume, traded as exhaustion — a selling climax bought, a buying climax sold. The detector deliberately refuses to call which of the two readings holds, reporting only the side the bar closed; this rule takes the exhaustion side so the record can answer it. The threshold is measured against the last 400 bars, not against all history, or the same bar would be a climax on a short chart and ordinary on a long one.",
+  },
   {
     id: "donchian-breakout",
     name: "Donchian breakout",

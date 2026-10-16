@@ -40,7 +40,8 @@ import {
   type InstrumentSpec,
 } from "../risk/instruments";
 import { calculate, type CalcResult, type CostModel } from "../risk/calculator";
-
+
+import { deskLabel } from "./shell/views";
 export interface CalculatorOptions {
   /** The one owner of balance, equity, leverage and risk. */
   readonly account: AccountStore;
@@ -79,7 +80,7 @@ const DEFAULTS: Saved = {
   crossRate: 0,
 };
 
-const SLOT = {
+export const CALC_SLOT = {
   key: "calculator.v1",
   version: 1,
   fallback: (): Saved => ({ ...DEFAULTS }),
@@ -133,7 +134,7 @@ function priceDecimals(spec: InstrumentSpec): number {
 }
 
 export function createCalculator(opts: CalculatorOptions) {
-  const stored = opts.kv.read(SLOT).value;
+  const stored = opts.kv.read(CALC_SLOT).value;
 
   const symbol = signal(stored.symbol);
   /**
@@ -163,7 +164,7 @@ export function createCalculator(opts: CalculatorOptions) {
   const slippagePips = signal(stored.slippagePips);
 
   const persist = (): void => {
-    opts.kv.write(SLOT, {
+    opts.kv.write(CALC_SLOT, {
       symbol: symbol(),
       balance: balance(),
       equity: equity(),
@@ -566,7 +567,7 @@ export function createCalculator(opts: CalculatorOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Trade calculator" }),
+      h("h1", { class: "view-title", text: deskLabel("calculator") }),
       h("p", {
         class: "view-sub",
         text: "Lots, pips, margin, and the profit that survives costs. Arithmetic on your numbers — it does not choose a trade and it cannot place one.",

@@ -76,7 +76,8 @@ import {
 } from "../../scan/watch";
 import { notifyPermission, requestNotifyPermission } from "../../alert/notify";
 import type { LazyDesk, ShellContext } from "./context";
-
+
+import { deskLabel } from "./views";
 /**
  * What this section borrows from its siblings.
  *
@@ -347,7 +348,7 @@ export function createDecisionSection(
         ...(added < symbols.length
           ? { body: `${symbols.length - added} were already there.` }
           : {}),
-        action: { label: "Watchlist", run: () => state.view.set("watchlist") },
+        action: { label: deskLabel("watchlist"), run: () => state.view.set("watchlist") },
       });
     },
   }));
@@ -394,7 +395,7 @@ export function createDecisionSection(
       body: text.body,
       key: `scan-watch:${tf}`,
       ttlMs: 12_000,
-      action: { label: "Opportunities", run: open },
+      action: { label: deskLabel("screener"), run: open },
     });
     /* Desktop ONLY if already granted — never asked for here — and only when
        the page is not the focused window, where the toast already covers it. */

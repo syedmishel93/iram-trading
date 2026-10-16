@@ -12,11 +12,19 @@
  * what people search for is where the thing used to be.
  */
 
-import type { SectionDef, SettingDef } from "./schema";
+import type { SectionDef, SettingControl, SettingDef } from "./schema";
+import type { KV } from "../store/kv";
 import type { AccountStore } from "../core/account";
-import type { Signal } from "../core/signal";
+import { signal, type Signal } from "../core/signal";
 import { RULE_LIMITS, rulesAreDefault, type GateRules } from "../setup/rules";
 import { EXIT_LIMITS, exitRulesAreDefault, type ExitRules } from "../setup/exit";
+import { DEFAULT_GUARDS, type GuardConfig } from "../risk/sizing";
+import { PRESETS, flatteryIn, type RunSettings } from "../backtest/settings";
+
+/** What the preset control reads once a knob has been touched. */
+const EDITED = "edited";
+import type { SettingsStore } from "../backtest/settingsstore";
+import { BUDGET_SLOT, DEFAULT_BUDGET_GB } from "../data/library";
 import {
   PARAMS,
   clampParam,
@@ -110,6 +118,13 @@ export const SECTIONS: readonly SectionDef[] = [
       "The gates the Setup card checks before it will show you an entry. These are the numbers it means when it says \"your limit\" — until you set them here it was quoting defaults you had never been shown. Any one of them failing stands you down; that part is not configurable, because a checklist you can negotiate with is not a checklist.",
   },
   {
+    id: "backtest",
+    label: "Backtesting",
+    group: "Trading",
+    blurb:
+      "How every strategy is tested: where a trade is assumed to fill, what it is charged, the bar it has to clear, and how the history is split. These decide which rules survive, so a result is only meaningful beside the settings that produced it \u2014 which is why they are recorded on it. Start from a preset and edit from there.",
+  },
+  {
     id: "exits",
     label: "Exit management",
     group: "Trading",
@@ -166,6 +181,15 @@ export const SECTIONS: readonly SectionDef[] = [
 ];
 
 export interface DefDeps {
+  /**
+   * The store, so every registered preference reaches this dialog.
+   *
+   * OPTIONAL, and that is a decision rather than convenience: the tests
+   * build `DefDeps` by hand and requiring it would make each declare a
+   * store it does not exercise. Absent, the registry-derived settings are
+   * simply not added and the hand-written ones behave exactly as before.
+   */
+  readonly kv?: KV;
   readonly account: AccountStore;
   readonly theme: Signal<string>;
   readonly themes: readonly string[];
@@ -227,11 +251,195 @@ export interface DefDeps {
   readonly studyParams: Signal<Record<string, IndicatorParams>>;
   /** The instrument the driver section describes. */
   readonly symbol: () => string;
+  /**
+   * THE FIVE PREFERENCES THAT PERSISTED AND COULD NOT BE FOUND.
+   *
+   * `settings/registry.ts` enumerates every stored slot and names, for each
+   * preference, the definition that edits it. Five named nothing: the
+   * governor's own limits, whether the terminal keeps a record of its own
+   * calls, whether an unsearched market is swept unasked, the disk budget, and
+   * the background top-up. They are wired here, to THEIR OWNERS — a kv write
+   * would be a second owner, and for four of the five the owner is a signal
+   * that reads kv exactly once.
+   *
+   * Optional, like the three layout signals above and for the same reason: a
+   * build that has not wired one still compiles, and the definition says so
+   * rather than reporting a preference it cannot read.
+   */
+  readonly riskGuards?: () => GuardConfig;
+  setRiskGuard?(patch: Partial<GuardConfig>): void;
+  /** `learn/store.ts`. Written through `setEnabled`, never by writing kv. */
+  readonly recordClaims?: () => boolean;
+  setRecordClaims?(on: boolean): void;
+  /** The shell's own switch, which also ticks its revision counter. */
+  readonly autoSearch?: Signal<boolean>;
+  /**
+   * How the backtester is set up.
+   *
+   * The store, not a copy of its value: the control panel, the board and the
+   * autonomous loop all read the same signal, and a second owner of "what is
+   * this configured to do" is the defect this whole area exists to remove.
+   */
+  readonly backtest?: SettingsStore;
   openKeyboardSheet(): void;
   openNotificationLog(): void;
   exportVault(): void;
   resetGovernor(): void;
 }
+
+/**
+ * THE BACKTESTER'S NUMBERS AS SETTINGS, DERIVED FROM ONE LIST.
+ *
+ * Written out once here rather than per knob, because the alternative is
+ * fifteen near-identical definitions that drift — and this file already
+ * generates the indicator and driver settings the same way, "so they cannot
+ * disagree with the code that actually runs" them.
+ *
+ * Every entry names the GROUP it patches, so a write touches one group and
+ * leaves the rest alone. Writing the whole object per keystroke would make two
+ * controls edited in sequence race, with the second overwriting the first.
+ */
+const BACKTEST_KNOBS: ReadonlyArray<{
+  id: string;
+  label: string;
+  hint: string;
+  keywords: readonly string[];
+  control: SettingControl;
+  read: (s: RunSettings) => string;
+  write: (store: SettingsStore, v: string) => void;
+}> = [
+  {
+    id: "entry",
+    label: "Enter at",
+    hint: "The next bar's open is the honest one. The signal bar's close is a price that did not exist yet \u2014 offered only so you can see what it inflates by.",
+    keywords: ["fill", "slippage", "look ahead", "open", "close"],
+    control: {
+      kind: "select",
+      options: [
+        { value: "next-open", label: "the next bar's open" },
+        { value: "signal-close", label: "the signal bar's close (look-ahead)" },
+      ],
+    },
+    read: (s) => s.fills.entry,
+    write: (store, v) => void store.patch("fills", { entry: v === "signal-close" ? "signal-close" : "next-open" }),
+  },
+  {
+    id: "costs",
+    label: "Charge",
+    hint: "Costs set the bar every strategy has to clear, so charging too much throws away rules that would have worked and charging nothing invents edges that were never tradeable.",
+    keywords: ["spread", "commission", "broker", "friction", "fees"],
+    control: {
+      kind: "select",
+      options: [
+        { value: "standard", label: "the published assumption" },
+        { value: "measured", label: "what your broker charges" },
+        { value: "worst", label: "twice the assumption" },
+        { value: "none", label: "nothing at all" },
+      ],
+    },
+    read: (s) => s.costs.model,
+    write: (store, v) => {
+      const model = v === "measured" || v === "worst" || v === "none" ? v : "standard";
+      store.patch("costs", { model });
+    },
+  },
+  {
+    id: "minTrades",
+    label: "Fewest trades to judge",
+    hint: "Below this a result is reported as too thin rather than as a verdict. Thirty is the floor the promotion gate uses; a hundred and twenty is where a thin edge starts to be arguable.",
+    keywords: ["sample", "trades", "thin", "significance"],
+    control: { kind: "number", min: 1, max: 2000, step: 10 },
+    read: (s) => String(s.bar.minTrades),
+    write: (store, v) => void store.patch("bar", { minTrades: Number(v) }),
+  },
+  {
+    id: "maxPbo",
+    label: "Overfit risk ceiling",
+    hint: "The chance that the best-looking setting lands below the median out of sample. Measured across this product's own field it is 71%, which is why it is a ceiling and not a footnote.",
+    keywords: ["pbo", "overfit", "cscv", "curve fitting"],
+    control: { kind: "number", min: 5, max: 100, step: 5, unit: "%" },
+    read: (s) => String(Math.round(s.bar.maxPbo * 100)),
+    write: (store, v) => void store.patch("bar", { maxPbo: Number(v) / 100 }),
+  },
+  {
+    id: "search",
+    label: "Charge for the width of the search",
+    hint: "The best of many tries beats the market on luck alone, so the bar rises with the field. Off, every number improves and means less \u2014 and the result says so.",
+    keywords: ["deflated", "multiplicity", "best of n", "hurdle", "luck"],
+    control: { kind: "toggle" },
+    read: (s) => String(s.bar.chargeForSearch),
+    write: (store, v) => void store.patch("bar", { chargeForSearch: v === "true" }),
+  },
+  {
+    id: "risk",
+    label: "Risk each trade",
+    hint: "What the backtest assumes you put at risk per trade. It scales the equity curve and the drawdown, and it is what the account replay sizes from.",
+    keywords: ["position size", "risk", "equity", "sizing"],
+    control: { kind: "number", min: 0.05, max: 10, step: 0.05, unit: "%" },
+    read: (s) => (s.risk.perTrade * 100).toFixed(2),
+    write: (store, v) => void store.patch("risk", { perTrade: Number(v) / 100 }),
+  },
+  {
+    id: "windows",
+    label: "Windows to walk forward",
+    hint: "Each window is fitted on the bars before it and scored on bars it has never seen. More windows is a harder test and a slower one.",
+    keywords: ["walk forward", "out of sample", "windows", "folds"],
+    control: { kind: "number", min: 1, max: 24, step: 1 },
+    read: (s) => String(s.windows.count),
+    write: (store, v) => void store.patch("windows", { count: Number(v) }),
+  },
+  {
+    id: "coverage",
+    label: "Least data coverage accepted",
+    hint: "Below this the run is refused outright rather than reported on a window with holes in it. A partial failure that is not subtracted is the worst kind.",
+    keywords: ["coverage", "gaps", "archive", "refuse", "data"],
+    control: { kind: "number", min: 50, max: 100, step: 1, unit: "%" },
+    read: (s) => String(Math.round(s.data.minCoverage * 100)),
+    write: (store, v) => void store.patch("data", { minCoverage: Number(v) / 100 }),
+  },
+];
+
+/** The backtester's knobs as settings, or nothing when it is not wired. */
+function backtestKnobs(d: DefDeps): SettingDef[] {
+  const store = d.backtest;
+  if (store === undefined) return [];
+  return BACKTEST_KNOBS.map((k) => ({
+    id: `backtest.${k.id}`,
+    section: "backtest",
+    label: k.label,
+    hint: k.hint,
+    control: k.control,
+    keywords: [...k.keywords],
+    read: () => k.read(store.settings()),
+    write: (v: string) => k.write(store, v),
+  }));
+}
+
+const GUARD_SUFFIX =
+  "Checked before a position is sized, on the Risk desk and in the pre-trade checks.";
+
+/**
+ * One of the governor's three limits, read and written through its OWNER.
+ *
+ * The Risk desk holds `config` as a signal and mirrors it to storage through an
+ * effect. Writing storage from here instead would be a second owner, and the
+ * desk would overwrite it the next time anything touched the signal — the
+ * equity defect, rebuilt.
+ */
+const guard = (
+  d: DefDeps,
+  key: keyof GuardConfig,
+): Pick<SettingDef, "read" | "write" | "unavailable"> => ({
+  read: () => String(d.riskGuards === undefined ? DEFAULT_GUARDS[key] : d.riskGuards()[key]),
+  write: (v: string) => {
+    const n = Number(v);
+    if (Number.isFinite(n)) d.setRiskGuard?.({ [key]: n });
+  },
+  unavailable: () =>
+    d.riskGuards === undefined
+      ? "This build has not wired the risk limits to Settings. The Risk desk still edits them."
+      : null,
+});
 
 const bool = (s: Signal<boolean>) => ({
   read: () => String(s()),
@@ -391,6 +599,11 @@ function lookSummary(d: DefDeps): string {
 }
 
 export function buildSettings(d: DefDeps): SettingDef[] {
+  /* THE ONE VALUE ON THIS SCREEN WITH NO OWNER ELSEWHERE, so the dialog holds
+     it. `library.budget-gb` is read by nothing in the tree; a thunk reading the
+     store directly would never re-render, because a store read is not reactive.
+     Seeded once, written through. */
+  const budget = signal<number>(d.kv === undefined ? DEFAULT_BUDGET_GB : d.kv.get(BUDGET_SLOT));
   const a = d.account;
   /* The six token-only preferences. Owned by ui/appearance.ts, which is where
      the note about why they are not in `shell.prefs` lives. */
@@ -443,7 +656,7 @@ export function buildSettings(d: DefDeps): SettingDef[] {
     return out;
   };
 
-  return [
+  const all: SettingDef[] = [
     // ------------------------------------------------------------ backend ---
     /**
      * ONE ADDRESS, AND THE OVERRIDES BELOW IT.
@@ -1273,6 +1486,172 @@ export function buildSettings(d: DefDeps): SettingDef[] {
     },
 
     // -------------------------------------------------------------- about ---
+    // ----------------------------------------------------------- backtesting ---
+    /**
+     * THE PRESET LEADS, AND IT IS THE ONLY WAY IN THAT IS NOT A NUMBER.
+     *
+     * Sixty-four knobs presented flat is the interface this product's own
+     * research says people leave: thinkorswim is praised for flexibility and
+     * criticised as "dense and intimidating, weeks or months to master". A
+     * named starting point with a one-line note is what makes the rest
+     * approachable, and "Standard" is always there to compare against.
+     */
+    {
+      id: "backtest.preset",
+      section: "backtest",
+      label: "Start from",
+      hint: "A named set of settings. Editing anything below leaves the preset behind, and the result records which settings it was run with either way.",
+      control: {
+        kind: "select",
+        options: [
+          ...PRESETS.map((p) => ({ value: p.id, label: `${p.name} \u2014 ${p.note}` })),
+          /* EDITED IS ONE OF THE OPTIONS, AND IT HAS TO BE. `presetId()`
+             answers null the moment a knob is touched, and a `<select>` handed
+             a value outside its options shows the FIRST one and says nothing \u2014
+             so without this the control would read "Standard" over settings
+             that are nothing of the kind. This repository records that exact
+             defect on a bar-size picker showing 5m while the plan beneath it
+             refused on 3m. */
+          { value: EDITED, label: "Edited \u2014 not one of these any more" },
+        ],
+      },
+      keywords: ["backtest", "preset", "strict", "paranoid", "standard", "costs", "walk forward"],
+      read: () => d.backtest?.presetId() ?? EDITED,
+      /* Choosing "Edited" is not an instruction: `usePreset` refuses an id it
+         does not have and changes nothing, which is the right answer, but
+         saying so here is cheaper than making the next reader check. */
+      write: (v: string) => {
+        if (v !== EDITED) void d.backtest?.usePreset(v);
+      },
+      unavailable: () =>
+        d.backtest === undefined ? "This build has not wired the backtester's settings to Settings." : null,
+    },
+    {
+      id: "backtest.flattery",
+      section: "backtest",
+      label: "What these settings admit",
+      control: { kind: "note", tone: "warn" },
+      keywords: ["honest", "look ahead", "lie", "costs off"],
+      read: () => {
+        const s = d.backtest?.settings();
+        if (s === undefined) return "Not wired in this build.";
+        const said = flatteryIn(s);
+        return said.length === 0
+          ? "Nothing. Results from these settings stand on their own."
+          : said.join(" ");
+      },
+    },
+    ...backtestKnobs(d),
+
+    // ------------------------------------------------- the governor's limits ---
+    /**
+     * THREE NUMBERS THAT STOP YOU TRADING, and they were nowhere.
+     *
+     * `risk.config` is as close to a setting as anything in this product and
+     * was editable only on the Risk desk, which is a desk you open to size a
+     * trade rather than to decide what you will not do. Read and written
+     * through the desk's own `config` signal, which mirrors itself to storage —
+     * so these and the desk's fields are one value with two surfaces, not two
+     * copies of one number. Absent the wiring they say so instead of reading
+     * zero, because a limit of zero is a limit that blocks everything.
+     */
+    {
+      id: "account.dailyLoss",
+      section: "account",
+      label: "Stop for the day after losing",
+      hint: `A realised loss this far below where the day started stops new trades. Default ${DEFAULT_GUARDS.dailyLossPct}%. ${GUARD_SUFFIX}`,
+      control: { kind: "number", min: 0.5, max: 25, step: 0.5, unit: "% of equity" },
+      keywords: ["governor", "guard", "daily loss", "circuit breaker", "risk desk", "limits"],
+      ...guard(d, "dailyLossPct"),
+    },
+    {
+      id: "account.maxHeat",
+      section: "account",
+      label: "Most risk open at once",
+      hint: `A new position that would push the total risk on the book past this is refused. Default ${DEFAULT_GUARDS.maxHeatPct}%. ${GUARD_SUFFIX}`,
+      control: { kind: "number", min: 1, max: 50, step: 0.5, unit: "% of equity" },
+      keywords: ["governor", "guard", "heat", "exposure", "risk desk", "limits"],
+      ...guard(d, "maxHeatPct"),
+    },
+    {
+      id: "account.maxPositions",
+      section: "account",
+      label: "Most positions at once",
+      hint: `Counted across everything open, not per market. Default ${DEFAULT_GUARDS.maxPositions}. ${GUARD_SUFFIX}`,
+      control: { kind: "number", min: 1, max: 50, step: 1 },
+      keywords: ["governor", "guard", "positions", "concentration", "risk desk", "limits"],
+      ...guard(d, "maxPositions"),
+    },
+
+    {
+      id: "rules.autosearch",
+      section: "rules",
+      label: "Search a market you have not searched before",
+      hint: "The first time you open a market, sweep it without being asked. It spends about thirty seconds of this machine's processor. The same switch is on the card that reports the result.",
+      control: { kind: "toggle" },
+      keywords: ["autonomous", "sweep", "unasked", "automatic", "first open"],
+      read: () => (d.autoSearch === undefined ? "false" : String(d.autoSearch())),
+      write: (v: string) => d.autoSearch?.set(v === "true"),
+      unavailable: () =>
+        d.autoSearch === undefined ? "This build has not wired the autonomous search to Settings." : null,
+    },
+
+    {
+      id: "privacy.record",
+      section: "privacy",
+      label: "Keep a record of what this terminal says",
+      hint: "Every call it makes is written down and later graded against what the market did. Off means nothing new is recorded; what is already stored is kept and still shown. Without it the track record cannot be scored, so every claim stands on nothing but its own confidence.",
+      control: { kind: "toggle" },
+      keywords: ["claims", "ledger", "track record", "calibration", "learn", "scoring"],
+      read: () => (d.recordClaims === undefined ? "false" : String(d.recordClaims())),
+      write: (v: string) => d.setRecordClaims?.(v === "true"),
+      unavailable: () =>
+        d.recordClaims === undefined ? "This build has not wired the claims ledger to Settings." : null,
+    },
+
+    {
+      id: "data.budget",
+      section: "data",
+      label: "Disk this machine may give to price history",
+      /* THE CAVEAT IS IN THE HINT, NOT IN `unavailable`, AND THAT IS NOT A
+         PRESENTATION CHOICE. `settings/ui.ts` DISABLES a control whose
+         `unavailable()` answers anything — so stating the caveat there would
+         have greyed out the only field that sets this, which is a worse
+         version of the dead button this change exists to remove. `unavailable`
+         is for "you cannot set this"; a standing limitation of what the value
+         DOES belongs where the operator reads what it is. Found by reading the
+         renderer, which is the only thing that would have shown it. */
+      hint: `Bars for the whole cross-asset spine are under a gigabyte; anything past that is a choice. Default ${DEFAULT_BUDGET_GB} GB. Stored, but nothing reads it yet — the sweep that deletes old history runs on the server against its own budget.`,
+      control: { kind: "number", min: 1, max: 500, step: 1, unit: "GB" },
+      read: () => String(budget()),
+      write: (v: string) => {
+        const n = Number(v);
+        if (!Number.isFinite(n) || n <= 0) return;
+        budget.set(n);
+        if (d.kv !== undefined) void d.kv.write(BUDGET_SLOT, n);
+      },
+      keywords: ["storage", "archive", "library", "gigabytes", "quota", "eviction", "disk"],
+    },
+
+    {
+      id: "data.topup",
+      section: "data",
+      label: "Keeping history topped up",
+      /**
+       * A NOTE, AND THAT IS THE HONEST CONTROL HERE.
+       *
+       * `setTopup` writes the preference AND adds or removes an hourly kernel
+       * job. A switch here that wrote storage would record the choice and never
+       * start or stop the work, which is a preference that lies about itself.
+       * So this says where the one working switch is — which is what makes the
+       * preference findable from the search box, the thing it never was.
+       */
+      control: { kind: "note" },
+      keywords: ["background", "download", "top up", "archive", "data desk", "hourly"],
+      read: () =>
+        "Switched on the Data desk, beside the series it keeps current. The switch there also starts and stops the hourly job, which is why it is the only one.",
+    },
+
     {
       id: "about.version",
       section: "about",
@@ -1288,7 +1667,7 @@ export function buildSettings(d: DefDeps): SettingDef[] {
       control: { kind: "note", tone: "warn" },
       keywords: ["pbo", "overfit", "backtest", "confluence", "score"],
       read: () =>
-        "PBO 89%: the best in-sample configuration lands below the median out of sample roughly nine times in ten. Treat the confluence score and the Decision desk as a prompt to look, never as a reason to trade, and do not automate anything off either.",
+        "PBO 89%: the best in-sample configuration lands below the median out of sample roughly nine times in ten. Treat the confluence score and the Confluence desk as a prompt to look, never as a reason to trade, and do not automate anything off either.",
     },
 
     /* Generated from the registries rather than written out, so they cannot
@@ -1296,4 +1675,11 @@ export function buildSettings(d: DefDeps): SettingDef[] {
     ...indicatorDefs(d),
     ...driverDefs(d),
   ];
+
+  /* A DUPLICATE ID IS A BUG, NOT SOMETHING TO FILTER OUT.
+     The previous version appended registry-derived definitions and dropped any
+     whose id was already taken, which meant a collision between two hand-
+     written definitions would also have been swallowed in silence. Two
+     definitions of one setting is a defect; let it be visible. */
+  return all;
 }

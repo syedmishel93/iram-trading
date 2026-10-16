@@ -35,7 +35,8 @@ import { notifyCard } from "./cards/notifycard";
 import { h } from "./dom";
 import { watchedSymbols } from "./watchlist";
 import type { KV } from "../store/kv";
-
+
+import { createHoldingsCard } from "./cards/holdingscard";
 export interface SystemDeskOptions {
   readonly kv: KV;
 }
@@ -67,6 +68,33 @@ export function createSystemDesk(opts: SystemDeskOptions): {
      effect. */
   const serverSettings = createServerSettingsCard();
 
+  /* WHAT IS ACTUALLY STORED IN THE BROWSER, which the archive card answers
+     for BARS and nothing answered for the key-value store: your alerts,
+     drawings, claims ledger, journal notes and the rules the search found.
+     Until now the only way to learn what was on this machine was to open
+     developer tools. It sits under the archive card because the two answer
+     one question in two stores. */
+  const holdings = createHoldingsCard({
+    kv: opts.kv,
+    /**
+     * THE CLEAR HAS TO STICK, AND A RELOAD IS WHAT MAKES IT.
+     *
+     * Only four modules subscribe to the store for their own key. The rest —
+     * the alert book, drawings, the watchlist, the playbook, the paper book,
+     * the claims ledger, scripts — read once into a signal at construction and
+     * write the whole signal back on any change. So clearing "Alerts" here and
+     * then dismissing one alert on the Alerts desk wrote the full stale book
+     * back, and the operator was never told. A reload re-seeds all of them
+     * from the store as it now is, which is the per-store subscription's
+     * effect without nine differently shaped seeds; the confirmation says so
+     * before anything is deleted, so it is a stated consequence rather than a
+     * surprise. The narrower fix is worth doing and is its own change.
+     */
+    onCleared: () => {
+      if (typeof window !== "undefined") window.location.reload();
+    },
+  });
+
   const el = h(
     "section",
     { class: "dd sys-desk" },
@@ -80,6 +108,7 @@ export function createSystemDesk(opts: SystemDeskOptions): {
       }),
     ),
     archive.el,
+    holdings.el,
     services.el,
     activity.el,
     connections.el,
@@ -99,6 +128,9 @@ export function createSystemDesk(opts: SystemDeskOptions): {
       mcp.refresh();
       mcpServe.refresh();
       serverSettings.refresh();
+      /* The store is written many times a minute, so a card built once is a
+         card reporting a machine that has moved on. */
+      holdings.refresh();
     },
   };
 }

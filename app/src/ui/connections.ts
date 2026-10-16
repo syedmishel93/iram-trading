@@ -57,7 +57,8 @@ import {
 import { drawGraph, hitTest, readPalette } from "../viz/render";
 import { DEFAULT_CAMERA, panBy, toWorld, zoomAt, type Camera } from "../viz/camera";
 import { rollingCorrelation, utcDay, type ClosesSeries } from "../data/correlation";
-
+
+import { deskLabel } from "./shell/views";
 /** What a loader was able to get, whether or not it worked. */
 export interface SeriesLoad {
   readonly series: SeriesBars;
@@ -688,7 +689,7 @@ export function createConnections(opts: ConnectionsOptions): ConnectionsHandle {
     h(
       "header",
       { class: "dd-head" },
-      h("h2", { class: "dd-title", text: "Connections" }),
+      h("h2", { class: "dd-title", text: deskLabel("connections") }),
       h("p", { class: "dd-sub", text: () => VIEWS.find((v) => v.id === view())?.sub ?? "" }),
     ),
 

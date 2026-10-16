@@ -624,7 +624,7 @@ export function createTerminalAccess(d: AccessDeps): TerminalAccess {
           limit,
           minStopAtr: DEFAULT_RULES.minStopAtr,
           maxStopAtr: DEFAULT_RULES.maxStopAtr,
-          stopRuleSource: "the terminal's default stop band, as the Opportunities desk uses",
+          stopRuleSource: "the terminal's default stop band, as the Scanner desk uses",
         });
       } catch (err) {
         console.warn("[agent] opportunity scan failed", err);
@@ -825,7 +825,7 @@ export function createTerminalAccess(d: AccessDeps): TerminalAccess {
           ok: false,
           reason:
             `Nothing has been harvested for ${kind} ${direction} on ${sym} ${tf}. That means it has NOT BEEN MEASURED here — ` +
-            `not that it does not work. Run "Learn from history" on the Knowledge desk to measure it.`,
+            `not that it does not work. Run "Learn from history" on the Edge stats desk to measure it.`,
         };
       }
 

@@ -146,7 +146,7 @@ export function draftPrompt(idea: string, symbol: string, timeframe: string, cur
       ? `(incomplete) ${currentLines.join("; ")}`
       : "none yet";
   return (
-    `Strategy desk, ${symbol} ${timeframe}. Turn the operator's idea into ONE rule set in the terminal's rule language ` +
+    `Strategy tester desk, ${symbol} ${timeframe}. Turn the operator's idea into ONE rule set in the terminal's rule language ` +
     "and run it with test_strategy. If the tool says it is invalid, fix it and call again. " +
     "If part of the idea cannot be written in the rule language (a session time, a news filter, anything with no column), " +
     "say plainly which part was left out — never replace it with a different condition without saying so. " +
@@ -651,7 +651,7 @@ export function createStrategyFlow(opts: StrategyFlowOptions) {
         "For example: “buy pullbacks to the 50 EMA while it is above the 200”. " +
           "Your words go to the analyst you chose in its settings, with the rules currently here. It is asked to draft ONE rule set in the terminal's rule language and test it with its own tool; the rules it tested are what appear, marked AI. " +
           "A part of the idea the rule language cannot express — a session time, a news filter — is left out, and the analyst is told to say which. " +
-          "The same exchange, tool calls included, is in the Analyst desk's transcript.",
+          "The same exchange, tool calls included, is in the Ask AI desk's transcript.",
         "Why?",
       ),
     ),

@@ -75,7 +75,21 @@ describe("findOpportunity", () => {
     if (!forming.ok) expect(forming.reason).toContain("119 closed bars");
   });
 
-  it("either refuses with a reason, or returns a plan whose geometry is coherent", () => {
+  /**
+   * TWENTY SECONDS, BECAUSE 3.7 OF 5 IS NOT A MARGIN.
+   *
+   * This builds 12 series of 600 bars and plans both directions on each.
+   * MEASURED ALONE ON AN IDLE MACHINE: 3,703ms against vitest's 5,000ms
+   * default — 74% of the budget spent before any other test file is running.
+   * So it passed alone and failed about half the time inside the full suite,
+   * and which test tipped it moved from run to run, which is the signature of
+   * a timeout too tight rather than of a defect.
+   *
+   * The headroom is the fix. Narrowing the fixture would weaken the one check
+   * that the success path is exercised at all, and that check is why the
+   * geometry assertions above mean anything.
+   */
+  it("either refuses with a reason, or returns a plan whose geometry is coherent", { timeout: 20_000 }, () => {
     let plans = 0;
     for (let seed = 1; seed <= 12; seed++) {
       const bars = series(600, seed);

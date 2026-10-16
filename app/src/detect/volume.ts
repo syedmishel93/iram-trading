@@ -51,6 +51,21 @@ export interface VolumeDetectOptions {
   climaxQuantile?: number;
   /** Climax bars returned, newest first. */
   maxClimax?: number;
+  /**
+   * Bars of volume the climax threshold is measured over, ending at each bar.
+   *
+   * THE DEFAULT IS THE WHOLE SERIES, AND THAT CANNOT BE USED IN A BACKTEST. The
+   * quantile is taken over every bar up to `len`, and the scan starts at
+   * `len - 400`: both move as the series grows, so the same bar is a climax at
+   * 700 bars and is not one at 900. A finite window makes the threshold rolling
+   * and the answer stable — and arguably more honest anyway, since a climax is
+   * loud relative to RECENT business rather than to all history.
+   *
+   * The chart keeps the whole-series default. This is the display/backtest split
+   * `structural.ts` already records for `hideMitigated`: the two genuinely want
+   * different things.
+   */
+  climaxWindow?: number;
 }
 
 const DEFAULTS = {
@@ -225,6 +240,7 @@ export function detectVolumeClimax(
   const max = opts.maxClimax ?? DEFAULTS.maxClimax;
   if (len < 60) return [];
 
+  const window = opts.climaxWindow ?? 0;
   const vols: number[] = [];
   for (let i = 0; i < len; i++) {
     const v = data.v[i] as number;
@@ -238,10 +254,36 @@ export function detectVolumeClimax(
   const cut = quantile(vols, q);
   if (!(cut > 0)) return [];
 
+  /**
+   * The threshold each bar is judged against.
+   *
+   * With no window this is the one whole-series figure computed above, which is
+   * what the chart has always drawn. With a window it is recomputed from the
+   * PRECEDING `window` bars only, so a bar's verdict never depends on anything
+   * after it — the property a backtest column rests on.
+   */
+  const cutAt = (i: number): number => {
+    if (window <= 0) return cut;
+    const start = Math.max(0, i - window);
+    if (i - start < 30) return Infinity;
+    const recent: number[] = [];
+    for (let k = start; k < i; k++) {
+      const v = data.v[k] as number;
+      if (Number.isFinite(v) && v > 0) recent.push(v);
+    }
+    if (recent.length < (i - start) * 0.5) return Infinity;
+    const c = quantile(recent, q);
+    return c > 0 ? c : Infinity;
+  };
+
   const found: Detection[] = [];
-  for (let i = Math.max(1, len - 400); i < len; i++) {
+  /* THE SCAN STARTS AT THE TOP WHEN A WINDOW IS SET. `len - 400` is a display
+     choice — a chart only draws recent marks — and in a backtest it means the
+     same bar is examined at 700 bars and skipped at 900. */
+  const scanFrom = window > 0 ? 1 : Math.max(1, len - 400);
+  for (let i = scanFrom; i < len; i++) {
     const v = data.v[i] as number;
-    if (!(v >= cut)) continue;
+    if (!(v >= cutAt(i))) continue;
     const o = data.o[i] as number;
     const c = data.c[i] as number;
     const h = data.h[i] as number;

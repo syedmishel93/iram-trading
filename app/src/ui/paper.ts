@@ -38,7 +38,8 @@ import {
   type CostAssumptions,
   type PaperBook,
 } from "../trade/paper";
-
+
+import { deskLabel } from "./shell/views";
 export interface PaperDeskOptions {
   readonly symbol: Signal<string>;
   readonly kv: KV;
@@ -54,7 +55,7 @@ interface Saved {
   costs: CostAssumptions;
 }
 
-const SLOT = {
+export const PAPER_SLOT = {
   key: "paper.v1",
   version: 1,
   fallback: (): Saved => ({ book: emptyBook(10_000), costs: DEFAULT_ASSUMPTIONS }),
@@ -84,7 +85,7 @@ const signedMoney = (n: number): string =>
 const pct = (n: number): string => (Number.isFinite(n) ? `${(n * 100).toFixed(2)}%` : "—");
 
 export function createPaper(opts: PaperDeskOptions) {
-  const stored = opts.kv.read(SLOT).value;
+  const stored = opts.kv.read(PAPER_SLOT).value;
 
   const book = signal<PaperBook>(stored.book);
   const costs = signal<CostAssumptions>(stored.costs);
@@ -94,7 +95,7 @@ export function createPaper(opts: PaperDeskOptions) {
   const message = signal("");
 
   const persist = (): void => {
-    opts.kv.write(SLOT, { book: book(), costs: costs() });
+    opts.kv.write(PAPER_SLOT, { book: book(), costs: costs() });
   };
 
   /** Marks for open positions. Only the charted symbol has a live price. */
@@ -462,7 +463,7 @@ export function createPaper(opts: PaperDeskOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Paper" }),
+      h("h1", { class: "view-title", text: deskLabel("paper") }),
       h("p", {
         class: "view-sub",
         text: "Practice fills against the real feed. The prices are live; the fills are simulated, and every position here is marked as such.",

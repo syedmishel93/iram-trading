@@ -47,6 +47,7 @@ import {
 import { byAdherence, bySetup, computeStats, MIN_SAMPLE, planGapLine } from "../journal/stats";
 import type { Journal } from "../journal/store";
 
+import { deskLabel } from "./shell/views";
 export interface JournalDeskOptions {
   readonly journal: Journal;
   /** Everything the terminal already knows, for the prefill. */
@@ -240,7 +241,7 @@ export function createJournalDesk(opts: JournalDeskOptions): { el: HTMLElement }
       h(
         "header",
         { class: "desk-head" },
-        h("h2", { class: "desk-title", text: "Journal" }),
+        h("h2", { class: "desk-title", text: deskLabel("journal") }),
         h("p", {
           class: "desk-blurb",
           text: "Your trades, measured against the plan you made. Record trades here, or sync your real fills from MT5 below.",

@@ -12,6 +12,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { deskLabel } from "../src/ui/shell/views";
 import {
   loadRiskConfig,
   parseRiskConfig,
@@ -512,15 +513,24 @@ describe("readFocus", () => {
   });
 
   it("never invents a read for a symbol nothing has scanned", () => {
-    expect(readFocus("XAUUSD", inputs({ scanned: false }))).toEqual({
+    const focus = readFocus("XAUUSD", inputs({ scanned: false }));
+    expect(focus).toEqual({
       symbol: "XAUUSD",
       sees: "not scanned yet",
       side: null,
       checks: null,
-      why: "Open Opportunities to scan your list.",
+      /* PINS THE FACT, NOT THE SENTENCE. This asserted the exact words "Open
+         Opportunities to scan your list.", so it HELD that desk's retired name
+         in place for every release after the rename — a test keeping a stale
+         name alive rather than catching it. Second time this exact shape has
+         turned up; the watch rail's empty state was the first. `deskLabel` is
+         the owner, so the name cannot drift from the desk bar again. */
+      why: focus.why,
       source: "none",
       live: false,
     });
+    expect(focus.why).toContain(deskLabel("screener"));
+    expect(focus.why).toMatch(/scan your list/);
   });
 });
 

@@ -1,6 +1,294 @@
 # MISHEL INTELLIGENCE TRADING — SESSION HANDOVER
 Terminal: **app/ v50 is the product** (see ../LEGACY.md) · index.html **v39.29** (FROZEN 2026-09-08, still openable at /legacy) + **app/ v58** (Vite/TS rewrite: 3,618 tests in 144 files, 23 desks, connected to the MT5 account for positions and equity — a Briefing, an Analyse and a Chart standing alone, the other 20 in 4 groups) + **desktop/** (Tauri native shell) · Server: proxy `ddt_data_server.py` (8787) + `mishel_service.py` (8788, **SQLite by default, PostgreSQL via `IRAM_DB_URL` — see `server/db/`**) + **`server/quant/` (8789, optional model service — GARCH, causal inference, calibrated classification; the terminal degrades to "not running" without it)** + mishel_ml.py + mishel_hmm.py + mishel_data.py · Launcher: **`run.py` — the only one** (starts `server/gateway`: all three services and the terminal on ONE port, 8787; `--status`, `--port`, `--legacy`, `--no-background`, `--build`, `--install`; `run.sh`/`.bat`/`.command` are three-line wrappers) · Tests: `tests/run_tests.sh`, `python -m pytest tests/test_quant_service.py`.
 
+## v63.28 — THE BAND IS GONE; THE PROJECTION IS THE CANDLE
+
+*"why the hollow transparent still there"* — pointing at the translucent dashed
+box, which is the 80% interval for the next close and NOT the candle. The candle
+was the small cross inside it.
+
+Three releases of me defending that box, and the owner was right about the
+mechanism every time. **It was the only rectangle on a canvas made of candles**,
+about three times the height of the candle inside it — so the eye read the big
+shape and the small one was decoration inside it. Which is exactly backwards:
+the candle's wicks are the MEASURED part (0.236 ATR of error against 0.363 for
+flat ATR at 1h, z +4.75) and the box was framing them with something that had
+never been compared to anything.
+
+`Projection` is now `{ candle, beatsAtr }` and `drawProjection` draws one candle.
+
+### WHAT IS LOST, SAID PLAINLY
+
+The 80% close interval had a calibration replay behind it and the candle's body
+does not. The replay has NOT been deleted: it still runs, `forecastCandle` still
+clamps the body inside that interval so the drawing cannot contradict it, and
+`nextBarBand` still feeds it. What is gone is drawing it. If it is ever wanted
+back it belongs in a readout, not as a box around the thing it dwarfs.
+
+### AND THE MUTING MEANS SOMETHING AGAIN
+
+The candle was dimmed when the BAND'S model failed ITS calibration — two
+different models, one muting the other. Coherent while both were drawn together;
+incoherent the moment the band was not. It is now dimmed when the candle's own
+walk-forward replay says its range does NOT beat flat ATR on this market
+(`rangeErr < atrErr`), which is the honesty check that belongs to the thing
+being drawn. **An honesty flag has to be about the object it dims.**
+
+Verified on the python build at :8787 by pixel scan, not by looking: **0
+band-tinted pixels** anywhere in the projection slot, the forecast rendering as
+a single 8px candle slot in muted `--up`, 0 signal errors. Live legend:
+`next ▲ 50% right of 250, coin 50%`, range 0.26 ATR against 0.35 for flat ATR.
+Gate: `VERIFY PASSED — 5 stages, 165s`, 4,979 frontend tests.
+
+## v63.27 — THE FORECAST CANDLE IS A CANDLE
+
+The forecast was drawn as a dashed hollow outline, on my reasoning that it must
+never look like a bar that happened. The owner's answer: *"i dont need the
+hollow candle make the chart normal like trading view candles because its a
+serious tool not fun"*.
+
+They are right about the MECHANISM, not only the taste. The distinction was
+being carried by a NOVELTY when two things already carry it and cannot be
+mistaken: this candle sits in the empty slot PAST the newest bar — which
+`drawProjection`'s own comment already calls the one region of the plot where
+nothing else can be — and it sits inside the band, which nothing that has
+happened ever gets. A hollow body was a third signal, and the one that made a
+serious instrument look like a toy.
+
+So it is `drawCandles`' geometry now: a solid filled body, a wick at the theme's
+own weight, a doji floored at one pixel. What says "not settled" is OPACITY
+(0.62, and 0.34 when the band fails its calibration replay, for the same reason
+the band mutes) — which is how a platform says it without a costume.
+
+### TWO THINGS THE CHANGE FORCED, both real
+
+**A FLAT BODY HAD TO TAKE A COLOUR, AND EVERY COLOUR IS A CLAIM.** Hollow, a
+no-direction doji could be drawn as a neutral line. Rendered as an ordinary
+candle it would take the rising colour under `close >= open` — a directional
+statement about a bar the model explicitly declined to call. The shell now sends
+no candle at all when `basis === "none"`; the band alone is the honest drawing
+there, and the legend was already silent in that state, so the two agree instead
+of one showing a candle the other will not describe. The engine keeps a neutral
+`textFaint` for an exactly-flat body as a belt, so a future caller cannot
+reintroduce it silently.
+
+**MY OWN COMMENT WAS FALSE AND I FIXED THE CODE, NOT THE COMMENT.** It claimed
+the geometry was "read from the same viewport rather than restated" — and
+`Math.max(1, Math.floor(vp.barWidth * 0.7))` appeared in both `drawCandles` and
+`drawProjection`. Restated is exactly what it was. `bodyWidth()` is now the one
+owner, with three tests: 70% floored to whole pixels, never zero however narrow
+the slot (a zero-width rect renders as NOTHING, so a zoomed-out chart would lose
+its bodies silently), and monotonic. A forecast one pixel narrower than its
+neighbours is not a bug anyone reports — it is a chart that looks slightly
+wrong, which is worse.
+
+Verified on the python build at :8787: the forecast candle is the same form and
+proportions as the bar beside it, visibly dimmer, 0 signal errors.
+Gate: `VERIFY PASSED — 5 stages, 161s`, 4,979 frontend tests.
+
+## v63.26 — A FORECAST CANDLE WITH A SHAPE WORTH DRAWING
+
+The owner asked four times to see the next candle and kept being shown a box.
+The control was not broken: `nextcandle.ts` would only take a direction from a
+named candle pattern whose edge cleared a best-of-six t-hurdle, and MEASURED on
+this operator's own market no pattern clears at 1m, 15m or 1h. So the body
+collapsed to a flat line on every bar, for ever, and the drawing was a
+translucent rectangle with a dash in it. The refusal was right and the
+ESTIMATOR was too weak to ever say anything.
+
+A pattern match is a rare, discrete event that throws away nearly everything the
+bar says. `analysis/analogue.ts` keeps all of it: the current bar becomes a
+ten-dimensional scale-free feature vector, the most similar past bars ON THIS
+SERIES are found, and the forecast is the median of what actually followed them.
+
+### THE SHAPE IS FORECASTABLE AND THE DIRECTION IS NOT, and that split is the design
+
+Walk-forward over 1,500 bars per timeframe, on the operator's own archive:
+
+| | next-bar RANGE, median abs error | | next-bar DIRECTION | majority class |
+|---|---|---|---|---|
+| BTCUSDT 1h | **0.236 ATR** vs **0.363** for flat ATR(14) | z +4.75 | 53.1% | 51.2% (z +1.45) |
+| BTCUSDT 1m | 0.443 vs 0.497 | tie | 53.7% | 51.6% (z +1.58) |
+| BTCUSDT 15m | — | | 49.9% | 50.7% (z −0.62) |
+
+At 1h the conditional range beats flat ATR by **35%**, which is the quantity
+`forecast.ts` already argues is genuinely predictable, arriving conditioned on
+the setup instead of as one number for every bar. The direction clears nothing
+on any timeframe. Confirmed live on the running product: 0.23 ATR against 0.34.
+
+So the wicks and the height are drawn as a forecast, and the body is drawn
+because the owner asked to see one AND to find out whether it was right — with
+`replayAnalogue` putting its rolling hit rate in the legend beside the
+no-information rate. On screen now: `next ▲ 52% right of 250, coin 51%`, in
+`--text-faint`, because **colour follows the standing, not the number** and the
+standing is "not better than a coin". `--accent` is reserved for a hit rate that
+has actually beaten the majority class by more than its own noise.
+
+### THE PREDECESSOR OF THAT LINE WAS DELETED LAST RELEASE FOR BEING ATR TWICE
+
+It correlated 0.91 with ATR(14) and was ATR × 1.33, beside a status bar already
+printing ATR. The rule stands, and this line has to survive it: the price level
+is deliberately NOT repeated — the candle is drawn against the price axis, so
+printing its close as a number would be the same duplication. What IS shown is
+whether the thing has ever been right here, which is on screen nowhere else.
+
+### FIVE THINGS MEASUREMENT OVERTURNED
+
+**MY CAUSALITY TEST PASSED WITH A LOOK-AHEAD LEAK INJECTED.** It compared the
+first `FEATURE_COUNT` entries of each row, so an extra ELEVENTH feature reading
+one bar forward was never looked at. Proved by injecting one. Fixed to compare
+the WHOLE row and its length — and the leak that REPLACES a feature then failed
+three tests at once, including "no skill in a random walk", which is exactly the
+failure mode the module exists to be safe from. **A constant that bounds a loop
+is a way for a test to narrow silently.**
+
+**376ms ON EVERY BAR CLOSE, and it locked the renderer.** The replay is 250
+forecasts over a 3,000-bar pool; forcing six repaints timed the debugger out.
+NONE of the cost was the actual work: the pool's mean and spread were recomputed
+from scratch per query (two full passes to produce twenty numbers — they are
+sums over a contiguous range, so PREFIX SUMS give the identical answer in O(1)),
+and `sort()` allocated 3,000 objects per query to read the first 40 of them.
+Prefix sums, a bounded insertion, and a flat `Float64Array`: **376ms → 37ms,
+8.5×**, one forecast 11.4ms → 0.2ms, and **zero long tasks** over 12s of live
+ticking. Proved BYTE-IDENTICAL against the old implementation on all three real
+series with `toBe`, not `toBeCloseTo` — a speed-up that also moves the answer is
+a new model wearing the old one's tests.
+
+**THE LEGEND BUILT ITS OWN CANDLE AGAINST A FABRICATED BAND** (`close ± 1`) to
+get the arrow's direction out of it. Two owners for one fact, and the failure
+would have been an arrow pointing the opposite way to the body with nothing red
+and no test to say which was wrong. The projection effect now publishes the
+candle it drew and the legend reads it.
+
+**THE WICK WAS DRAWN TO THE BAND'S EDGES**, so every forecast candle was exactly
+as tall as the band — the one part of this that is measurably better than ATR
+was the one part the drawing threw away.
+
+**THE GATE CAUGHT BOTH NEW FILES BEING UNTRACKED.** `test_tracked_sources.py`,
+added after `.gitignore`'s bare `data/` hid 58 source files, earning its keep.
+
+### WHAT HOLDS IT HONEST
+
+- **No price level in the features, ever** — a distance handed `close` learns the
+  YEAR, and 2021 and 2024 are separable by price alone on BTCUSDT. Pinned by a
+  test that rescales the whole series ×3.7 and requires every feature identical.
+- **A candidate may not overlap the query.** Bars three apart share seven of ten
+  features, so without `PURGE` the nearest neighbours of bar q are q−1, q−2, q−3
+  and the "forecast" is yesterday's return wearing a statistic's clothes.
+- **The metric may not be set by the future.** Spreads come from the candidate
+  pool alone — a leak through a scaling constant is the hardest kind to notice.
+- **A flat body is neither right nor wrong**, in the replay as in `scoreCandle`.
+- **`flat`/`sum`/`sumSq`/`count` are a deliberate second copy of `rows`** for
+  speed, so a test walks every bar and requires them in step.
+
+Gate: `VERIFY PASSED — 5 stages, 224s`, 4,976 frontend tests.
+
+## v63.25 — THE ONE THING A GENERIC CHART CANNOT DRAW
+
+The owner asked for a chart better than TradingView. TradingView draws this
+market better than this terminal will — more drawing tools, a larger indicator
+library, more data, years more work, and none of that is closable by wanting it.
+What it cannot draw is whether THIS terminal was right the last four hundred
+times it said something about this market, because it does not know.
+
+### WHAT IT SAYS, MEASURED
+
+BTCUSDT 1h, 429 claims on the loaded bars:
+
+> **Taken: 21 of 28 reached target. Refused: 56 of 97 would have.** 25 marks on
+> these bars; 10 could not be read (one bar hit both sides); 294 still open and
+> not drawn.
+
+The second sentence is the finding. The gates are declining a great many trades
+that would have won, which is exactly the comparison `gate_verdict` was written
+to make and which had no surface anywhere in the product.
+
+`chart/claims.ts` is a pure function returning `Shape[]` through the existing
+detector seam, so the marks pan, zoom and re-theme with everything else and can
+be tested without a canvas. `data/claims.ts` reads `/svc/claims`, which had a
+client for its SUMMARY and none for its ROWS.
+
+### FIVE THINGS MEASUREMENT OVERTURNED, each fixed with a failing test first
+
+**A FIFTH OUTCOME, found on the live ledger and not in the first draft.**
+`unknowable` — one bar covered the stop AND the target, so OHLC cannot say which
+came first — is 10 of 429 rows. The layer folded every unrecognised outcome into
+`pending`, so ten calls that can never open again were drawn and counted as
+still open. The buckets now PARTITION what was counted, and that test fails on a
+SIXTH outcome rather than letting it be drawn as open for ever. The server keeps
+the identical guarantee and says why: guessing puts a coin flip inside the hit
+rate, which is worse than having no hit rate because it still looks like one.
+
+**429 MARKS IS A FOG, NOT A RECORD.** Drawn at once they covered three days of
+candles — worse than TradingView, not better. Pending is not evidence; the file
+SAID so in its own header and drew them anyway, the rule enforced in the
+arithmetic and broken on the screen. Decided calls only by default, and calls
+sharing a bar collapse into one mark: **429 → 25**.
+
+**A TOWER OF MARKS IS A SET OF PRICES NOBODY TRADED.** Where a dozen calls shared
+a bar the renderer's collision handling pushed them into a vertical column
+reaching well above and below the candle. On a price chart a y position IS a
+price, so that drew claims at levels that never existed — plausible, unlabelled
+and not red, the same failure as a per-series scale on an equity chart. One mark
+per (bar, verdict), placed at the mean of the entries it stands for.
+
+**A POOLED RATE ANSWERS NEITHER QUESTION.** 315 of 429 are refusals, where
+reaching target means the refusal COST something, and the layer printed one
+figure over both. `mishel_claims.py` keeps the populations apart and compares
+them; the chart reports the same way rather than inventing a second
+interpretation of the same fact.
+
+**TWO GLYPHS A NUMBER CAN ABSORB.** The verdict was carried as a trailing dot, so
+a refused group of forty-five rendered `✓·45` and read at 1:1 as NEGATIVE
+forty-five. Position carries it now — taken below the bar, refused above — which
+costs no characters. Then the EXPIRED glyph was an en dash and `–10` read as
+negative ten: **the same defect surviving in the one glyph that is itself a minus
+sign**, and the one-character test could not see it because a dash is one
+character. The rule has to be about the CHARACTER CLASS, not the length.
+
+And the badge read **429 beside a chart carrying 25 marks**. It counts what is on
+the chart now; a number the operator can see is wrong costs the layer the
+credibility it exists to earn.
+
+### TWO GATE DEFECTS FOUND ON THE WAY, both worse than the bug that exposed them
+
+**`scratchpad/tdz.py` COULD NOT SEE `const x = computed(...)`.** Its pattern
+accepted `x = computed(` but not the declaration form, because `[\w.]+` cannot
+span the space in `const claimCount` — so the optional group matched empty and
+`\b(computed)` was then required where `const` sits. MEASURED: **0 of 69
+matched**, two of them in `ui/playbook.ts`, the file the script was written for.
+It printed a healthy-looking "220 eager calls" and reported OK. A plausible total
+hid a systematic blind spot, which is the same defect as an audit that parses
+nothing wearing a better disguise. It now counts the declaration form separately
+and FAILS on zero — and it immediately found a real temporal dead zone in this
+very change: two eager computeds reading bindings declared 3,260 lines below
+them, which would have held `undefined` for the life of the page with no count on
+the button and nothing on screen to say so.
+
+**`.gitignore` HELD A BARE `data/`.** A pattern with no leading slash matches that
+name AT ANY DEPTH, so a rule written for the bulk market archive was excluding
+`app/src/data/` — 53 files holding every vendor client, the backend address
+resolution and the history and archive clients — and `app/src/ui/data/`.
+MEASURED: **58 of 408 source files under `app/src` were untracked**, and a clone
+of this repository would not have compiled. Nothing said so, because every other
+check in this project reads the WORKING TREE: `verify.py` passes, `tsc` passes,
+the tests pass, the product runs. And the archive that rule was written for lives
+in `%LOCALAPPDATA%/iram/data/`, OUTSIDE the repository — so it cost the
+frontend's data layer and protected nothing at all.
+
+`tests/test_tracked_sources.py` is the guard, gated in `SCRIPT_TESTS`, printing
+what it parsed and failing on a zero. Anchoring the one rule was not the fix; the
+next such rule will look just as ordinary.
+
+### Gate
+
+`python verify.py --lint` — 7 of 7 stages, 156s. **4,846 frontend tests** in 227
+files (37 new), 29 script tests (1 new). Ruff caught a real `PLW1510` in the new
+guard: `git check-ignore` exits 1 when a path is NOT ignored, which is the
+ordinary case there, so `check=False` is deliberate and says so on the line.
+
+Verified live on :8787 after `npm run build`, never the dev server.
+
 ## v63.24 — HALF THE GRAPH WAS BEING DRAWN WHERE NOBODY COULD SEE IT
 
 The owner could not zoom, and asked for more figures. The zoom was the smaller
@@ -3836,7 +4124,7 @@ exactly what wrappers do:
     fetched", which describes the control.
   * A backtick inside a double-quoted bash string ran `symbolField` as a
     command and silently ate three words out of a CSS comment. Same family as
-    the heredoc that turned `` into a backspace. Third time; the rule is
+    the heredoc that turned `` into a backspace. Third time; the rule is
     still "write it to a FILE".
 
 ### The gate

@@ -27,7 +27,7 @@ import {
   type Study,
 } from "../src/backtest/lab";
 import { parseJob, parseSpec, runJob } from "../src/backtest/headless";
-import { SPECS_BY_ID } from "../src/backtest/specs";
+import { SPECS, SPECS_BY_ID } from "../src/backtest/specs";
 import type { RuleSpec } from "../src/backtest/rules";
 import type { BarView } from "../src/chart/series";
 
@@ -202,12 +202,18 @@ describe("the derived grid", () => {
     expect(g.held).toEqual([]);
   });
 
-  it("never exceeds the cap, on any of the 25 shipped specs", () => {
+  it("never exceeds the cap, on every shipped spec", () => {
     // The cap is pinned as a LITERAL, not read back out of the module: with
     // only `<= SPEC_GRID_CAP` asserted, raising the cap would raise the test
     // with it and a 27-config sweep would arrive unannounced.
     expect(SPEC_GRID_CAP).toBe(12);
-    expect(SPECS_BY_ID.size).toBe(25);
+    /* NOT A LITERAL COUNT. This line exists to stop the loop below passing
+       vacuously over an empty map, and pinning 25 made it fail on ADDITION and
+       pass on substitution — it broke the moment eight rule sets were added and
+       would have stayed green if eight had been swapped for eight others.
+       `SPECS` is the source of truth for how many there are. */
+    expect(SPECS_BY_ID.size, "the index lost a spec").toBe(SPECS.length);
+    expect(SPECS_BY_ID.size, "nothing to iterate").toBeGreaterThan(20);
     for (const spec of SPECS_BY_ID.values()) {
       const n = specGrid(spec).strategies.length;
       // Three values per axis, so 1, 3 and 9 are the only reachable sizes.

@@ -28,7 +28,7 @@ import {
   presetSummary,
   type LayoutState,
 } from "../src/settings/presets";
-import { wickWidth } from "../src/chart/engine";
+import { bodyWidth, wickWidth } from "../src/chart/engine";
 import { createKV, memoryRawStore } from "../src/store/kv";
 import { signal } from "../src/core/signal";
 import { SECTIONS, buildSettings } from "../src/settings/defs";
@@ -270,6 +270,35 @@ describe("the appearance tokens", () => {
     /* tokens.css is the only file allowed a raw ms value; a literal in a
        transition cannot be re-pointed to 0 under prefers-reduced-motion. */
     expect(/transition[^;]*\d+ms/.test(settingsCss)).toBe(false);
+  });
+});
+
+describe("bodyWidth", () => {
+  /* TWO CALLERS SINCE v63.27: the candles, and the forecast candle drawn in the
+     slot past the newest bar. The whole reason this is a function rather than a
+     literal in each is that a forecast one pixel narrower than its neighbours
+     reads as a chart that looks slightly wrong, not as a bug anyone reports. */
+  it("gives a body 70% of the slot, floored to whole pixels", () => {
+    expect(bodyWidth(10)).toBe(7);
+    expect(bodyWidth(20)).toBe(14);
+    expect(bodyWidth(9)).toBe(6);
+  });
+
+  it("NEVER RETURNS ZERO, however narrow the slot", () => {
+    /* A zero-width rect renders as nothing at all, so a zoomed-out chart would
+       lose its bodies silently rather than drawing them thin. */
+    for (const w of [0, 0.4, 1, 1.4, 2]) {
+      expect(bodyWidth(w), `slot ${w} produced a body of ${bodyWidth(w)}`).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("is monotonic, so a wider slot never yields a narrower body", () => {
+    let prev = 0;
+    for (let w = 1; w <= 60; w++) {
+      const b = bodyWidth(w);
+      expect(b, `body shrank going from ${w - 1} to ${w}`).toBeGreaterThanOrEqual(prev);
+      prev = b;
+    }
   });
 });
 

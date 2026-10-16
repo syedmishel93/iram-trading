@@ -8,8 +8,8 @@
  * rest are in the display one" and moved them all into one rule. MEASURED
  * afterwards, that finding was false, and the change broke something real:
  *
- *   `.view-title`  holds a desk's NAME — "Signals", "Playbook", "Watchlist",
- *                  "Simulation", "Smart money". Nine of them.
+ *   `.view-title`  holds a desk's NAME — "Alerts", "Playbook", "Watchlist",
+ *                  "Walk-forward", "Smart money". Fifteen of them.
  *   `.strat-title`, `.td-title`, `.rv-title`, `.sys-title` hold a SENTENCE —
  *                  "The AI studies your trades. You decide what's true.",
  *                  "What this machine holds, and what it is doing."
@@ -37,6 +37,7 @@
 import { describe, expect, it } from "vitest";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { deskLabel, type ViewId } from "../src/ui/shell/views";
 
 const DIR = join(process.cwd(), "src", "styles");
 const UI = join(process.cwd(), "src", "ui");
@@ -65,8 +66,18 @@ function titlesInUse(): { cls: string; text: string; file: string }[] {
       if (e.isDirectory()) { walk(p); continue; }
       if (!e.name.endsWith(".ts")) continue;
       const src = readFileSync(p, "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-      for (const m of src.matchAll(/class:\s*"([a-z-]*title)"\s*,\s*text:\s*"([^"]{6,})"/g)) {
-        out.push({ cls: m[1] ?? "", text: m[2] ?? "", file: e.name });
+      /* TWO FORMS, BECAUSE A DESK NAME IS NO LONGER WRITTEN HERE. Since
+         `deskLabel` became the single owner of a desk's display name, a desk
+         heading reads `text: deskLabel("flow")` rather than `text: "Flow"`.
+         Matching only the literal form made this scan find ZERO desk names —
+         it failed loudly on its own "the pattern has stopped matching" guard,
+         which is the only reason the change did not silently gut the test. */
+      const pattern =
+        /class:\s*"([a-z-]*title)"\s*,\s*text:\s*(?:"([^"]{6,})"|deskLabel\("([a-z]+)"\))/g;
+      for (const m of src.matchAll(pattern)) {
+        const id = m[3];
+        const text = id !== undefined ? deskLabel(id as ViewId) : (m[2] ?? "");
+        out.push({ cls: m[1] ?? "", text, file: e.name });
       }
     }
   };

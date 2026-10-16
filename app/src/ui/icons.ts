@@ -80,7 +80,45 @@ const PATHS: Readonly<Record<string, readonly string[]>> = {
   chevronLeft: ["M9.5 3.5 5 8l4.5 4.5"],
   chevronDown: ["M3.5 6.5 8 11l4.5-4.5"],
   check: ["M3 8.5 6.5 12 13 4.5"],
-  settings: ["M8 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z", "M8 1.5v1.8M8 12.7v1.8M14.5 8h-1.8M3.3 8H1.5M12.6 3.4l-1.3 1.3M4.7 11.3l-1.3 1.3M12.6 12.6l-1.3-1.3M4.7 4.7 3.4 3.4"],
+  /**
+   * SLIDERS, NOT A COG — and definitely not what was here before.
+   *
+   * This was a filled centre dot with eight rays radiating out, which IS the
+   * universal brightness glyph: the owner clicked it looking for a light/dark
+   * toggle and got a settings dialog. A cog was the obvious replacement and it
+   * does not survive this renderer — every icon here is a 1.5px STROKE on a
+   * 16px grid, and a six-tooth cog at that weight renders as a circle. MEASURED
+   * by zooming the real button after shipping it.
+   *
+   * Two sliders read as preferences at any size, and cannot be mistaken for a
+   * sun. The knobs use the `a1 1 0 1 0` form that `DOT` fills inside a stroked
+   * icon, so they are solid against the open line.
+   */
+  settings: [
+    "M2.5 5h3.2M8.2 5H13.5",
+    "M6.95 4a1 1 0 1 0 0 2 1 1 0 0 0 0-2",
+    "M2.5 11h6.2M11.7 11H13.5",
+    "M10.45 10a1 1 0 1 0 0 2 1 1 0 0 0 0-2",
+  ],
+
+  /* THE THREE STATES OF THE APPEARANCE TOGGLE, each drawn to survive a 1.5px
+     stroke at 16px — the constraint the first attempt ignored. */
+  sun: [
+    "M8 10.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0 5.2Z",
+    "M8 1.3v1.5M8 13.2v1.5M14.7 8h-1.5M2.8 8H1.3M12.7 3.3l-1.1 1.1M4.4 11.6l-1.1 1.1M12.7 12.7l-1.1-1.1M4.4 4.4 3.3 3.3",
+  ],
+  /* A crescent as an OUTLINE: the shape is the path itself, so it does not
+     depend on a fill the renderer will not apply. */
+  moon: ["M13.2 9.9A5.8 5.8 0 0 1 6.1 2.8a5.9 5.9 0 1 0 7.1 7.1Z"],
+  /**
+   * A DISPLAY, for "follow this machine".
+   *
+   * The first attempt was a half-filled disc, which is the conventional glyph
+   * and needs a FILL — and this renderer strokes everything, so it came out as a
+   * plain circle sitting next to another plain circle. A screen is unambiguous,
+   * strokes cleanly, and says what the setting actually means: match the device.
+   */
+  autoTheme: ["M2.2 3.4h11.6v7.4H2.2z", "M5.6 13.4h4.8", "M8 10.8v2.6"],
   refresh: ["M13 8a5 5 0 1 1-1.6-3.7", "M13.5 2v3h-3"],
   download: ["M8 2.5v7", "M5 7l3 3 3-3", "M3 12.5h10"],
   copy: ["M5.5 5.5h8v8h-8z", "M10.5 5.5v-3h-8v8h3"],

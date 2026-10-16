@@ -53,7 +53,13 @@ tests/node_modules/
 
 # The frozen terminal's build output. `index.html` at the root is the SOURCE of
 # frozen v39 and is kept; `dist/` is what a build made of it.
-dist/
+#
+# ANCHORED WITH A LEADING SLASH. Unanchored, this matched a directory of that
+# name at ANY depth, so it also caught `app/dist/` - which is a real decision
+# (it is 2.1 MB of generated single-file HTML, rebuilt by `npm run build`) but
+# was being made by accident. It gets its own line below.
+/dist/
+app/dist/
 
 # The packaged binaries. Rebuilt by `server/build_binary.py`, ~90 MB each, and
 # a binary in a repository is a thing nobody can review.
@@ -65,7 +71,16 @@ dist/
 
 # Bulk market data. The archive is downloadable and measured at 141.9 bytes a
 # bar — five years of 1m across four markets is 1.49 GB.
-data/
+#
+# ANCHORED, AND IT NEVER NEEDED TO EXIST. Unanchored, `data/` matched a directory
+# of that name at any depth: it was excluding `app/src/data/` - 53 files holding
+# every vendor client, the backend address resolution and the archive clients -
+# and `app/src/ui/data/`. MEASURED: 58 of 408 source files under `app/src` were
+# untracked and a clone would not have compiled. The archive it was written for
+# lives in `%LOCALAPPDATA%/iram/data/`, OUTSIDE the repository, so the rule cost
+# the frontend's data layer and protected nothing. `tests/test_tracked_sources.py`
+# is the guard, because a rule this quiet will be written again.
+/data/
 *.parquet
 *.feather
 

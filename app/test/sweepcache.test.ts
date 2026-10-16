@@ -20,6 +20,7 @@ import {
   STALE_BARS_MIN,
   SWEEP_MAX,
   createSweepCache,
+  hashBar,
   hashCosts,
   hashField,
   staleness,
@@ -27,6 +28,7 @@ import {
   sweepKey,
 } from "../src/backtest/sweepcache";
 import { DEFAULT_COSTS } from "../src/backtest/engine";
+import { STANDARD_BAR } from "../src/backtest/promote";
 import type { AutoRunReport, Entrant } from "../src/backtest/autorun";
 import type { SweepSummary } from "../src/backtest/sweepcache";
 import type { RuleSpec } from "../src/backtest/rules";
@@ -77,6 +79,37 @@ describe("the key", () => {
     const a = sweepKey("BTCUSDT", "1h", "f", hashCosts(DEFAULT_COSTS));
     const b = sweepKey("BTCUSDT", "1h", "f", hashCosts({ ...DEFAULT_COSTS, spread: 0.001 }));
     expect(a).not.toBe(b);
+  });
+
+  it("IS A DIFFERENT KEY WHEN THE FINANCING CHANGES", () => {
+    /* `hashCosts` hashed spread, commission and slippage and NOT
+       `carryPerNight` — so two cost models differing only in financing shared a
+       key, and a cached verdict reached under one hurdle was served as the
+       answer to the other.
+
+       Carry is not a rounding difference. `engine.ts` records that this engine
+       charged no financing at all for its whole life, and that against its own
+       round trip of 0.1200% ex-carry the cost it was treating as zero came to
+       29% of a five-night swing, 54% of a two-week hold and 83% of a
+       two-month one. A swing strategy cached at zero carry and read back at
+       the real rate is the flattering half of that gap, silently.
+
+       It became reachable the moment cost models could be chosen: the
+       "paranoid" preset doubles carry and nothing else about it is visible in
+       the key, and a measured model may override carry alone. */
+    const a = hashCosts(DEFAULT_COSTS);
+    const b = hashCosts({ ...DEFAULT_COSTS, carryPerNight: DEFAULT_COSTS.carryPerNight * 2 });
+    expect(b, "a doubled overnight rate produced the same key").not.toBe(a);
+  });
+
+  it("HASHES EVERY FIELD OF THE COST MODEL, so the next one added cannot be forgotten", () => {
+    /* The guard, rather than four assertions that go stale: every key of
+       `Costs` must change the hash. A field added to the cost model and left
+       out of the key is this same defect again, and it would be just as quiet. */
+    for (const key of Object.keys(DEFAULT_COSTS) as Array<keyof typeof DEFAULT_COSTS>) {
+      const moved = { ...DEFAULT_COSTS, [key]: DEFAULT_COSTS[key] + 0.0007 };
+      expect(hashCosts(moved), `${key} is not in the cache key`).not.toBe(hashCosts(DEFAULT_COSTS));
+    }
   });
 
   it("is the same key for the same field in the same order", () => {
@@ -197,5 +230,35 @@ describe("the store", () => {
     /* The oldest went; the newest stayed. */
     expect(c.get("S0|1h|f|c")).toBeNull();
     expect(c.get(`S${SWEEP_MAX + 5}|1h|f|c`)).not.toBeNull();
+  });
+});
+
+describe("the bar is part of the question too", () => {
+  /**
+   * The same lesson the financing taught, applied before it could bite.
+   *
+   * The promotion gate's three thresholds became something the operator can
+   * move. A cached sweep answers "what survived" — and what survived depends on
+   * the bar it had to clear every bit as much as on the costs it was charged.
+   * A verdict reached at thirty out-of-sample trades, served back to somebody
+   * who has since lowered the bar to five, is a conclusion nobody reached.
+   */
+  it("IS A DIFFERENT KEY WHEN THE BAR MOVES", () => {
+    const a = sweepKey("BTCUSDT", "1h", "f", hashCosts(DEFAULT_COSTS), hashBar(STANDARD_BAR));
+    const b = sweepKey("BTCUSDT", "1h", "f", hashCosts(DEFAULT_COSTS), hashBar({ ...STANDARD_BAR, minTrades: 5 }));
+    expect(b, "a lowered trade floor produced the same key").not.toBe(a);
+  });
+
+  it("HASHES EVERY FIELD OF THE BAR, so the next threshold added cannot be forgotten", () => {
+    for (const key of Object.keys(STANDARD_BAR) as Array<keyof typeof STANDARD_BAR>) {
+      const moved = { ...STANDARD_BAR, [key]: STANDARD_BAR[key] + 0.013 };
+      expect(hashBar(moved), `${key} is not in the cache key`).not.toBe(hashBar(STANDARD_BAR));
+    }
+  });
+
+  it("IS THE SAME KEY FOR THE SAME BAR, so an unchanged question still hits", () => {
+    /* The other half: a key that changed when nothing did would make the cache
+       useless and every reopen a thirty-second search. */
+    expect(hashBar(STANDARD_BAR)).toBe(hashBar({ ...STANDARD_BAR }));
   });
 });

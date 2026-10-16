@@ -61,9 +61,16 @@ import { planRun, planLine, loadForPlan, nearestTimeframe, type RunPlan } from "
 import { collectSignals } from "../backtest/collect";
 import { buildLedger, baseRate, type Ledger } from "../backtest/ledger";
 import { trainRouter, type RouterResult } from "../data/router";
-import { composePair, type HybridSpec, type HybridRejected } from "../backtest/hybrid";
+import {
+  canFilter,
+  composePair,
+  filtersBothSides,
+  type HybridSpec,
+  type HybridRejected,
+} from "../backtest/hybrid";
 import { SPECS, STYLE_LABEL } from "../backtest/specs";
-
+
+import { deskLabel } from "./shell/views";
 export interface PlaybookOptions {
   /** The chart's symbol — the DEFAULT for this desk's own picker, not a lock. */
   readonly symbol: Signal<string>;
@@ -122,7 +129,7 @@ interface Saved {
   combine?: string;
 }
 
-const SLOT = {
+export const PLAYBOOK_SLOT = {
   key: "playbook.v1",
   version: 1,
   fallback: (): Saved => ({ custom: [], selected: SPECS[0]?.id ?? "" }),
@@ -151,7 +158,7 @@ const pct = (n: number, dp = 1): string => (Number.isFinite(n) ? `${(n * 100).to
 const fixed = (n: number, dp = 2): string => (Number.isFinite(n) ? n.toFixed(dp) : "—");
 
 export function createPlaybook(opts: PlaybookOptions) {
-  const stored = opts.kv.read(SLOT).value;
+  const stored = opts.kv.read(PLAYBOOK_SLOT).value;
 
   const custom = signal<RuleSpec[]>(stored.custom);
   const selectedId = signal(stored.selected);
@@ -762,7 +769,7 @@ export function createPlaybook(opts: PlaybookOptions) {
   });
 
   const persist = (): void => {
-    opts.kv.write(SLOT, {
+    opts.kv.write(PLAYBOOK_SLOT, {
       custom: custom(),
       selected: selectedId(),
       symbol: symbol(),
@@ -1350,13 +1357,45 @@ export function createPlaybook(opts: PlaybookOptions) {
     },
     h("option", { value: "", text: "Nothing — test this rule alone" }),
     /* A fragment, matching the strategy picker above: `h` takes one node from a
-       reactive child, not an array. */
+       reactive child, not an array.
+
+       GROUPED BY WHETHER THE PAIR CAN EXIST AT ALL. About a third of the shipped
+       rules cannot act as a filter — every condition of their entry is a one-bar
+       crossing, so there is no standing state to restrict another rule with —
+       and the menu used to list them indistinguishably and refuse AFTER the
+       click. A menu whose rows are a third dead is one you learn by trial.
+
+       They are still SHOWN, disabled, with the reason in the group label: a row
+       that vanishes teaches nothing, and "why is X not in the list?" is a worse
+       question than "why is X greyed out?". */
     () => {
       const frag = document.createDocumentFragment();
-      for (const x of all()) {
-        if (x.id === current()?.id) continue;
-        frag.appendChild(h("option", { value: x.id, text: x.name }));
-      }
+      const rest = all().filter((x) => x.id !== current()?.id);
+      const usable = rest.filter((x) => canFilter(x));
+      const dead = rest.filter((x) => !canFilter(x));
+
+      const group = (label: string, rows: readonly RuleSpec[], disabled: boolean): void => {
+        if (rows.length === 0) return;
+        const g = h("optgroup", { label }) as HTMLOptGroupElement;
+        for (const x of rows) {
+          g.appendChild(
+            h("option", {
+              value: x.id,
+              /* NAMED AS ONE-SIDED WHERE IT IS. The composer filters the short
+                 entry only when the rule carries a standing condition there too,
+                 so some pairs restrict longs and leave every short exactly as it
+                 was — and "adds 1 condition" reads as though it applied to the
+                 whole rule. */
+              text: filtersBothSides(x) ? x.name : `${x.name} — longs only`,
+              ...(disabled ? { disabled: "" } : {}),
+            }),
+          );
+        }
+        frag.appendChild(g);
+      };
+
+      group("Can filter this rule", usable, false);
+      group("No standing condition — cannot filter", dead, true);
       return frag as unknown as HTMLElement;
     },
   ) as HTMLSelectElement;
@@ -1386,10 +1425,11 @@ export function createPlaybook(opts: PlaybookOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Playbook" }),
+      h("h1", { class: "view-title", text: deskLabel("playbook") }),
       h("p", {
         class: "view-sub",
-        text: "Seventeen rule sets you can read, change and test. Every rule below is printed from the same data the engine runs, so the description cannot drift from the behaviour.",
+        text: () =>
+          `${all().length} rule sets you can read, change and test. Every rule below is printed from the same data the engine runs, so the description cannot drift from the behaviour.`,
       }),
     ),
 
@@ -2017,7 +2057,7 @@ export function createPlaybook(opts: PlaybookOptions) {
             },
           }),
           pkWhy(
-            "One rule set on one symbol over one window, with costs applied. That is a description of the past, not evidence of an edge — the Strategy desk exists to put a number on how likely this result is to be luck.",
+            "One rule set on one symbol over one window, with costs applied. That is a description of the past, not evidence of an edge — the Strategy tester desk exists to put a number on how likely this result is to be luck.",
             "What this can't tell you",
           ),
         ),

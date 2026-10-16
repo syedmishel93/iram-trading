@@ -566,7 +566,7 @@ export function createAutoVerdict(ctx: AutoVerdictContext, deps: AutoVerdictDeps
             class: "ghost-btn tiny",
             type: "button",
             "data-act": "open-strategy",
-            text: "Open the Strategy desk",
+            text: "Open the Strategy tester desk",
             onclick: () => deps.onOpenStrategy(),
           }),
         ),
@@ -624,7 +624,7 @@ export function createAutoVerdict(ctx: AutoVerdictContext, deps: AutoVerdictDeps
           c.row.status === "unproven"
             ? h("p", {
                 class: "small av-unproven",
-                text: "This is UNPROVEN: it survived a search and has no forward record. Promote it on the Strategy desk if you want it treated as more than that.",
+                text: "This is UNPROVEN: it survived a search and has no forward record. Promote it on the Strategy tester desk if you want it treated as more than that.",
               })
             : null,
           armBlock(c),

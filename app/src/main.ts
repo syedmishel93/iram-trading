@@ -11,6 +11,7 @@ import "./styles/chrome.css";
 /* The chart header. After chrome.css so it specialises the row it restyles. */
 import "./styles/topbar.css";
 import "./styles/risk.css";
+import "./styles/results.css";
 import "./styles/settings.css";
 import "./styles/learn.css";
 /* The Knowledge desk. After learn.css — it is the same family and specialises
@@ -45,6 +46,8 @@ import "./styles/strategy.css";
 import "./styles/livefeed.css";
 import "./styles/watchrail.css";
 import "./styles/agent-expert.css";
+import "./styles/holdings.css";
+import "./styles/routine.css";
 /* LAST, and that is the point: press feedback extends controls the files above
    define, so it has to win on equal specificity. See `press.css` for the audit
    that produced it — 65 selectors with `:hover`, one file with `:active`. */

@@ -140,6 +140,45 @@ export function filterConditions(g: ConditionGroup | undefined): Condition[] {
   return (g ?? []).filter((c) => !isEvent(c));
 }
 
+/**
+ * Can this rule act as the FILTER half of a pair?
+ *
+ * ASKED BEFORE THE CHOICE, NOT AFTER IT. The Playbook's combine menu listed
+ * every shipped rule and refused about a third of them once picked, with a
+ * sentence starting "Cannot be combined" — correct, and arriving too late. A
+ * menu whose rows are a third dead is one people learn by trial.
+ *
+ * IT ASKS ABOUT THE LONG SIDE ONLY, because that is what `composePair` gates on
+ * — and matching the composer exactly is the whole value of this function. A
+ * stricter answer here would grey out a rule that the composer would have
+ * accepted, which is a worse failure than the late refusal it replaces: the
+ * operator would never find out it was possible.
+ *
+ * `composePair` remains the authority; this is the same question asked without
+ * building the spec, and `canfilter.test.ts` holds the two to each other over
+ * every shipped rule rather than trusting that they agree.
+ */
+export function canFilter(spec: RuleSpec): boolean {
+  return filterConditions(spec.long).length > 0;
+}
+
+/**
+ * Does it filter SHORTS as well as longs?
+ *
+ * `composePair` mirrors the filter onto the short entry only when both sides
+ * carry one, and says why: adding a long-side condition to a short entry would
+ * be a rule nobody wrote. The consequence is easy to miss and worth saying out
+ * loud — MEASURED on the shipped set, `macd-signal-cross` has `macdh > 0` on its
+ * longs and nothing on its shorts, so pairing with it filters half the trades
+ * and leaves the other half exactly as they were.
+ *
+ * That is not wrong, but "adds 1 condition to the entry" reads as though it
+ * applied to the whole rule. The desk says which.
+ */
+export function filtersBothSides(spec: RuleSpec): boolean {
+  return filterConditions(spec.long).length > 0 && filterConditions(spec.short).length > 0;
+}
+
 const WHY: Readonly<Record<HybridRefusal, string>> = {
   "no-filter": "it has no standing condition to add — every one of its entry rules is a one-bar crossing",
   "already-in-trigger": "every condition it would add is already in the trigger, so the pair is the trigger",

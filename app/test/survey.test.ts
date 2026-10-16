@@ -405,6 +405,22 @@ describe("a real edge, and whether the panel can support the claim", () => {
     SET,
   );
 
+  it("RAN ON WHAT IT CLAIMS TO HAVE RUN ON", () => {
+    /* PRINTS WHAT IT PARSED, because this block failed twice in one full-suite
+       run with "expected 0 to be greater than 0" and passed alone and in three
+       other runs on the same trees. `surveystable.test.ts` then proved the
+       survey itself deterministic — same verdict twice, clock-independent,
+       Math.random-independent — so a changed verdict can only come from
+       changed INPUT. These are the inputs, asserted, so the next occurrence
+       names its own cause instead of looking like the engine changing its
+       mind. A zero here is the finding. */
+    expect(SIX, "the six rules this block is about did not all resolve").toHaveLength(6);
+    expect(SET.draws).toBe(400);
+    for (const m of [diversified, cryptoOnly]) {
+      expect(m.markets.length, "a market was skipped").toBeGreaterThan(1);
+    }
+  });
+
   it("is powered enough for the diversified panel to report anything", () => {
     // If this fails, every other expectation about `diversified` is vacuous.
     expect(diversified.blocked).toBeNull();

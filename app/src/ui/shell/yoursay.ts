@@ -159,7 +159,7 @@ export function createSayRow(ctx: SayContext, d: SayRowDeps): HTMLElement {
           class: "ghost-btn say-btn",
           type: "button",
           text: "Adjust",
-          title: "Record it, and open the Decision desk to change the plan",
+          title: "Record it, and open the Confluence desk to change the plan",
           onclick: () => {
             record("adjust");
             d.onAdjust();

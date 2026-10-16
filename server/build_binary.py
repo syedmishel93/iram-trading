@@ -138,6 +138,7 @@ HIDDEN = [
     # the first time anyone ran the packaged product.
     "db",
     "db.driver",
+    "db.migrations",
     "db.schema",
     "db.sqlrewrite",
     # The service's own sections, same reason. Every module added under

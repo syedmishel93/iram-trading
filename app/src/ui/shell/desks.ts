@@ -27,6 +27,9 @@ import { createPaper } from "../paper";
 import { createPlaybook } from "../playbook";
 import { createSessions } from "../sessions";
 import { createSimulation } from "../simulation";
+import { createResults } from "../results";
+import { autoResults } from "../../data/autorun";
+import { SWEEP_SLOT, type SweepSummary } from "../../backtest/sweepcache";
 import { createSmartMoney } from "../smartmoney";
 import { createStrategy } from "../strategy";
 import { createSystemDesk } from "../system";
@@ -36,7 +39,7 @@ import { createConnections } from "../connections";
 import { fetchServerBars, serverInventory } from "../../data/serverbars";
 import { activitySummary } from "../../data/activity";
 import { createWatchlist } from "../watchlist";
-import type { ReadSignal } from "../../core/signal";
+import { signal, type ReadSignal } from "../../core/signal";
 import type { BarView } from "../../chart/series";
 import type { GateRules } from "../../setup/rules";
 import type { ShellContext } from "./context";
@@ -347,7 +350,7 @@ export function createDesks(ctx: ShellContext, deps: DesksDeps) {
       return last ? last.c : 0;
     },
     bars: () => bars(),
-    notify: (msg) => toaster.push({ level: "info", title: "Paper desk", body: msg }),
+    notify: (msg) => toaster.push({ level: "info", title: "Paper trading desk", body: msg }),
   }));
 
   const knowledge = lazyDesk(() => createKnowledge({
@@ -417,7 +420,46 @@ export function createDesks(ctx: ShellContext, deps: DesksDeps) {
      tab poll a loop nobody has opened. */
   const simulation = lazyDesk(() => createSimulation({ symbol: state.symbol, timeframe: state.timeframe }));
 
+  /**
+   * THE SWEEP LOG'S FIRST READER.
+   *
+   * `SWEEP_SLOT` has had a writer in `sweepdriver.ts` since v60 and nothing has
+   * ever read it back — the record of every search the terminal has run was
+   * being kept and shown to nobody. It is a TAIL, not a history: `SWEEP_MAX` is
+   * 24, and the desk says so rather than implying the list is complete.
+   *
+   * Kept live through `kv.subscribe` so a search finishing while the desk is
+   * open lands on it, which is the one moment anybody is watching.
+   */
+  const sweepRows = signal<readonly SweepSummary[]>(kv.get(SWEEP_SLOT));
+  kv.subscribe((key) => {
+    if (key === SWEEP_SLOT.key) sweepRows.set(kv.get(SWEEP_SLOT));
+  });
+
+  const results = lazyDesk(() =>
+    createResults({
+      /* THE SIGNAL ITSELF, not an arrow around it: `ReadSignal` carries
+         `peek`, and a closure would silently drop it. */
+      shelf: shelf.rows,
+      sweeps: sweepRows,
+      /* THE LOADER IS PASSED, never defaulted inside the desk: a live default
+         is how a test comes to reach the operator's gateway. */
+      loadAuto: async () => {
+        const got = await autoResults();
+        return got.kind === "ok" ? { results: got.value.results } : null;
+      },
+      /* A ROW IS A ROUTE, not a readout: the market it names is the one you
+         would go and look at next. */
+      onOpen: (symbol, timeframe) => {
+        state.symbol.set(symbol);
+        state.timeframe.set(timeframe);
+        state.view.set("chart");
+      },
+    }),
+  );
+
   return {
+    results,
     simulation,
     flow,
     data,

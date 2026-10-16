@@ -104,7 +104,7 @@ export interface DataOptions {
 }
 
 /** Whether the library keeps its series up to date in the background. Off by default. */
-const TOPUP_SLOT = {
+export const TOPUP_SLOT = {
   key: "research.topup",
   version: 1,
   fallback: (): boolean => false,

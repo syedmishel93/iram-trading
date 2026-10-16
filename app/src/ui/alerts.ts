@@ -32,7 +32,8 @@ import {
 } from "../alert/notify";
 import { canAnchor, isBandKind, presetFor, anchorTimeframe } from "../alert/preset";
 import { makeBookFile } from "../alert/headless";
-
+
+import { deskLabel } from "./shell/views";
 export interface AlertsDeskOptions {
   symbol: Signal<string>;
   timeframe: Signal<string>;
@@ -606,7 +607,7 @@ export function createAlerts(opts: AlertsDeskOptions): AlertsHandle {
     h(
       "header",
       { class: "view-head" },
-      h("h2", { class: "view-title", text: "Signals" }),
+      h("h2", { class: "view-title", text: deskLabel("signals") }),
       h("p", {
         class: "view-sub",
         text: "Alerts anchored to structures, not to numbers you typed once. Judged on closes, never on a forming bar.",

@@ -41,7 +41,11 @@
 import { detectStructure } from "../detect/structure";
 import { detectFVG, detectOrderBlocks } from "../detect/zones";
 import { detectSweeps } from "../detect/liquidity";
-import { detectRanges } from "../detect/ranges";
+import { detectBreakers, detectRanges } from "../detect/ranges";
+import { detectFailedBreaks, detectMitigation, detectSprings } from "../detect/failure";
+import { detectVolumeClimax } from "../detect/volume";
+import { detectDivergence } from "../detect/formations";
+import { volumeProfile } from "../chart/profile";
 import type { DetectInput, Detection } from "../detect/types";
 import type { StrategyContext } from "./engine";
 
@@ -61,6 +65,39 @@ export const STRUCTURAL_COLUMNS = {
   expansion: "Range expansion (+1 up / −1 down)",
   /** 1 while price is inside a detected range, else 0. */
   inrange: "Inside a range (1 / 0)",
+
+  /* ───────────────────────────────────────────────────────── v63.26
+   * NINE MORE DETECTORS, MADE TESTABLE.
+   *
+   * MEASURED: 24 of 29 registered detectors drew on the chart and could not be
+   * named by a rule. The four families most often asked for — Wyckoff, volume
+   * profile, price-action failures and the rest of SMC — were every one of them
+   * already DETECTED and drawn, and there was no way to ask whether any of them
+   * made money. A store with a writer and no reader.
+   *
+   * They are columns rather than new hand-written strategies on purpose: the
+   * chart and the backtester then call the SAME detector, so the two cannot
+   * disagree about what a spring is.
+   */
+
+  /** +1 on the bar a Wyckoff spring was reclaimed, −1 for an upthrust. */
+  spring: "Spring (+1) / upthrust (−1)",
+  /** +1 buying climax, −1 selling climax, on the bar itself. */
+  climax: "Volume climax (+1 up / −1 down)",
+  /** The PREVIOUS completed period's point of control, as a price. */
+  poc: "Prior point of control (price)",
+  /** The previous completed period's value area high, as a price. */
+  vah: "Prior value area high (price)",
+  /** The previous completed period's value area low, as a price. */
+  val: "Prior value area low (price)",
+  /** +1 on the bar a bearish structure break failed, −1 for a bullish one. */
+  failbreak: "Failed break (+1 long / −1 short)",
+  /** +1 on the bar a broken level was retested and held, −1 bearish. */
+  retest: "Break retested and held (+1 / −1)",
+  /** +1 on the bar price returned to a bullish breaker block, −1 bearish. */
+  breaker: "Breaker block retest (+1 / −1)",
+  /** +1 bullish RSI divergence, −1 bearish, at the bar it completed. */
+  divergence: "RSI divergence (+1 bull / −1 bear)",
 } as const;
 
 export type StructuralColumnId = keyof typeof STRUCTURAL_COLUMNS;
@@ -82,6 +119,46 @@ export type StructuralColumnId = keyof typeof STRUCTURAL_COLUMNS;
  */
 const UNCAPPED = 1e9;
 
+/**
+ * AND THE WINDOW IS A CAP TOO.
+ *
+ * `detectSweeps` and `detectRanges` scan `from = len - lookback` with a default
+ * of 400 bars. MEASURED bar by bar, 700 against 900: an event at bar 400 EXISTS
+ * in the shorter run and does not exist in the longer one, so the column rewrote
+ * its own past as the series grew. Three shipped columns were affected —
+ * `sweep`, `infvg` and `expansion` — and the spec-level look-ahead test did not
+ * see it because it samples three bar indices and the window edge fell between
+ * them.
+ *
+ * Passed everywhere a detector accepts it. `UNCAPPED` names the same idea for
+ * both fields because it IS the same defect: a number that makes the answer
+ * depend on how long the series happens to be.
+ */
+const FULL_HISTORY = UNCAPPED;
+
+/**
+ * The profile grid.
+ *
+ * 96 bars is `detect/volume.ts`'s own `periodBars` default — a day of 15m, four
+ * days of 1h — and it is taken from there rather than chosen again so the levels
+ * a rule trades are the same size of period the chart draws. 60 bins likewise.
+ */
+const PROFILE_PERIOD_BARS = 96;
+const PROFILE_BINS = 60;
+
+/**
+ * How far back a volume climax is measured.
+ *
+ * 400 bars is the span `detectVolumeClimax` already scans for display, reused
+ * here as the MEASUREMENT window so the two describe the same neighbourhood.
+ * Long enough that a quiet week does not make every bar a climax, short enough
+ * that a bar is judged against business anyone still remembers.
+ */
+const CLIMAX_WINDOW = 400;
+
+/** The same idea for the fair-value-gap size floor, and the same span. */
+const FVG_FLOOR_WINDOW = 400;
+
 export type StructuralColumns = Partial<Record<StructuralColumnId, Float64Array>>;
 
 const cache = new WeakMap<StrategyContext, StructuralColumns>();
@@ -95,6 +172,19 @@ const sign = (d: Detection): number => (d.direction === "long" ? 1 : d.direction
  * a walk-forward sweep over twenty folds runs the detectors once rather than
  * twenty times.
  */
+/**
+ * Append without spreading.
+ *
+ * `push(...arr)` passes every element as a separate ARGUMENT and the engine's
+ * limit is a few tens of thousands, so an uncapped detector on a real study —
+ * 41,538 bars is an ordinary request here — throws `Maximum call stack size
+ * exceeded`. Every cap in this file is lifted ON PURPOSE, which makes that the
+ * normal case rather than an edge one.
+ */
+function pushAll(into: Detection[], from: readonly Detection[]): void {
+  for (const d of from) into.push(d);
+}
+
 export function structuralColumns(
   ctx: StrategyContext,
   needed: ReadonlySet<string>,
@@ -123,10 +213,10 @@ export function structuralColumns(
 
   const found: Detection[] = [];
   if (want.has("bos") || want.has("choch")) {
-    found.push(...detectStructure(data, {}, n));
+    pushAll(found, detectStructure(data, {}, n));
   }
   if (want.has("sweep")) {
-    found.push(...detectSweeps(data, { maxResults: UNCAPPED }, n));
+    pushAll(found, detectSweeps(data, { maxResults: UNCAPPED, lookback: FULL_HISTORY }, n));
   }
   /**
    * `hideMitigated: false`, and this is the opposite of what the chart wants.
@@ -145,13 +235,86 @@ export function structuralColumns(
    * through its far side.
    */
   if (want.has("infvg")) {
-    found.push(...detectFVG(data, { maxZones: UNCAPPED, hideMitigated: false }, n));
+    pushAll(found, detectFVG(
+      data,
+      /* A ROLLING SIZE FLOOR. The default is a quantile over every gap in the
+         series, so the same three bars are a gap at 700 bars and not at 900. */
+      { maxZones: UNCAPPED, hideMitigated: false, floorWindow: FVG_FLOOR_WINDOW },
+      n,
+    ));
   }
   if (want.has("inob")) {
-    found.push(...detectOrderBlocks(data, { maxZones: UNCAPPED, hideMitigated: false }, n));
+    pushAll(found, detectOrderBlocks(
+        data,
+        { maxZones: UNCAPPED, hideMitigated: false, floorWindow: FVG_FLOOR_WINDOW },
+        n,
+      ),
+    );
   }
   if (want.has("expansion") || want.has("inrange")) {
-    found.push(...detectRanges(data, { maxResults: UNCAPPED }, n));
+    pushAll(found, detectRanges(
+        data,
+        /* `scanFrom: "start"` — see the option. The chart tiles ranges backward
+           from the last bar, which re-tiles the whole history every time a bar
+           arrives. */
+        { maxResults: UNCAPPED, lookback: FULL_HISTORY, scanFrom: "start" },
+        n,
+      ),
+    );
+  }
+
+  /*
+   * THE v63.26 DETECTORS, EVERY CAP LIFTED.
+   *
+   * `maxPerKind`, `maxResults` and `maxClimax` are display defaults and every
+   * one of them is a look-ahead leak here, for the reason UNCAPPED already
+   * records: whether an event at bar 200 survives a `slice(-4)` depends on how
+   * many events happened AFTER it.
+   *
+   * `lookback` is the same defect wearing a different name. `detectFailedBreaks`
+   * keeps only breaks with `d.to >= len - lookback`, so at 700 bars a break at
+   * bar 250 is in scope and at 900 bars it is not — the column would rewrite its
+   * own past as the series grew. `detectorcolumns.test.ts` compares 700 against
+   * 900 for exactly this.
+   */
+  if (want.has("spring")) {
+    pushAll(found, detectSprings(
+        data,
+        { maxPerKind: UNCAPPED, lookback: FULL_HISTORY, sourceCap: UNCAPPED, causal: true },
+        n,
+      ),
+    );
+  }
+  if (want.has("failbreak") || want.has("retest")) {
+    pushAll(
+      found,
+      detectFailedBreaks(
+        data,
+        { maxPerKind: UNCAPPED, lookback: FULL_HISTORY, sourceCap: UNCAPPED, causal: true },
+        n,
+      ),
+    );
+    pushAll(
+      found,
+      detectMitigation(data, { maxPerKind: UNCAPPED, sourceCap: UNCAPPED, causal: true }, n),
+    );
+  }
+  if (want.has("breaker")) {
+    pushAll(found, detectBreakers(
+      data,
+      { maxResults: UNCAPPED, sourceCap: UNCAPPED, requireRetest: true, causal: true },
+      n,
+    ));
+  }
+  if (want.has("climax")) {
+    /* A ROLLING THRESHOLD, not the whole series. See `climaxWindow`: the
+       detector's default asks whether this bar is loud against all of history,
+       which is a different number every time history gets longer. */
+    pushAll(found, detectVolumeClimax(data, { maxClimax: UNCAPPED, climaxWindow: CLIMAX_WINDOW }, n),
+    );
+  }
+  if (want.has("divergence")) {
+    pushAll(found, detectDivergence(data, { maxAgeBars: UNCAPPED }, n));
   }
 
   const blank = (): Float64Array => new Float64Array(n);
@@ -172,6 +335,75 @@ export function structuralColumns(
         if (d.kind !== "liquidity-sweep") continue;
         if (d.to >= 0 && d.to < n) col[d.to] = sign(d);
       }
+    } else if (id === "poc" || id === "vah" || id === "val") {
+      /**
+       * THE PRIOR PERIOD'S LEVELS, ON A FIXED BAR GRID.
+       *
+       * `detectProfile` IS NOT USED HERE, and that is the one place in this file
+       * where the chart's own detector had to be left behind. It slices periods
+       * as `end = len - k * size`, anchored to the LAST bar — exactly right for
+       * "the last three sessions" on a chart, and meaningless in a backtest,
+       * where the boundaries would slide every time the series grew and
+       * yesterday's value area would stop being yesterday's.
+       *
+       * So the framing is fixed here and the ARITHMETIC is still shared:
+       * `volumeProfile` is the one owner of the CME value-area walk, called by
+       * the chart study, by the detector, and by this. A second implementation
+       * would be a second place for the 70% band to disagree with itself.
+       *
+       * Period k covers bars [k*SIZE, (k+1)*SIZE) and governs the bars AFTER it.
+       * Nothing governs the first period: a profile built from bars 0-95 is only
+       * knowable at bar 96, and filling bar 0 with it would hand the backtest
+       * the session's own outcome.
+       */
+      /* NOT KNOWN IS NaN, NOT ZERO, and that is a correctness fix rather than a
+         nicety. A price column reading 0 makes `close > val` trivially true and
+         `close crossbelow vah` fire on the very bar the first level appears -
+         price crosses a threshold that jumped from 0 to 98, which is an event
+         about the column filling in and not about the market. Every operator
+         here answers false against NaN, so an unknown level simply cannot
+         satisfy a condition. */
+      col.fill(Number.NaN);
+      const size = PROFILE_PERIOD_BARS;
+      for (let k = 0; (k + 1) * size <= n; k++) {
+        const start = k * size;
+        const end = (k + 1) * size;
+        const p = volumeProfile(ctx.bars.slice(start, end), PROFILE_BINS);
+        /* NULL IS AN ANSWER: an FX feed carries no volume, and a flat block with
+           an arbitrary point of control is worse than no level at all. Those
+           bars keep 0, which every rule here reads as "not known". */
+        if (p === null) continue;
+        const level = id === "poc" ? p.poc : id === "vah" ? p.vah : p.val;
+        if (!Number.isFinite(level)) continue;
+        const until = Math.min(n, end + size);
+        for (let i = end; i < until; i++) col[i] = level;
+      }
+    } else if (id === "spring") {
+      for (const d of found) {
+        if (d.kind !== "spring" && d.kind !== "upthrust") continue;
+        if (d.to >= 0 && d.to < n) col[d.to] = sign(d);
+      }
+    } else if (id === "climax" || id === "divergence") {
+      const kind = id === "climax" ? "volume-climax" : "divergence";
+      for (const d of found) {
+        if (d.kind !== kind) continue;
+        if (d.to >= 0 && d.to < n) col[d.to] = sign(d);
+      }
+    } else if (id === "failbreak" || id === "retest" || id === "breaker") {
+      /* `retest` takes BOTH kinds that mean "price came back and the level
+         held": a structure break retested, and an order block mitigated. They
+         are one fact with two detectors, and a rule asking for the return does
+         not care which found it. */
+      const kinds =
+        id === "failbreak"
+          ? ["failed-break"]
+          : id === "breaker"
+            ? ["breaker"]
+            : ["retest", "mitigation"];
+      for (const d of found) {
+        if (!kinds.includes(d.kind)) continue;
+        if (d.to >= 0 && d.to < n) col[d.to] = sign(d);
+      }
     } else if (id === "expansion") {
       for (const d of found) {
         if (d.kind !== "expansion") continue;
@@ -179,10 +411,26 @@ export function structuralColumns(
       }
     } else if (id === "inrange") {
       for (const d of found) {
-        if (d.kind !== "range") continue;
+        /**
+         * BOTH KINDS, KEYED ON `settledAt`.
+         *
+         * Filtering on `kind === "range"` was a look-ahead leak that no cap or
+         * window could reach, because it lived in the detection's IDENTITY: a
+         * range becomes an `expansion` the moment price closes out of it, so the
+         * same box was a range at 261 bars and an expansion at 900, and bars
+         * 259-260 were inside a range in one run and not in the other.
+         *
+         * `settledAt` is the box's last bar and never moves. The loop below
+         * already stops the moment a close leaves the box, so a range that later
+         * breaks is painted up to its break and no further — which is what the
+         * column meant all along.
+         */
+        if (d.kind !== "range" && d.kind !== "expansion") continue;
+        const settled = d.settledAt ?? d.to;
         /* A range is a STATE, so it is painted across the bars it covers —
-           but only from `to` onward, because that is when it was knowable. */
-        for (let i = d.to; i < n; i++) {
+           but only from the bar it was settled, because that is when it was
+           knowable. */
+        for (let i = settled; i < n; i++) {
           const box = d.shapes.find((s) => s.type === "box");
           if (box === undefined || box.type !== "box") break;
           const c = ctx.close[i] as number;

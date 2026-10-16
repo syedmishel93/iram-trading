@@ -38,6 +38,7 @@
 import { intervalMs } from "../data/history";
 import type { AutoRunReport, Entrant } from "./autorun";
 import type { Costs } from "./engine";
+import type { PromotionBar } from "./promote";
 import type { KV, Slot } from "../store/kv";
 
 /** New bars before a cached sweep is worth re-running. */
@@ -121,12 +122,57 @@ export function hashField(entrants: readonly Entrant[]): string {
 }
 
 /** The costs, as an identity. They set the hurdle, so they set the question. */
+/**
+ * The cost model, as part of the question a cached answer was the answer to.
+ *
+ * EVERY FIELD, AND `carryPerNight` IS WHY THIS COMMENT EXISTS. It hashed the
+ * first three and not the financing, so two models differing only in the
+ * overnight rate shared a key — and a verdict reached under one hurdle was
+ * served as the answer to the other. Not a rounding difference: `engine.ts`
+ * records that the cost this engine treated as zero for its whole life came to
+ * 29% of a five-night swing and 83% of a two-month hold, so a swing strategy
+ * cached at zero carry and read back at the real rate is the flattering half
+ * of that gap, silently.
+ *
+ * Built from `Object.keys` in a fixed order rather than a hand-written list,
+ * so a field added to `Costs` is in the key by construction. The list is what
+ * went wrong; the derivation is the fix.
+ */
 export function hashCosts(costs: Costs): string {
-  return digest(`${costs.spread}|${costs.commission}|${costs.slippage}`);
+  const keys = Object.keys(costs).sort() as Array<keyof Costs>;
+  return digest(keys.map((k) => `${k}=${costs[k]}`).join("|"));
 }
 
-export function sweepKey(symbol: string, timeframe: string, field: string, costs: string): string {
-  return `${symbol.toUpperCase()}|${timeframe}|${field}|${costs}`;
+/**
+ * The promotion bar, as part of the question too.
+ *
+ * What survived a sweep depends on the bar it had to clear every bit as much
+ * as on the costs it was charged, and the three thresholds became something the
+ * operator can move. A verdict reached at thirty out-of-sample trades, served
+ * back to somebody who has since lowered the floor to five, is a conclusion
+ * nobody reached — the same defect as the financing the cost hash used to omit,
+ * caught before it could ship rather than after.
+ *
+ * Derived from `Object.keys`, for the reason the costs hash now is: the
+ * hand-written list is what goes wrong.
+ */
+export function hashBar(bar: PromotionBar): string {
+  const keys = Object.keys(bar).sort() as Array<keyof PromotionBar>;
+  return digest(keys.map((k) => `${k}=${bar[k]}`).join("|"));
+}
+
+export function sweepKey(
+  symbol: string,
+  timeframe: string,
+  field: string,
+  costs: string,
+  bar = "",
+): string {
+  /* `bar` defaults to empty so every existing caller keeps the key it had and
+     no stored sweep is orphaned by the signature alone. A caller that passes
+     one gets a key that distinguishes the bar; one that does not is exactly
+     where it was. */
+  return `${symbol.toUpperCase()}|${timeframe}|${field}|${costs}${bar === "" ? "" : `|${bar}`}`;
 }
 
 export interface Staleness {

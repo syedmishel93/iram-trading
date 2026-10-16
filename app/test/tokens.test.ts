@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 /**
  * EVERY `var(--x)` IN THE STYLESHEETS RESOLVES TO SOMETHING.
  *
@@ -95,5 +96,27 @@ describe("the palette has no dangling names", () => {
     // Named rather than counted: a count tells you something broke and a name
     // tells you what, and this is the report somebody will read at 2am.
     expect(missing).toEqual([]);
+  });
+});
+
+describe("the browser chrome colour", () => {
+  it("MATCHES THE SHIPPED THEME'S BASE SURFACE", () => {
+    /* `<meta name="theme-color">` paints the strip above the page when the
+       terminal is installed to a home screen. It is a hex in the document and
+       the palette is a hex in a stylesheet, so nothing links them — my first
+       version was a plausible-looking value belonging to no theme here, which is
+       the exact failure the never-hardcode-a-colour rule exists to stop. */
+    const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+    const meta = /name="theme-color"\s+content="(#[0-9A-Fa-f]{6})"/.exec(html);
+    expect(meta, "no theme-color meta tag").toBeTruthy();
+
+    const tokens = readFileSync(new URL("../src/styles/tokens.css", import.meta.url), "utf8");
+    const block = tokens.slice(tokens.indexOf('[data-theme="iram"]'));
+    const base = /--p-bg-base:\s*(#[0-9A-Fa-f]{6})/.exec(block);
+    expect(base, "could not read --p-bg-base for the shipped theme").toBeTruthy();
+
+    expect((meta as RegExpExecArray)[1]?.toLowerCase()).toBe(
+      (base as RegExpExecArray)[1]?.toLowerCase(),
+    );
   });
 });

@@ -27,7 +27,7 @@ import type { KV } from "../store/kv";
 /** Generous. See the header for why it exists at all. */
 export const MAX_ENTRIES = 5000;
 
-const SLOT = {
+export const JOURNAL_SLOT = {
   key: "journal.entries",
   version: 1,
   fallback: (): JournalEntry[] => [],
@@ -79,13 +79,13 @@ function makeId(at: number): string {
 }
 
 export function createJournal(kv: KV, now: () => number = Date.now): Journal {
-  const entries = signal<readonly JournalEntry[]>(kv.read(SLOT).value);
+  const entries = signal<readonly JournalEntry[]>(kv.read(JOURNAL_SLOT).value);
   const lastError = signal("");
 
   const persist = (next: readonly JournalEntry[]): void => {
     const trimmed = evict(next);
     entries.set(trimmed);
-    const res = kv.write(SLOT, [...trimmed]);
+    const res = kv.write(JOURNAL_SLOT, [...trimmed]);
     /* Surfaced, not swallowed. A journal that silently stops saving is worse
        than no journal: you keep filing trades into it and find out months
        later that the record is not there. */

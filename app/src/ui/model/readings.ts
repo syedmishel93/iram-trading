@@ -8,6 +8,24 @@
  */
 
 import { type Calibration, GOOD_ENOUGH, calibration, forecastRange } from "../../analysis/forecast";
+import { MIN_BARS, type RangeForecast } from "../../analysis/forecast";
+import {
+  bestEdge,
+  forecastCandle,
+  matchPatterns,
+  type CandleForecast,
+} from "../../analysis/nextcandle";
+import {
+  POOL,
+  PURGE,
+  WARMUP,
+  analogueForecast,
+  buildFeatures,
+  replayAnalogue,
+  type AnalogueForecast,
+  type AnalogueSkill,
+  type FeatureSet,
+} from "../../analysis/analogue";
 import { type SessionStatus, sessionStatuses } from "../../data/sessionmap";
 import { marketState } from "../../data/sessions";
 import { type Detection } from "../../detect/types";
@@ -137,7 +155,17 @@ export function createReadingsModel(ctx: ShellContext, deps: ReadingsModelDeps) 
    */
   let fcCache: { key: string; f: ReturnType<typeof forecastRange>; cal: Calibration } | null = null;
 
-  const nextBarBand = (): { low: number; high: number; expected: number; calibrated: boolean } | null => {
+  const nextBarBand = (): {
+    low: number;
+    high: number;
+    expected: number;
+    calibrated: boolean;
+    /** Where this bar's forecast width sits against its own history, 0..1. */
+    percentile: number;
+    /** What the 80% band ACTUALLY contained over the replay, and on how many. */
+    held: number;
+    heldN: number;
+  } | null => {
     const series = bars();
     if (series.length === 0) return null;
     const last = series[series.length - 1] as BarView;
@@ -153,13 +181,137 @@ export function createReadingsModel(ctx: ShellContext, deps: ReadingsModelDeps) 
        the price it was fitted at, and every bound is proportional to it. */
     const fittedAt = f.expected / f.sigma;
     const scale = fittedAt > 0 ? last.c / fittedAt : 1;
+    /* THE 80% BUCKET IS THE ONE DRAWN, so it is the one whose score is shown.
+       Quoting the mean error across all three levels would be a number about the
+       model; this is a number about the band on screen. */
+    const b80 = fcCache.cal.buckets.find((x) => Math.abs(x.nominal - 0.8) < 1e-9);
     return {
       low: f.low * scale,
       high: f.high * scale,
       expected: f.expected * scale,
       calibrated: fcCache.cal.usable && fcCache.cal.error <= GOOD_ENOUGH,
+      percentile: f.percentile,
+      held: b80?.realised ?? Number.NaN,
+      heldN: b80?.n ?? 0,
     };
   };
 
-  return { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand };
+  /**
+   * The forecast CANDLE — the band above, plus a body when one is earned.
+   *
+   * CACHED ON THE SAME KEY AND FOR A HARDER REASON. `bestEdge` walks the whole
+   * loaded history once per pattern looking for occurrences, so six patterns is
+   * six passes over 800 bars; per repaint on a live feed that is far worse than
+   * the band it sits beside. The edge can only change when a bar CLOSES, which
+   * is exactly when this key changes.
+   *
+   * The body is NOT re-centred on the live price the way the band is. The band
+   * is a width and scales; the body is a claim about where the next close lands
+   * relative to THIS bar's open, and sliding it with every tick would redraw the
+   * prediction continuously until it agreed with whatever just happened.
+   */
+  let edgeCache: { key: string; edge: ReturnType<typeof bestEdge> } | null = null;
+
+  /**
+   * How many bars of the replay the direction is graded over.
+   *
+   * 250 is chosen so the hit rate has a standard error near 3 points — tight
+   * enough that a real 5-point edge would show, loose enough that it is still
+   * about the CURRENT market. A longer window is a better statistic about a
+   * market that has partly stopped existing.
+   */
+  const SKILL_WINDOW = 250;
+
+  /**
+   * ONLY THE TAIL IS HANDED TO THE ANALOGUE, and this is not an approximation.
+   *
+   * A query's candidate pool is capped at `POOL` by the module itself, so once
+   * the slice holds the pool, the purge gap, the warm-up and the whole replay
+   * window, every forecast is BYTE-IDENTICAL to one computed over the full
+   * archive — and the cost stops growing with it. The 1h archive here is 40,000
+   * bars; unsliced, `buildFeatures` would walk all of them on every price
+   * change to answer a question that can only see 3,000.
+   */
+  const analogueTail = (series: readonly BarView[]): readonly BarView[] => {
+    const need = POOL + PURGE + WARMUP + SKILL_WINDOW + 40;
+    return series.length > need ? series.slice(series.length - need) : series;
+  };
+
+  /**
+   * The analogue forecast and its grade, cached on two DIFFERENT keys.
+   *
+   * The forecast must move WITHIN the bar: its features describe the live bar,
+   * which is still forming, and freezing it at the bar's first tick would draw
+   * a prediction made from a one-second-old candle for the rest of the hour. So
+   * its key carries the live close.
+   *
+   * The grade must NOT. `replayAnalogue` is 250 forecasts over a 3,000-bar pool
+   * each — far too much to repeat per tick — and every bar it scores is closed,
+   * so it can only change when one more of them closes. Its key is the bar's
+   * timestamp alone.
+   */
+  let anaCache: { key: string; feat: FeatureSet; f: AnalogueForecast | null } | null = null;
+  let skillCache: { key: string; skill: AnalogueSkill | null } | null = null;
+
+  const analogueNow = (series: readonly BarView[]): AnalogueForecast | null => {
+    const last = series[series.length - 1];
+    if (last === undefined) return null;
+    const key = `${state.symbol()}|${state.timeframe()}|${series.length}|${last.t}|${last.c}`;
+    if (anaCache === null || anaCache.key !== key) {
+      const tail = analogueTail(series);
+      const feat = buildFeatures(tail);
+      anaCache = { key, feat, f: analogueForecast(tail, feat, tail.length - 1) };
+    }
+    return anaCache.f;
+  };
+
+  /**
+   * How often the drawn direction has actually been right, and what always
+   * calling one way would have scored.
+   *
+   * THE SECOND NUMBER IS THE POINT. "Right 53%" is a report about the window
+   * unless the majority class is beside it — CLAUDE.md's rule, and the reason a
+   * model board here once called 29 of 29 markets skilled.
+   */
+  const nextCandleSkill = (series: readonly BarView[]): AnalogueSkill | null => {
+    const last = series[series.length - 1];
+    if (last === undefined) return null;
+    const key = `${state.symbol()}|${state.timeframe()}|${series.length}|${last.t}`;
+    if (skillCache === null || skillCache.key !== key) {
+      const tail = analogueTail(series);
+      skillCache = { key, skill: replayAnalogue(tail, buildFeatures(tail), SKILL_WINDOW) };
+    }
+    return skillCache.skill;
+  };
+
+  const nextCandle = (
+    series: readonly BarView[],
+    band: RangeForecast,
+  ): CandleForecast | null => {
+    if (series.length < MIN_BARS) return null;
+    const last = series[series.length - 1] as BarView;
+    const key = `${state.symbol()}|${state.timeframe()}|${last.t}`;
+    if (edgeCache === null || edgeCache.key !== key) {
+      edgeCache = { key, edge: bestEdge(series) };
+    }
+    /* The edge is only applied when the pattern it was measured for is ALSO the
+       one that just fired. A measured edge for `hammer` says nothing about a bar
+       that was not a hammer, and applying it anyway would turn a conditional
+       statistic into a permanent drift. */
+    const firing = matchPatterns(series, series.length - 1);
+    const e = edgeCache.edge.edge;
+    const applies = e !== null && firing.includes(e.pattern);
+    return forecastCandle(series, band, applies ? e : null, analogueNow(series));
+  };
+
+  return {
+    lastBar,
+    heatNow,
+    sessionClock,
+    freshDetections,
+    barCountdown,
+    nextBarBand,
+    nextCandle,
+    nextCandleSkill,
+  };
 }

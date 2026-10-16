@@ -20,7 +20,8 @@ import type { Command, CommandRegistry } from "../core/commands";
 import type { Keymap } from "../core/keys";
 import type { MenuBarEntry, MenuItem } from "./menu";
 import type { Signal } from "../core/signal";
-
+
+import { deskLabel } from "./shell/views";
 export interface CommandDeps {
   /** Opens the Settings surface. */
   openSettings(): void;
@@ -335,7 +336,7 @@ export function registerCommands(d: CommandDeps): () => void {
     list.push({
       id: `ws.preset.${p.id}`,
       title: `Layout: ${p.label}`,
-      group: "Workspace",
+      group: deskLabel("workspace"),
       keywords: "layout split grid tile multi chart panes",
       detail: () => `${p.panes} pane${p.panes === 1 ? "" : "s"}`,
       run: () => d.applyWorkspacePreset(p.id),
@@ -346,21 +347,21 @@ export function registerCommands(d: CommandDeps): () => void {
     {
       id: "ws.splitRight",
       title: "Split pane right",
-      group: "Workspace",
+      group: deskLabel("workspace"),
       keywords: "divide vertical new chart pane",
       run: () => d.splitActivePane("row"),
     },
     {
       id: "ws.splitDown",
       title: "Split pane down",
-      group: "Workspace",
+      group: deskLabel("workspace"),
       keywords: "divide horizontal new chart pane",
       run: () => d.splitActivePane("col"),
     },
     {
       id: "ws.close",
       title: "Close pane",
-      group: "Workspace",
+      group: deskLabel("workspace"),
       keywords: "remove delete pane",
       /* One pane is the floor. A command that silently does nothing is worse
          than one that is visibly unavailable. */
@@ -371,7 +372,7 @@ export function registerCommands(d: CommandDeps): () => void {
     {
       id: "ws.link",
       title: "Cycle this pane's link channel",
-      group: "Workspace",
+      group: deskLabel("workspace"),
       keywords: "colour color group follow sync symbol",
       detail: () => d.activePaneLink(),
       run: () => d.cycleActivePaneLink(),
@@ -455,14 +456,14 @@ export function registerCommands(d: CommandDeps): () => void {
     {
       id: "agent.open",
       title: "Ask the analyst",
-      group: "Analyst",
+      group: deskLabel("agent"),
       keywords: "ai agent chat assistant question llm",
       run: () => d.askAgent(),
     },
     {
       id: "agent.brief",
       title: "Brief me on this chart",
-      group: "Analyst",
+      group: deskLabel("agent"),
       keywords: "ai summary analysis overview read",
       detail: () => "runs the grounded tool sweep",
       run: () => d.askAgent("Brief me on what is on screen."),
@@ -887,7 +888,7 @@ export function menuEntries(d: CommandDeps): MenuBarEntry[] {
         {
           label: "Alerts",
           items: [
-            { id: "view.signals", label: "Open the Signals desk" },
+            { id: "view.signals", label: "Open the Alerts desk" },
             { kind: "separator" as const },
             { id: "alerts.sound" },
             { id: "alerts.desktop" },
@@ -896,12 +897,12 @@ export function menuEntries(d: CommandDeps): MenuBarEntry[] {
           ],
         },
         {
-          label: "Analyst",
+          label: deskLabel("agent"),
           items: [
             { id: "agent.open" },
             { id: "agent.brief" },
             { kind: "separator" as const },
-            { id: "view.agent", label: "Open the Analyst desk" },
+            { id: "view.agent", label: "Open the Ask AI desk" },
           ],
         },
         { kind: "separator" },

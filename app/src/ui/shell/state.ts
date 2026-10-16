@@ -17,12 +17,21 @@ import type { ChartKind } from "../../chart/engine";
 import type { PriceScale } from "../../chart/viewport";
 import type { DetectorId } from "../../detect/index";
 import type { Params } from "../../chart/params";
-import type { ThemeName, Density } from "./views";
+import type { Density } from "./views";
+import type { ThemeChoice } from "../systemtheme";
 import type { DockMode } from "../dockpanels";
 import type { DrawerTab } from "../chartdrawer";
 
 export interface ShellState {
-  theme: Signal<ThemeName>;
+  /**
+   * The STORED choice, which may be `auto` — not the theme being rendered.
+   *
+   * It was typed `Signal<ThemeName>` and held `"auto"` through a cast, which is
+   * a type that does not describe its own values: the compiler then rejected an
+   * honest `=== "auto"` test as impossible. `resolveTheme` turns this into a
+   * real theme name at the one place that paints it.
+   */
+  theme: Signal<ThemeChoice>;
   view: Signal<string>;
   dockOpen: Signal<boolean>;
   focus: Signal<"off" | "on" | "full">;
@@ -66,6 +75,14 @@ export interface ShellState {
   chartDrawerOpen: Signal<boolean>;
   chartDrawerTab: Signal<DrawerTab>;
   detectors: Signal<DetectorId[]>;
+  /**
+   * Whether the terminal's own past calls are drawn on the price.
+   *
+   * OFF BY DEFAULT. It is a record of hundreds of calls, and a chart that
+   * arrives already covered in them is a chart nobody can read the price on.
+   * The operator turns it on when the question is "was I right here before".
+   */
+  showClaims: Signal<boolean>;
   /** Higher timeframes whose structure is projected onto this chart. */
   htf: Signal<string[]>;
   density: Signal<Density>;

@@ -16,9 +16,13 @@ import type { PriceScale } from "../chart/viewport";
 import { ema } from "../chart/indicators";
 import { runStudies, studyColumns } from "../chart/studies";
 import { runPanes } from "../chart/panes";
+import { claimShapes, type Claim } from "../chart/claims";
+import { intervalMs } from "../data/history";
+import { recentClaims } from "../data/claims";
 import { sanitiseAll, tunedCount, type Params } from "../chart/params";
 import { pkRowsLive, type PkRow } from "./panelkit";
 import { PROFILE_BASIS, volumeProfile } from "../chart/profile";
+import { resolveTheme, watchSystemTheme, THEME_CHOICES, type ThemeChoice } from "./systemtheme";
 import { createJournal } from "../journal/store";
 import { createLearnStore } from "../learn/store";
 import { createBackfiller } from "../data/backfill";
@@ -126,18 +130,19 @@ import { canAnchor, presetFor, anchorFor, anchorTimeframe } from "../alert/prese
 import { deliver } from "../alert/notify";
 import type { BarView } from "../chart/series";
 import { createTerminalAccess } from "./shell/terminalaccess";
-import { ACCENTS, CHART_STYLES, SESSION_TIMEFRAMES, THEMES, TIMEFRAMES, DENSITIES, MA_SET, VIEWS, SCOPED_VIEWS, sessionWash, type ThemeName, type Density } from "./shell/views";
+import { ACCENTS, CHART_STYLES, SESSION_TIMEFRAMES, TIMEFRAMES, DENSITIES, MA_SET, VIEWS, SCOPED_VIEWS, sessionWash, type Density } from "./shell/views";
 import { SESSIONS } from "../data/sessionmap";
 import { assetClass } from "../data/sessions";
 import { indexAtOrAfter } from "./shell/bars";
 import { AUTO_SEARCH_SLOT, PIN_MARK, PREFS_SLOT, RULES_SLOT, loadPrefs, viewSignal, boolSignal } from "./shell/prefs";
+import { createSettingsStore } from "../backtest/settingsstore";
+import { barOf, costsFor } from "../backtest/settings";
 import { createSweepDriver } from "./model/sweepdriver";
 import { createSweepCache } from "../backtest/sweepcache";
 import { enrolledSeries } from "../data/library";
 import { pushEnrolment } from "../data/serverbars";
 import { watchedSymbols } from "./watchlist";
 import { loadStudyBars } from "./strategy/load";
-import { DEFAULT_COSTS } from "../backtest/engine";
 import { DRAW_ICON, abbreviate, clampNum, cursorField, fmt, fmtLike, fmtOrDash, fmtPx, num, num1, num2, qualityLabel } from "./shell/format";
 import type { ShellState } from "./shell/state";
 import { createShellContext, type ShellContext } from "./shell/context";
@@ -206,7 +211,12 @@ export function mountShell(root: HTMLElement): void {
   const detectGen = prefs["detectDesign"] === DETECT_DESIGN;
 
   const state: ShellState = {
-    theme: signal<ThemeName>((prefs["theme"] as ThemeName) ?? "iram"),
+    /* `auto` FOLLOWS THE SYSTEM, and is the default for a fresh install: this
+       terminal ships seven themes including a light one and read
+       `prefers-color-scheme` nowhere, so a first run on a light machine got the
+       dark theme with no way to say "match my system". An install that already
+       has a saved theme keeps it — a saved theme is a decision. */
+    theme: signal<ThemeChoice>((prefs["theme"] as ThemeChoice) ?? "auto"),
     /* The Briefing, on a first run (v56). NOT a change for anyone already
        using the terminal: `view` is persisted, so an existing install opens
        on whatever it was last on. A product whose front door is a chart of
@@ -291,6 +301,7 @@ export function mountShell(root: HTMLElement): void {
         : [...DEFAULT_DETECTORS],
       (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
     ),
+    showClaims: signal<boolean>(prefs["showClaims"] === true),
     htf: signal<string[]>(
       Array.isArray(prefs["htf"]) ? (prefs["htf"] as string[]) : [],
       (a, b) => a.length === b.length && a.every((v, i) => v === b[i]),
@@ -393,6 +404,16 @@ export function mountShell(root: HTMLElement): void {
    * first run and takes the whole effect with it.
    */
   const journal = createJournal(kv);
+
+  /**
+   * The governor's answer, asked for ONCE.
+   *
+   * The dock card owns the poll; the pre-market routine on the Today desk
+   * reads the same result. A second asker would be a second owner of "may I
+   * trade", and this terminal already records what two owners of one fact
+   * cost.
+   */
+  const govCard = createGovCard();
 
   /**
    * False until every desk has been constructed. See the gate in the view
@@ -593,6 +614,35 @@ export function mountShell(root: HTMLElement): void {
     scheduleFrame(() => setupMount.el?.scrollIntoView?.({ block: "start" }));
   };
 
+  /**
+   * WHICH DESK EACH WORKSPACE REOPENS ON.
+   *
+   * The desk bar held this in a bare `Map`, so it lived exactly as long as the
+   * page: every morning put every workspace back on its first desk, and that
+   * file's own header argues a desk two clicks away is a desk nobody uses.
+   *
+   * Seeded from the snapshot read at boot. A stored pair naming a desk that no
+   * longer exists, or a real desk filed under the wrong workspace, is dropped
+   * by the bar rather than here — it is the bar that knows the grouping.
+   */
+  const storedWorkspaces = prefs["workspaceDesks"];
+  const workspaceDesks = signal<Readonly<Record<string, string>>>(
+    storedWorkspaces !== null && typeof storedWorkspaces === "object" && !Array.isArray(storedWorkspaces)
+      ? (storedWorkspaces as Readonly<Record<string, string>>)
+      : {},
+  );
+
+  /**
+   * HOW THE BACKTESTER IS SET UP — one owner, reachable, persisted.
+   *
+   * `backtest/settings.ts` is the shape, `settingsstore.ts` is the state. Built
+   * here so the control panel, the board and the autonomous loop read ONE
+   * signal: a second owner of "what is this configured to do" is the defect
+   * that put the same cost model in eight places, four of them deciding
+   * something.
+   */
+  const backtest = createSettingsStore(kv);
+
   /** What every user-facing dock control writes: the screen AND the intent. */
   const dockToggle = boolSignal(
     () => state.dockOpen(),
@@ -632,6 +682,7 @@ export function mountShell(root: HTMLElement): void {
       chartDrawerOpen: state.chartDrawerOpen(),
       chartDrawerTab: state.chartDrawerTab(),
       detectors: state.detectors(),
+      showClaims: state.showClaims(),
       htf: state.htf(),
       density: state.density(),
       accent: accent(),
@@ -646,6 +697,7 @@ export function mountShell(root: HTMLElement): void {
       detectMinConfidence: detectMinConfidence(),
       detectDensity: detectDensity(),
       detectDirection: detectDirection(),
+      workspaceDesks: workspaceDesks(),
     };
     const res = kv.write(PREFS_SLOT, snapshot);
     // Quota is worth saying out loud once: the user's next question is why the
@@ -653,7 +705,22 @@ export function mountShell(root: HTMLElement): void {
     if (!res.ok) console.warn(`[iram] preferences not saved — ${res.error}`);
   });
 
-  effect(() => document.documentElement.setAttribute("data-theme", state.theme()));
+  /**
+   * THE RESOLVED THEME, never the stored one.
+   *
+   * `data-theme="auto"` matches no rule in `tokens.css`, so every custom
+   * property would fall through to whatever `:root` carries — and an undefined
+   * property INHERITS rather than being ignored, which this project measured
+   * turning a trust dot invisible. `resolveTheme` always returns a real name.
+   */
+  const systemDark = signal<boolean>(true);
+  watchSystemTheme((dark) => systemDark.set(dark));
+  effect(() =>
+    document.documentElement.setAttribute(
+      "data-theme",
+      resolveTheme(state.theme(), systemDark()),
+    ),
+  );
   effect(() => document.documentElement.setAttribute("data-density", state.density()));
   /* "theme" sets NO attribute, so the theme's own brand applies — see the
      accent block at the end of tokens.css. */
@@ -1605,7 +1672,7 @@ export function mountShell(root: HTMLElement): void {
     railOn,
     view: state.view,
     theme: state.theme as unknown as Signal<string>,
-    themes: THEMES,
+    themes: THEME_CHOICES,
     density: state.density as unknown as Signal<string>,
     densities: DENSITIES,
     dockOpen: dockToggle,
@@ -1954,6 +2021,110 @@ export function mountShell(root: HTMLElement): void {
     }),
   ) as HTMLButtonElement;
 
+  /* DECLARED HERE, NOT BESIDE THE ANNOTATION EFFECT THAT DRAWS IT, and the
+     reason is the language: a `computed` in this codebase is EAGER, so the two
+     below that read these bindings would throw a temporal-dead-zone
+     ReferenceError at construction and hold `undefined` for the life of the
+     page - swallowed by `effect`, with no count on the button and nothing on
+     screen to say so. `scratchpad/tdz.py` found it, once it could see this
+     spelling at all. */
+  /**
+   * THE TERMINAL'S OWN RECORD, ON THE PRICE.
+   *
+   * The one thing a general chart cannot draw: whether THIS terminal was right
+   * the last four hundred times it said something about THIS market. Read once
+   * on boot and after a claim resolves; `chart/claims.ts` decides what may
+   * honestly be drawn, and counts everything it leaves out.
+   */
+  const claimRows = signal<readonly Claim[]>([]);
+  const claimsRefusal = signal("");
+  const loadClaims = async (): Promise<void> => {
+    const got = await recentClaims();
+    if (got.kind === "ok") claimRows.set(got.claims);
+    else claimsRefusal.set(got.why);
+  };
+  void loadClaims();
+
+  /**
+   * What the ledger says about the bars on screen, and what it could not say.
+   *
+   * COMPUTED WHETHER OR NOT IT IS SHOWN. Gating this on the toggle made the
+   * count unavailable until the layer was already on, so the control could not
+   * say whether pressing it would show anything - and a toggle that cannot
+   * answer that is one nobody presses a second time. Only the DRAWING is gated,
+   * below.
+   */
+  const claimLayer = computed(() => {
+    const series = bars();
+    if (series.length === 0) return null;
+    return claimShapes(claimRows(), series, {
+      symbol: state.symbol(),
+      timeframe: state.timeframe(),
+      intervalMs: intervalMs(state.timeframe()),
+    });
+  });
+
+  /**
+   * HOW MANY OF THIS TERMINAL'S CALLS ARE ON THESE BARS, and what they came to.
+   *
+   * THREE STATES, NEVER TWO. A ledger that is not answering must not render as a
+   * count of zero: "could not ask" and "nothing recorded" are different facts,
+   * and zero is the most alarming possible way to say the second one.
+   */
+  const claimCount = computed(() => {
+    if (claimsRefusal() !== "") return -1;
+    const l = claimLayer();
+    if (l === null) return 0;
+    /* WHAT IS ON THE CHART, not what is in the ledger. The two differ - pending
+       calls are counted and deliberately not drawn, and calls sharing a bar
+       collapse into one mark - and a badge the operator can see disagrees with
+       the screen costs the layer the credibility it exists to earn. The full
+       breakdown is in the title. */
+    return l.marks;
+  });
+
+  /** The sentence the record makes about itself, or the reason there is none. */
+  const claimTitle = computed(() => {
+    const refusal = claimsRefusal();
+    if (refusal !== "") return `Track record — ${refusal}`;
+    const l = claimLayer();
+    if (l === null) return "Track record — no bars loaded to place calls on yet";
+    return `Track record — ${l.why}`;
+  });
+
+  /**
+   * THE RECORD TOGGLE.
+   *
+   * A capability nobody can see is a capability nobody has, and this one is off
+   * by default — without a control it would be a feature that exists only in a
+   * preferences file. It sits beside Auto-marking because it answers the
+   * neighbouring question: that one marks what is on the chart NOW, this one
+   * marks what this terminal said about this chart BEFORE, and whether it held.
+   */
+  const recordBtn = h(
+    "button",
+    {
+      class: "tool-btn wide tb-pill",
+      type: "button",
+      title: () => claimTitle(),
+      "aria-label": () =>
+        `Track record on the chart, ${state.showClaims() ? "on" : "off"} — ${claimTitle()}`,
+      "aria-pressed": () => String(state.showClaims()),
+      "data-on": () => String(state.showClaims()),
+      onclick: () => state.showClaims.set(!state.showClaims.peek()),
+    },
+    icon("learn"),
+    h("span", { class: "tb-pill-label", text: "Track record" }),
+    /* A DASH FOR "COULD NOT ASK", a number for what is there. `data-zero` dims
+       it the way Auto-marking's count already dims at nothing, so an empty
+       record and a full one are told apart without reading the figure. */
+    h("span", {
+      class: "tb-count",
+      "data-zero": () => String(claimCount() <= 0),
+      text: () => (claimCount() < 0 ? "—" : String(claimCount())),
+    }),
+  ) as HTMLButtonElement;
+
   const overflowBtn: HTMLButtonElement = asMenuTrigger(
     h(
       "button",
@@ -2147,6 +2318,7 @@ export function mountShell(root: HTMLElement): void {
 
     indicatorsBtn,
     autoMarkBtn,
+    recordBtn,
 
     /*
      * THE SPACER, AND WHY IT IS HERE RATHER THAN BESIDE THE PRICE.
@@ -2238,6 +2410,9 @@ export function mountShell(root: HTMLElement): void {
   const settings = lazyDesk(() => createSettings({
     sections: SECTIONS,
     settings: buildSettings({
+      /* So every REGISTERED preference reaches the dialog, not only the
+         ones written out below. `settings/registry.ts` argues why. */
+      kv,
       account,
       /* The SAME signal the chart renders from, not a copy — a period changed
          in Settings is the period the next repaint uses. */
@@ -2251,6 +2426,16 @@ export function mountShell(root: HTMLElement): void {
       },
       exitRules: () => exitRules(),
       setExitRule,
+      /* THE FIVE THAT PERSISTED AND COULD NOT BE FOUND, each wired to the
+         thing that actually owns it. `settings/registry.ts` records why a
+         store write would have been a second owner for four of them. */
+      backtest,
+      riskGuards: () => riskDesk.config().guards,
+      setRiskGuard: (patch) =>
+        riskDesk.config.update((c) => ({ ...c, guards: { ...c.guards, ...patch } })),
+      recordClaims: () => learn.enabled(),
+      setRecordClaims: (on) => learn.setEnabled(on),
+      autoSearch,
       resetExitRules: () => setExitRule(DEFAULT_EXIT_RULES),
       /**
        * Read fresh each time the panel is built, so a source the breaker parked
@@ -2299,7 +2484,7 @@ export function mountShell(root: HTMLElement): void {
       volumeHeight: () => volumeHeight(),
       setVolumeHeight,
       theme: state.theme as unknown as Signal<string>,
-      themes: THEMES,
+      themes: THEME_CHOICES,
       density: state.density as unknown as Signal<string>,
       densities: DENSITIES,
       accent,
@@ -2466,6 +2651,7 @@ export function mountShell(root: HTMLElement): void {
     dockToggle,
     settings,
     palette,
+    workspaceDesks,
     broker,
     /* The dock's cards are built further down; this runs at click time. */
     revealCard: (id: string) => {
@@ -2553,10 +2739,33 @@ export function mountShell(root: HTMLElement): void {
     cache: sweepCache,
     load: (symbol, timeframe, hooks) =>
       loadStudyBars(feed.history, symbol, timeframe, sweepDepth.peek(), () => bars.peek(), hooks),
-    /* The costs the Strategy desk's Backtest card sets are its own; a search
-       started from the inspector has no card to read, so it uses the engine's
-       stated defaults and the row it saves records which were charged. */
-    costs: () => DEFAULT_COSTS,
+    /**
+     * WHAT THE OPERATOR CONFIGURED, not a hardcoded assumption.
+     *
+     * This read `() => DEFAULT_COSTS`, and the comment it carried was honest
+     * about why: the Strategy desk's Backtest card sets its own costs, and a
+     * search started from the inspector had no card to read. It has one now —
+     * Settings > Backtesting, one owner, persisted.
+     *
+     * Safe to change because the machinery that makes it safe already exists.
+     * `sweepdriver` hashes the costs into the cache key, so a changed hurdle
+     * MISSES rather than serving a conclusion nobody reached at that price;
+     * the row saved on the shelf records which model was charged; and the
+     * default is `standard`, which IS `DEFAULT_COSTS` — so this changes
+     * nothing until the operator changes something.
+     */
+    costs: () => costsFor(backtest.settings()),
+    /**
+     * The bar every survivor has to clear, also the operator's.
+     *
+     * `promote.ts` keeps the three published thresholds and they are still the
+     * default — this only moves when the operator moves it. When they do, the
+     * promotion records WHICH bar it was judged against, so a verdict bought
+     * by loosening cannot read as a standard one; and the bar goes into the
+     * sweep's cache key, so a changed bar misses rather than serving a
+     * conclusion reached against a different one.
+     */
+    bar: () => barOf(backtest.settings()),
     riskPerTrade: () => account.effective().riskPct / 100,
     excludedFor: (sym, tf) =>
       shelf
@@ -2566,7 +2775,7 @@ export function mountShell(root: HTMLElement): void {
   });
 
   const desks = createDesks(ctx, { bars, rules, knowledgeBase, analyst, workspaceSeries, shelf, sweep, sweepDepth });
-  const { flow, data, strategy, survey, study, playbook, simulation, sessions, smartMoney, paper, knowledge, watchlist, system, connections } =
+  const { flow, data, strategy, survey, study, playbook, results, simulation, sessions, smartMoney, paper, knowledge, watchlist, system, connections } =
     desks;
   agentDesk = desks.agentDesk;
 
@@ -2587,6 +2796,61 @@ export function mountShell(root: HTMLElement): void {
     createBriefing({
       symbol: state.symbol,
       timeframe: state.timeframe,
+      /**
+       * THE ROUTINE'S LAST THREE ANSWERS, each from the owner that already has
+       * it. No second poll: the governor's verdict is the one the dock card
+       * asked for, the calendar is the feed loaded at boot, the review reads
+       * the journal store. Two owners of one fact is the defect this terminal
+       * keeps paying for.
+       */
+      dataAge: () => {
+        const b = bars();
+        const last = b.length === 0 ? undefined : b[b.length - 1];
+        if (last === undefined) return null;
+        /* THE LIMIT COMES FROM THE BAR SIZE, through `intervalMs`, which owns
+           that fact — fourteen minutes is nothing on a daily chart and an
+           outage on a 1m one, so a fixed limit would make this step mean a
+           different thing on every timeframe. Three bars, floored at five
+           minutes so a 1m chart does not report stale between ticks. */
+        const span = intervalMs(state.timeframe());
+        return {
+          ageMin: Math.max(0, (nowMs() - last.t) / 60_000),
+          staleAfterMin: Math.max(5, (span * 3) / 60_000),
+        };
+      },
+      govern: () => {
+        const r = govCard.state();
+        if (r === null || r.state !== "ok") return null;
+        const g = r.value;
+        /* The share of the daily loss limit already spent. `realizedRToday` is
+           negative on a losing day and the limit is published as a POSITIVE
+           number whose meaning is its negative, so the sign is handled here
+           rather than left for a reader to guess at. A zero limit cannot be
+           divided by and reports null, which the routine renders as a sentence
+           without a number rather than as 0%. */
+        const cap = g.limits.maxDailyLossR;
+        const used = cap > 0 ? Math.min(1, Math.max(0, -g.realizedRToday / cap)) : null;
+        return { verdict: g.verdict, usedOfDailyLoss: used };
+      },
+      calendarToday: () => {
+        const feed = calendar();
+        if (feed === null) return null;
+        const DAY = 24 * 60 * 60 * 1000;
+        const ahead = upcoming(feed.events, { withinMs: DAY, now: nowMs() });
+        return { total: ahead.length, high: ahead.filter((e) => e.event.impact === "high").length };
+      },
+      reviewedLastSession: () => {
+        /* Anything written in the last day counts as having looked. The
+           journal is the only thing that knows, and "no entries at all" is a
+           real no rather than an absence — the store answered. */
+        const DAY = 24 * 60 * 60 * 1000;
+        const since = Date.now() - DAY;
+        return journal.entries().some((e) => e.openedAt >= since || (e.closedAt ?? 0) >= since);
+      },
+      /* The routine's rows are one press from the desk that answers them. A
+         list that says what is outstanding and leaves you to find the desk is
+         a list, not a routine. */
+      onOpenDesk: (view) => state.view.set(view),
       account,
       positions: openBook,
       setup: setupView,
@@ -3038,6 +3302,7 @@ export function mountShell(root: HTMLElement): void {
         if (view === "connections") return connections().el;
     if (view === "knowledge") return knowledge().el;
         if (view === "playbook") return playbook().el;
+        if (view === "results") return results().el;
         if (view === "simulation") return simulation();
         if (view === "sessions") return sessions().el;
         if (view === "watchlist") return watchlist().el;
@@ -3740,7 +4005,7 @@ export function mountShell(root: HTMLElement): void {
       /* v59.2 — cards over services that ran with no screen. Built even when
          removed from the column, like every panel here, so adding one back is
          instant and keeps its state; each polls only while it is attached. */
-      panel("gov", "Can I trade now?", createGovCard().el),
+      panel("gov", "Can I trade now?", govCard.el),
       panel(
         "alerts", "Price alerts",
         createAlertsCard({
@@ -4424,8 +4689,34 @@ export function mountShell(root: HTMLElement): void {
 
   /** What the live bar reads: last bar, heat, sessions, fresh structure,
       the bar countdown and the next-bar band — `ui/model/readings.ts`. */
-  const { lastBar, heatNow, sessionClock, freshDetections, barCountdown, nextBarBand } =
-    createReadingsModel(ctx, { replay, nowMs, detections, openBook });
+  const {
+    lastBar,
+    heatNow,
+    sessionClock,
+    freshDetections,
+    barCountdown,
+    nextBarBand,
+    nextCandle,
+    nextCandleSkill,
+  } = createReadingsModel(ctx, { replay, nowMs, detections, openBook });
+
+  /**
+   * THE FORECAST CANDLE THE CHART ACTUALLY DREW.
+   *
+   * Published by the projection effect below and read by the legend, so the
+   * arrow beside the price and the body on the canvas cannot disagree. The
+   * legend's first version built its OWN candle against a made-up band to get
+   * the direction out of it — two owners for one fact, and the failure would
+   * have been an arrow pointing the opposite way to the body with nothing on
+   * screen or in a test to say which was wrong.
+   *
+   * Null while there is no forecast: on replay, and on a series too short for
+   * the analogue to have neighbours.
+   */
+  /* DERIVED FROM THE PRODUCER, never hand-written. `nextCandle` already returns
+     `CandleForecast | null`; restating that here would be a second definition
+     of one shape, which this codebase has three defects on record from. */
+  const drawnCandle = signal<ReturnType<typeof nextCandle>>(null);
 
   /*
    * EVERY SIGNAL IS READ BEFORE THE `chart` GUARD, AND THAT ORDER IS LOAD-BEARING.
@@ -4445,12 +4736,53 @@ export function mountShell(root: HTMLElement): void {
        the look-ahead this codebase spends most of its comments avoiding. */
     const onReplay = replay.active();
     const band = onReplay ? null : nextBarBand();
+    /* READ BEFORE THE GUARD, like everything else in this effect — see above. */
+    const series = bars();
     if (!chart) return;
-    chart.setProjection(
-      band === null
-        ? null
-        : { low: band.low, high: band.high, confidence: 0.8, calibrated: band.calibrated },
-    );
+    if (band === null) {
+      chart.setProjection(null);
+      drawnCandle.set(null);
+      return;
+    }
+    /**
+     * THE FORECAST CANDLE — open, high, low and close.
+     *
+     * Its wicks come from `analysis/analogue.ts`: the bars most like this one on
+     * this series, and what actually followed them. That part is MEASURED to
+     * beat flat ATR by 35% at 1h on this operator's own archive. Its body is a
+     * directional call, is the weakest thing here, and the legend prints its
+     * running hit rate beside the rate that always calling one way would have
+     * scored — which is the whole reason it is allowed to be drawn at all.
+     */
+    const cf = nextCandle(series, {
+      low: band.low,
+      high: band.high,
+      confidence: 0.8,
+      expected: Math.abs(band.high - band.low) / 2,
+      sigma: Number.NaN,
+      percentile: Number.NaN,
+      n: series.length,
+    });
+    /* NOTHING DRAWN WHEN THERE IS NO DIRECTION. A flat body has to take a
+       colour, and every colour available is a directional claim the model
+       declined to make. The legend already says nothing in that state, so the
+       two agree rather than one showing a candle the other will not describe. */
+    if (cf === null || cf.basis === "none") {
+      chart.setProjection(null);
+      drawnCandle.set(cf);
+      return;
+    }
+    /* THE FORECAST'S OWN GRADE decides whether it is drawn at full strength.
+       `rangeErr` and `atrErr` are the same quantity measured two ways over the
+       same replay, so the comparison is the one claim this drawing makes. */
+    const sk = nextCandleSkill(series);
+    chart.setProjection({
+      candle: { open: cf.open, high: cf.high, low: cf.low, close: cf.close },
+      beatsAtr: sk !== null && sk.rangeErr < sk.atrErr,
+    });
+    /* PUBLISHED AFTER IT IS DRAWN, so the legend describes the candle on the
+       canvas rather than one of its own. */
+    drawnCandle.set(cf);
   });
 
   renderEffect(() => {
@@ -4987,7 +5319,7 @@ export function mountShell(root: HTMLElement): void {
                 level: "success",
                 title: "Alert armed",
                 body: `${state.symbol.peek()} ${above ? "crosses above" : "crosses below"} ${shown}`,
-                action: { label: "Signals desk", run: () => state.view.set("signals") },
+                action: { label: "Alerts desk", run: () => state.view.set("signals") },
               });
             },
           },
@@ -5070,6 +5402,11 @@ export function mountShell(root: HTMLElement): void {
   // reading computed style per frame would be absurd.
   effect(() => {
     state.theme();
+    /* AND THE SYSTEM SETTING. With `theme` set to `auto` the stored value never
+       changes when the machine flips at sunset — only the RESOLVED one does, so
+       an effect watching `state.theme()` alone would leave the canvas painted in
+       the old palette while every DOM surface around it had already switched. */
+    systemDark();
     /* The palette is read here too, so changing a candle colour repaints through
        the same path a theme change does. `applyPalette` writes the custom
        properties FIRST; `themeFromCss` then reads the resolved values, which is
@@ -5166,7 +5503,11 @@ export function mountShell(root: HTMLElement): void {
        first so detected and hand-drawn shapes sit on top of it. */
     const sv = setupView();
     const plan = sv ? planShapes(sv.plan, bars().length - 1, sv.setupRefusal ? "unknown" : sv.verdict.kind) : [];
-    chart?.setAnnotations([...plan, ...detected, ...(drawLayer?.shapes() ?? [])]);
+    /* THE RECORD SITS UNDER EVERYTHING ELSE. It is context for what the chart
+       is showing, not a call about it, and a detector's finding about the bar
+       in front of you should never be hidden behind a mark about the past. */
+    const record = state.showClaims() ? (claimLayer()?.shapes ?? []) : [];
+    chart?.setAnnotations([...record, ...plan, ...detected, ...(drawLayer?.shapes() ?? [])]);
   });
 
   renderEffect(() => {
@@ -5312,22 +5653,46 @@ export function mountShell(root: HTMLElement): void {
       }),
     );
 
-    /* The forecast band stays, but only at rest: while scrubbing, the legend is
-       reporting a bar that has already happened and a forecast of the next one
-       has nothing to do with it. */
+    /*
+     * HOW OFTEN THE DRAWN CANDLE'S DIRECTION HAS ACTUALLY BEEN RIGHT.
+     *
+     * THE PREDECESSOR OF THIS LINE WAS DELETED FOR BEING ATR PRINTED TWICE —
+     * measured at 0.91 correlation with ATR(14) on 3,799 bars of this
+     * operator's own 1m, beside a status bar already showing ATR. The rule that
+     * came out of it is the one this line has to survive: do not keep a readout
+     * that duplicates something already on screen.
+     *
+     * It does not. The candle on the canvas shows WHERE; this shows whether
+     * that has ever been right here, which is on screen nowhere else and is the
+     * exact thing the owner asked to be able to check. The price level is
+     * deliberately NOT repeated — the candle is drawn against the price axis and
+     * printing its close as a number would be the duplication all over again.
+     *
+     * THE NO-INFORMATION RATE IS PART OF THE LINE, not a tooltip. "Right 53%"
+     * on a window that rose 53% of the time is a report about the window, and
+     * this codebase has already shipped one board that called 29 of 29 markets
+     * skilled for exactly that reason.
+     */
     if (!hovering) {
-      const band = replay.active() ? null : nextBarBand();
-      if (band !== null) {
+      const sk = nextCandleSkill(series);
+      const cf = drawnCandle();
+      if (sk !== null && cf !== null && cf.basis !== "none") {
+        const rising = cf.close > cf.open;
+        legend.appendChild(h("span", { class: "legend-key", text: "next" }));
+        legend.appendChild(
+          h("span", {
+            class: "legend-val num",
+            "data-dir": rising ? "up" : "down",
+            text: rising ? "▲" : "▼",
+            title: cf.why,
+          }),
+        );
         legend.appendChild(
           h("span", {
             class: "legend-fc",
-            "data-ok": band.calibrated ? "true" : "false",
-            text: band.calibrated
-              ? `next bar 80% range ${fmt(band.low)}–${fmt(band.high)}`
-              : `next bar range ${fmt(band.low)}–${fmt(band.high)} · uncalibrated`,
-            title: band.calibrated
-              ? "Where the next close is expected to land, at 80% confidence, from the volatility model. It is a size forecast, not a direction call — the band is symmetric by construction."
-              : "The volatility model failed its own calibration replay on this history: its 80% intervals did not contain 80% of outcomes. Shown so it is not silently absent, drawn muted so it is not read as checked.",
+            "data-skill": sk.skill ? "yes" : "no",
+            text: `${(sk.hitRate * 100).toFixed(0)}% right of ${sk.scored}, coin ${(sk.noInfoRate * 100).toFixed(0)}%`,
+            title: `${sk.why}. The candle's HEIGHT is the measured part: over these bars its range was off by ${sk.rangeErr.toFixed(2)} ATR against ${sk.atrErr.toFixed(2)} for flat ATR(14).`,
           }),
         );
       }

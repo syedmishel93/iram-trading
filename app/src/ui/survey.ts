@@ -55,7 +55,8 @@ import {
 import { BLOC_LABEL, DEFAULT_SELECTION, PANEL, panelCaveat } from "../backtest/universe";
 import type { HistoryService } from "../data/history";
 import { openCoverage } from "../data/sessions";
-
+
+import { deskLabel } from "./shell/views";
 export interface SurveyDeskOptions {
   timeframe: Signal<string>;
   /** The lab's archive-backed history. A survey needs depth, not the screen. */
@@ -719,7 +720,7 @@ export function createSurvey(opts: SurveyDeskOptions): SurveyHandle {
     h(
       "div",
       { class: "view-head" },
-      h("h2", { class: "view-title", text: "Condition survey" }),
+      h("h2", { class: "view-title", text: deskLabel("survey") }),
       h("p", {
         class: "view-sub",
         text:

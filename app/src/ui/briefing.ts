@@ -66,9 +66,11 @@ import { createKV, type KV } from "../store/kv";
 import { createBriefCard } from "./today/brief";
 import { createPlan } from "./today/plan";
 import { createScanList } from "./today/scanlist";
+import { createRoutineCard } from "./cards/routinecard";
 import { suggestFocus } from "./today/focus";
 import { whoTag } from "./today/card";
 
+import { deskLabel, type ViewId } from "./shell/views";
 export interface BriefingOptions {
   /** The chart's instrument, so "this chart" names what it is about. */
   readonly symbol: ReadSignal<string>;
@@ -118,6 +120,32 @@ export interface BriefingOptions {
   readonly scanRows?: () => readonly ScanRow[];
   /** Where the day's plan is kept. Defaults to the browser store. */
   readonly kv?: KV;
+  /** Takes the routine's rows to the desk that answers them. */
+  readonly onOpenDesk?: (view: string) => void;
+  /**
+   * THE THREE THE ROUTINE COULD NOT ANSWER, each read from its existing owner.
+   *
+   * None of these polls anything of its own. The governor's verdict comes from
+   * the card that already asks for it, the calendar from the feed the shell
+   * loads at boot, the review from the journal store — because a second
+   * asker is a second owner, and two owners of one fact is the defect this
+   * terminal keeps paying for.
+   *
+   * All optional, and `null` is a real answer meaning "asked, no answer yet".
+   * The routine renders that as "could not check", which is neither a tick
+   * nor a failure.
+   */
+  readonly govern?: () => { verdict: "allow" | "warn" | "block"; usedOfDailyLoss: number | null } | null;
+  readonly calendarToday?: () => { total: number; high: number } | null;
+  readonly reviewedLastSession?: () => boolean | null;
+  /**
+   * How old the newest bar is, and how old is too old.
+   *
+   * BOTH, because one without the other decides nothing: fourteen minutes is
+   * nothing on a daily chart and an outage on a 1m one. The limit comes from
+   * the bar size, so the step means the same thing on every timeframe.
+   */
+  readonly dataAge?: () => { ageMin: number; staleAfterMin: number } | null;
 }
 
 /** "Good morning", by the operator's own clock. PURE. */
@@ -136,12 +164,32 @@ const ROW_CAP = 6;
  * a number here that you cannot get back to its owner from is a number you
  * have to take on trust.
  */
-function ownerLink(label: string, onOpen: () => void): HTMLElement {
+/**
+ * A LINK TO A DESK, NAMED BY THE DESK.
+ *
+ * It used to take a label and a callback and know nothing about where it went,
+ * which is how a link's text comes to name a desk that has been renamed. The
+ * ID is the argument now and the name is derived, so the pair cannot come
+ * apart — and `data-opens` puts the destination in the DOM, where a test can
+ * assert the two against each other.
+ *
+ * `text` OVERRIDES THE NAME, ON PURPOSE. Three of the six links here say
+ * something other than the desk's name — "Open chart", "Full feed", "Risk
+ * desk" — and flattening them all to the bare name would put two links both
+ * reading "Chart" in different cards. The default is the desk's own name, so
+ * the case that can drift is the one that costs an argument.
+ */
+export function ownerLink(
+  id: ViewId,
+  onOpen: (view: string) => void,
+  text: string = deskLabel(id),
+): HTMLElement {
   return h("button", {
     class: "bf-owner",
     type: "button",
-    text: label,
-    onclick: onOpen,
+    "data-opens": id,
+    text,
+    onclick: () => onOpen(id),
   }) as HTMLElement;
 }
 
@@ -171,6 +219,42 @@ function card(title: string, question: string, link: HTMLElement, ...body: HTMLE
  * reactive prop with an un-owned effect, and a list that rebuilds its rows
  * would leak one per row per rebuild. Same rule the watch rail follows.
  */
+/**
+ * The three readers, turned into routine input.
+ *
+ * EACH RETURNS AN EMPTY OBJECT WHEN IT HAS NOTHING, never a zero and never a
+ * false. `exactOptionalPropertyTypes` makes the difference real: an ABSENT key
+ * is "nobody could answer", a present `false` is "asked, and no". Rendering an
+ * unreachable service as 0 is the most alarming possible way to say "fine",
+ * and rendering it as done is the most dangerous.
+ */
+function ageInput(
+  a: { ageMin: number; staleAfterMin: number } | null,
+): { dataAgeMin?: number; dataStaleAfterMin?: number } {
+  return a === null ? {} : { dataAgeMin: a.ageMin, dataStaleAfterMin: a.staleAfterMin };
+}
+
+function govInput(
+  g: { verdict: "allow" | "warn" | "block"; usedOfDailyLoss: number | null } | null,
+): { canTrade?: boolean; dayLossUsed?: number } {
+  if (g === null) return {};
+  return {
+    /* "warn" is not a no. The governor distinguishes them and so does this:
+       collapsing warn into block would stand the operator down on a day the
+       service only wanted to raise an eyebrow. */
+    canTrade: g.verdict !== "block",
+    ...(g.usedOfDailyLoss === null ? {} : { dayLossUsed: g.usedOfDailyLoss }),
+  };
+}
+
+function calInput(c: { total: number; high: number } | null): { eventsToday?: number; eventsHigh?: number } {
+  return c === null ? {} : { eventsToday: c.total, eventsHigh: c.high };
+}
+
+function reviewInput(r: boolean | null): { reviewedYesterday?: boolean } {
+  return r === null ? {} : { reviewedYesterday: r };
+}
+
 function liveList(cls: string, rows: () => readonly HTMLElement[]): HTMLElement {
   const host = h("div", { class: cls }) as HTMLElement;
   renderEffect(() => {
@@ -304,7 +388,7 @@ export function createBriefing(opts: BriefingOptions) {
   const standCard = card(
     "Where you stand",
     "What is already at risk",
-    ownerLink("Risk desk", () => opts.onOpen("risk")),
+    ownerLink("risk", opts.onOpen, "Risk desk"),
     pkRowsLive(standRows),
   );
 
@@ -375,7 +459,7 @@ export function createBriefing(opts: BriefingOptions) {
   const chartCard = card(
     "This chart",
     "The instrument on screen",
-    ownerLink("Open chart", () => opts.onOpen("chart")),
+    ownerLink("chart", opts.onOpen, "Open chart"),
     h("p", { class: "bf-scope", text: () => `${symbol()} · ${timeframe()}` }) as HTMLElement,
     chartBody,
   );
@@ -413,7 +497,7 @@ export function createBriefing(opts: BriefingOptions) {
   const changedCard = card(
     "What changed",
     "Since you last looked",
-    ownerLink("Full feed", () => opts.onOpen("chart")),
+    ownerLink("chart", opts.onOpen, "Full feed"),
     changedBody,
   );
 
@@ -429,7 +513,7 @@ export function createBriefing(opts: BriefingOptions) {
           "empty",
           scanned()
             ? "Scan done — nothing else on your list worth a plan."
-            : "Not scanned yet. Open Opportunities to scan your list.",
+            : "Not scanned yet. Open the Scanner to scan your list.",
         ),
       ];
     }
@@ -460,7 +544,7 @@ export function createBriefing(opts: BriefingOptions) {
       out.push(
         h("p", {
           class: "bf-note",
-          text: `${rows.length - shown.length} more on the Opportunities desk.`,
+          text: `${rows.length - shown.length} more on the Scanner desk.`,
         }) as HTMLElement,
       );
     }
@@ -470,7 +554,7 @@ export function createBriefing(opts: BriefingOptions) {
   const elsewhereCard = card(
     "Where else to look",
     "What the scan found on the rest of your list",
-    ownerLink("Opportunities", () => opts.onOpen("screener")),
+    ownerLink("screener", opts.onOpen),
     elsewhereBody,
     pkWhy(
       "Each row is that symbol's setup, read the same way as the chart. Click one to open it — nothing is traded.",
@@ -484,7 +568,7 @@ export function createBriefing(opts: BriefingOptions) {
     const list = fires();
     if (list.length === 0) {
       return [
-        pkEmpty("empty", "No alerts fired. Set alerts on the Signals desk."),
+        pkEmpty("empty", "No alerts fired. Set alerts on the Alerts desk."),
       ];
     }
     const t = nowMs();
@@ -506,7 +590,7 @@ export function createBriefing(opts: BriefingOptions) {
   const alertsCard = card(
     "Alerts that fired",
     "What you asked to be told about",
-    ownerLink("Signals", () => opts.onOpen("signals")),
+    ownerLink("signals", opts.onOpen),
     alertsBody,
   );
 
@@ -553,7 +637,7 @@ export function createBriefing(opts: BriefingOptions) {
   const conditionsCard = card(
     "Conditions",
     "What kind of market this is",
-    ownerLink("Sessions", () => opts.onOpen("sessions")),
+    ownerLink("sessions", opts.onOpen),
     conditionsBody,
   );
 
@@ -595,6 +679,38 @@ export function createBriefing(opts: BriefingOptions) {
     onPick: (sym) => opts.onPick(sym),
   });
 
+  /**
+   * THE MORNING, IN ORDER.
+   *
+   * Every piece of a pre-market routine already existed across six desks; what
+   * was missing was the sequence. The card computes nothing — `today/routine.ts`
+   * does — and it is handed only what this desk can answer TRUTHFULLY.
+   *
+   * THREE STEPS ARE NOT WIRED YET and say so rather than being left out: the
+   * governor's verdict, the economic calendar and whether the last session was
+   * reviewed all live on services this desk does not hold. They render as
+   * "could not check", which is the honest third state and the entire reason
+   * the module has one — a step shown as done because nobody asked is the
+   * "0 of 0 running" strip again.
+   */
+  const routine = createRoutineCard({
+    read: () => ({
+      /* Spread rather than `undefined`, because `exactOptionalPropertyTypes`
+         distinguishes "absent" from "present and undefined" — and so does the
+         routine: an absent watchlist is a step it could not check, which is
+         not the same as a watchlist it read and found empty. */
+      ...(opts.watchlist === undefined ? {} : { watchCount: opts.watchlist().length }),
+      scanned: scanned(),
+      planWritten: plan.focus().length > 0,
+      alertsArmed: fires().length,
+      ...ageInput(opts.dataAge?.() ?? null),
+      ...govInput(opts.govern?.() ?? null),
+      ...calInput(opts.calendarToday?.() ?? null),
+      ...reviewInput(opts.reviewedLastSession?.() ?? null),
+    }),
+    openDesk: (view) => opts.onOpenDesk?.(view),
+  });
+
   // ───────────────────────────────────────────────────────────── layout ───
 
   const el = h(
@@ -610,6 +726,7 @@ export function createBriefing(opts: BriefingOptions) {
       }),
     ),
     h("div", { class: "td-top" }, brief.el, plan.el),
+    routine.el,
     scanList.el,
     h(
       "div",

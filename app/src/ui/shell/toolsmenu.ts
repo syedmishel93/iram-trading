@@ -54,6 +54,7 @@ export type Tool =
 /** The menu-length note for a desk. Absent is fine: the label stands alone. */
 /** Exported so a test can assert every desk has one — see `menurow.test.ts`. */
 export const MENU_NOTES: Readonly<Record<string, string>> = {
+  results: "what survived, and what did not",
   watchlist: "your list, and the heatmap",
   screener: "scan for setups",
   briefing: "where you stand, and what changed",

@@ -57,6 +57,7 @@ import {
 } from "../learn/knowledge";
 import { runHarvest, type HarvestHandle, type HarvestReport, type HarvestTarget } from "../learn/harvest";
 
+import { deskLabel } from "./shell/views";
 export interface KnowledgeDeskOptions {
   /** The one base. See `sharedKnowledge` — the desk never makes its own. */
   readonly base: KnowledgeBase;
@@ -406,7 +407,7 @@ export function createKnowledge(opts: KnowledgeDeskOptions): KnowledgeDeskHandle
       h(
         "header",
         { class: "kb-head" },
-        h("h1", { class: "kb-h1", text: "Knowledge" }),
+        h("h1", { class: "kb-h1", text: deskLabel("knowledge") }),
         h("p", {
           class: "kb-lede",
           text:

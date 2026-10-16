@@ -2351,15 +2351,21 @@
   white-space: pre-wrap;
 }
 
-/* The next-bar range, named in the legend.
-   Muted-but-present when the model failed its calibration replay: absent would
-   hide a finding, and identical would launder one. */
+/* How often the drawn next-bar direction has been right, and what always
+   calling one way would have scored.
+
+   MUTED BY DEFAULT, ACCENT ONLY ON ESTABLISHED SKILL. Colour follows the
+   STANDING, never the number — this file's own rule, and it bites hardest here:
+   the honest reading on this operator's markets is "53% against a 51% coin",
+   and painting that in the accent would tell the eye it was a result. The
+   accent is reserved for a hit rate that has actually beaten the
+   no-information rate by more than its own noise. */
 .legend-fc {
   font-size: var(--fs-1);
-  color: var(--accent);
+  color: var(--text-faint);
   font-variant-numeric: tabular-nums;
 }
-.legend-fc[data-ok="false"] { color: var(--text-faint); }
+.legend-fc[data-skill="yes"] { color: var(--accent); }
 
 /* --- the price-scale switch.
        Sits in the price gutter, bottom-right, over the axis it governs. Small

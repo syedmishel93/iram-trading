@@ -35,7 +35,8 @@ import type { BarView } from "../chart/series";
 import { DETECTORS, runDetectors, toDetectInput, type DetectorId } from "../detect";
 import { detectHigher, higherTimeframes } from "../detect/mtf";
 import type { Detection } from "../detect/types";
-
+
+import { deskLabel } from "./shell/views";
 export interface SmartMoneyOptions {
   readonly symbol: Signal<string>;
   readonly timeframe: Signal<string>;
@@ -245,7 +246,7 @@ export function createSmartMoney(opts: SmartMoneyOptions) {
     h(
       "div",
       { class: "desk-head" },
-      h("h1", { class: "view-title", text: "Smart money" }),
+      h("h1", { class: "view-title", text: deskLabel("smart") }),
       h("p", {
         class: "view-sub",
         text: "Structure, gaps, order blocks and reversals found on this series — the same detectors the chart draws, listed with the bar each one completed on.",

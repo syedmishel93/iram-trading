@@ -13,6 +13,21 @@ body {
   color: var(--text);
   overflow: hidden;              /* the shell owns all scrolling */
   overscroll-behavior: none;
+  /*
+   * NO GREY FLASH ON TAP.
+   *
+   * Mobile browsers paint a translucent block over whatever was touched, sized
+   * to the element's box rather than to whatever the control actually looks
+   * like. `press.css` already owns this terminal's answer to a press —
+   * `translateY(0.5px) scale(0.985)` at `--dur-1`, which `prefers-reduced-motion`
+   * can switch off — so the browser's version is a SECOND acknowledgement
+   * layered over the designed one, in a colour from no palette here.
+   *
+   * It is on `body` rather than on the controls: a list of controls is what
+   * `press.css` records getting wrong twice, and the next control added would
+   * not be on it.
+   */
+  -webkit-tap-highlight-color: transparent;
   /* Family, size, line-height, tracking and font-feature settings all live in
      type.css, which loads after this file. They were here AND there; two
      owners for one property is how a ramp drifts.                            */

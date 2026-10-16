@@ -207,6 +207,27 @@ PYTEST_FILES = [
 #: printed failures and exited 0 would be worse than an absent test, because it
 #: would read as a passing one.
 SCRIPT_TESTS = [
+    # MT5: WHICH ACCOUNT, AND A LINK THAT DIED (v63.28). The operator switches
+    # between their broker's demo and live accounts on purpose, and both synced
+    # into one table with nothing to tell them apart — while `/svc/costs`
+    # measures this broker's REAL spread from those rows. And the bridge cached
+    # its connection forever, so switching account left a dead handle: measured
+    # live, `/mt5/account` and `/mt5/deals` both errored while `/mt5/positions`
+    # answered `{"positions": []}` to a risk desk, because `positions_get() or []`
+    # turned a failed call into an empty book.
+    "tests/test_mt5_account_mode.py",
+    "tests/test_deal_account.py",
+    "tests/test_mt5_stale.py",
+    # EVERY SOURCE FILE IS IN VERSION CONTROL (v63.21). `.gitignore` carried a
+    # bare `data/`, and a pattern with no leading slash matches that name AT ANY
+    # DEPTH - so a rule written for the bulk market archive was excluding
+    # `app/src/data/` (53 files: every vendor client, the backend address
+    # resolution, the history and archive clients) and `app/src/ui/data/`.
+    # MEASURED: 58 of 408 source files under `app/src` were untracked and a
+    # clone would not have compiled. Nothing said so, because every other check
+    # in this project reads the WORKING TREE. The archive that rule was written
+    # for lives outside the repository, so it protected nothing at all.
+    "tests/test_tracked_sources.py",
     "tests/test_analyst.py",
     "tests/test_analytics.py",
     "tests/test_claims.py",
